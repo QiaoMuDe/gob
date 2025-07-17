@@ -426,3 +426,28 @@ func getBufferSize(fileSize int64) int {
 		return 1024 * 1024
 	}
 }
+
+// getDefaultInstallPath 返回默认安装路径（多级回退策略）
+// 优先级: GOPATH/bin > 用户主目录/go/bin > 当前工作目录/bin
+//
+// 返回值:
+//   - string: 计算得到的默认安装路径（确保返回非空字符串）
+func getDefaultInstallPath() string {
+	// 1. 优先使用GOPATH/bin
+	if gopath := os.Getenv("GOPATH"); gopath != "" {
+		return filepath.Join(gopath, "bin")
+	}
+
+	// 2. 尝试获取用户主目录/go/bin
+	if homeDir, err := os.UserHomeDir(); err == nil {
+		return filepath.Join(homeDir, "go", "bin")
+	}
+
+	// 3. 使用当前工作目录/bin（保底策略）
+	if currentDir, err := os.Getwd(); err == nil {
+		return filepath.Join(currentDir, "bin")
+	}
+
+	// 所有获取失败时返回相对路径（理论上不会执行到此处）
+	return filepath.Join(".", "bin")
+}

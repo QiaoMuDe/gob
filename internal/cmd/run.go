@@ -106,8 +106,9 @@ func Run() {
 // 返回值:
 //   - error: 错误信息
 func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []string, sysPlatform string, sysArch string) error {
-	// 获取构建命令
-	buildCmds := globls.GoBuildCmd.Cmds
+	// 获取构建命令 - 创建副本避免修改全局模板
+	buildCmds := make([]string, len(globls.GoBuildCmd.Cmds))
+	copy(buildCmds, globls.GoBuildCmd.Cmds)
 
 	// 生成输出路径
 	outputPath := filepath.Join(outputDir, genOutputName(nameFlag.Get(), simpleNameFlag.Get(), v.GitVersion, sysPlatform, sysArch))
@@ -162,11 +163,11 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 
 	// 执行构建命令
 	if result, buildErr := runCmd(buildCmds, envs); buildErr != nil {
-		return fmt.Errorf("执行 %s 失败: \n%s \n%v", globls.GoBuildCmd.Cmds, result, buildErr)
+		return fmt.Errorf("执行 %s 失败: \n%s \n%v", buildCmds, result, buildErr)
 	}
 
 	// 构建成功
-	globls.CL.PrintOkf("build %s %s %s success\n", sysPlatform, sysArch, outputDir)
+	globls.CL.PrintOkf("build %s %s %s OK\n", sysPlatform, sysArch, outputPath)
 
 	// 如果启用了安装选项，则执行安装
 	if installFlag.Get() {
@@ -255,25 +256,8 @@ func buildBatch(v *verman.VerMan, ldflags string, outputDir string) error {
 // 返回值:
 //   - error: 错误信息
 func installExecutable(executablePath string) error {
-	// 确定安装目录
-	installPath := installPathFlag.Get()
-	var binDir string
-
-	if installPath != "" {
-		binDir = installPath
-	} else {
-		// 获取GOPATH环境变量
-		gopath := os.Getenv("GOPATH")
-		if gopath == "" {
-			// 尝试获取用户主目录作为默认GOPATH
-			homeDir, err := os.UserHomeDir()
-			if err != nil {
-				return fmt.Errorf("未设置GOPATH环境变量且无法获取用户主目录: %w", err)
-			}
-			gopath = filepath.Join(homeDir, "go")
-		}
-		binDir = filepath.Join(gopath, "bin")
-	}
+	// 获取安装路径
+	binDir := installPathFlag.Get()
 
 	// 检查可执行文件是否存在
 	if _, err := os.Stat(executablePath); os.IsNotExist(err) {
@@ -291,7 +275,7 @@ func installExecutable(executablePath string) error {
 	// 检查目标文件是否已存在
 	if _, err := os.Stat(targetPath); err == nil {
 		if !forceFlag.Get() {
-			return fmt.Errorf("文件已存在: %s, 使用--force强制覆盖", targetPath)
+			return fmt.Errorf("文件已存在: %s, 使用--%s强制覆盖", targetPath, forceFlag.Name())
 		}
 		// 强制删除现有文件
 		if err := os.Remove(targetPath); err != nil {
@@ -306,7 +290,7 @@ func installExecutable(executablePath string) error {
 	}
 
 	// 打印安装成功信息
-	globls.CL.PrintOkf("已将 %s 安装到 %s\n", executablePath, binDir)
+	globls.CL.PrintOkf("已将 %s -> %s\n", executablePath, targetPath)
 
 	return nil
 }

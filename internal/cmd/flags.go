@@ -47,7 +47,7 @@ func init() {
 	installFlag = qflag.Bool("install", "i", false, "安装编译后的二进制文件")
 	forceFlag = qflag.Bool("force", "f", false, "执行强制操作")
 	currentPlatformOnlyFlag = qflag.Bool("current-platform-only", "cpo", false, "仅编译当前平台")
-	installPathFlag = qflag.Path("install-path", "ip", "", "指定安装路径, 优先于GOPATH环境变量")
+	installPathFlag = qflag.Path("install-path", "ip", getDefaultInstallPath(), "指定安装路径, 优先于GOPATH环境变量")
 
 	// 设置命令行工具的描述
 	qflag.SetDescription("gob 构建工具 - 支持自定义安装路径和跨平台构建的Go项目构建工具")
