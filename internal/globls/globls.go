@@ -12,22 +12,13 @@ type GitMetaData struct {
 	GitTreeState  string // git树状态
 }
 
-// DefaultPlatformMap 默认支持的平台
-var DefaultPlatformMap = map[string]bool{
-	"windows": true,
-	"darwin":  true,
-	"linux":   true,
-}
+// DefaultPlatforms 默认支持的平台
+var DefaultPlatforms = []string{"darwin", "linux", "windows"}
 
-// DefaultArchMap 默认支持的架构
-var DefaultArchMap = map[string]bool{
-	"386":    true,
-	"amd64":  true,
-	"x86_64": true,
-	"x64":    true,
-	"x86":    true,
-	"arm":    true,
-	"arm64":  true,
+// DefaultArchs 默认支持的架构
+var DefaultArchs = []string{
+	"amd64",
+	"arm64",
 }
 
 var (
