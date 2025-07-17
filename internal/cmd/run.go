@@ -191,6 +191,14 @@ func buildBatch(v *verman.VerMan, ldflags string, outputDir string) error {
 				continue
 			}
 
+			// 如果开启了仅构建当前平台，则跳过其他平台
+			if currentPlatformOnlyFlag.Get() {
+				if platform != runtime.GOOS || arch != runtime.GOARCH {
+					globls.CL.PrintInff("跳过非当前平台: %s %s\n", platform, arch)
+					continue
+				}
+			}
+
 			// 设置环境变量
 			envs := os.Environ()
 

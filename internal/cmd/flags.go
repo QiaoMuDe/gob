@@ -24,9 +24,9 @@ var (
 
 	// installFlag             *qflag.BoolFlag // --install, -i 安装编译后的二进制文件
 	// forceFlag               *qflag.BoolFlag // --force, -f 执行强制操作
-	batchFlag *qflag.BoolFlag // --batch, -b 批量编译
-	// currentPlatformOnlyFlag *qflag.BoolFlag // --current-platform-only, -cpo 仅编译当前平台
-	zipFlag *qflag.BoolFlag // --zip, -z 在编译时打包输出文件为 zip 文件
+	batchFlag               *qflag.BoolFlag // --batch, -b 批量编译
+	currentPlatformOnlyFlag *qflag.BoolFlag // --current-platform-only, -cpo 仅编译当前平台
+	zipFlag                 *qflag.BoolFlag // --zip, -z 在编译时打包输出文件为 zip 文件
 )
 
 // init 初始化命令行参数
@@ -47,7 +47,7 @@ func init() {
 
 	// installFlag = qflag.Bool("install", "i", false, "安装编译后的二进制文件")
 	// forceFlag = qflag.Bool("force", "f", false, "执行强制操作")
-	// currentPlatformOnlyFlag = qflag.Bool("current-platform-only", "cpo", false, "仅编译当前平台")
+	currentPlatformOnlyFlag = qflag.Bool("current-platform-only", "cpo", false, "仅编译当前平台")
 
 	// 设置命令行工具的描述
 	qflag.SetDescription("gob 构建工具")
