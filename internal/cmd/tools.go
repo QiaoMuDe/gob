@@ -148,6 +148,19 @@ func checkBaseEnv() error {
 // 返回值：
 //   - error: 错误信息，如果获取成功则返回nil
 func getGitMetaData(v *verman.VerMan) error {
+	// 检查Git是否安装
+	if _, err := runCmd([]string{"git", "--version"}, os.Environ()); err != nil {
+		return fmt.Errorf("未检测到Git, 请先安装Git并确保其在PATH中: %w", err)
+	}
+
+	// 检查当前目录是否为git仓库
+	if result, err := runCmd(globls.GitIsInsideWorkTreeCmd.Cmds, os.Environ()); err != nil {
+		if strings.Contains(string(result), "not a git repository") {
+			return fmt.Errorf("当前目录不是Git仓库, 请先执行`git init`初始化仓库: %w", err)
+		}
+		return fmt.Errorf("检查Git仓库状态失败: %w", err)
+	}
+
 	// 定义命令和对应字段的映射
 	commands := []struct {
 		cmd   globls.CommandGroup

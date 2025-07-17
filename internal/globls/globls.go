@@ -94,3 +94,9 @@ var GoBuildCmd = CommandGroup{
 	"编译GO程序",
 	[]string{"go", "build", "-ldflags", "{{ldflags}}", "-o", "{{output}}"},
 }
+
+// git rev-parse --is-inside-work-tree 用于判断当前目录是否为git仓库
+var GitIsInsideWorkTreeCmd = CommandGroup{
+	"判断当前目录是否为git仓库",
+	[]string{"git", "rev-parse", "--is-inside-work-tree"},
+}

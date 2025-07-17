@@ -95,7 +95,7 @@ func Run() {
 	}
 }
 
-// buildSingle 执行单个平台构建
+// buildSingle 执行单个平台和架构的构建
 //
 // 参数:
 //   - v: verman对象
@@ -111,12 +111,18 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 	// 获取构建命令
 	buildCmds := globls.GoBuildCmd.Cmds
 
-	// 设置参数: 链接器标志
-	buildCmds[3] = ldflags
-
-	// 设置参数: 输出路径
+	// 生成输出路径
 	outputPath := filepath.Join(outputDir, genOutputName(v.AppName, simpleNameFlag.Get(), v.GitVersion, sysPlatform, sysArch))
-	buildCmds[5] = outputPath
+
+	// 动态替换命令中的占位符
+	for i, cmd := range buildCmds {
+		switch cmd {
+		case "{{ldflags}}": // 替换链接器标志
+			buildCmds[i] = ldflags
+		case "{{output}}": // 替换输出路径
+			buildCmds[i] = outputPath
+		}
+	}
 
 	// 在输出目录下检查即将生成的可执行文件是否存在，存在则删除
 	if _, err := os.Stat(outputPath); err == nil {
@@ -243,7 +249,7 @@ func buildBatch(v *verman.VerMan, ldflags string, outputDir string) error {
 	return nil
 }
 
-// installExecutable 将可执行文件安装到GOPATH/bin目录
+// installExecutable 将可执行文件安装到指定路径或GOPATH/bin目录
 //
 // 参数:
 //   - executablePath: 要安装的可执行文件路径
@@ -251,10 +257,24 @@ func buildBatch(v *verman.VerMan, ldflags string, outputDir string) error {
 // 返回值:
 //   - error: 错误信息
 func installExecutable(executablePath string) error {
-	// 获取GOPATH环境变量
-	gopath := os.Getenv("GOPATH")
-	if gopath == "" {
-		return fmt.Errorf("未找到GOPATH环境变量")
+	// 确定安装目录
+	installPath := installPathFlag.Get()
+	var binDir string
+
+	if installPath != "" {
+		binDir = installPath
+	} else {
+		// 获取GOPATH环境变量
+		gopath := os.Getenv("GOPATH")
+		if gopath == "" {
+			// 尝试获取用户主目录作为默认GOPATH
+			homeDir, err := os.UserHomeDir()
+			if err != nil {
+				return fmt.Errorf("未设置GOPATH环境变量且无法获取用户主目录: %w", err)
+			}
+			gopath = filepath.Join(homeDir, "go")
+		}
+		binDir = filepath.Join(gopath, "bin")
 	}
 
 	// 检查可执行文件是否存在
@@ -262,10 +282,9 @@ func installExecutable(executablePath string) error {
 		return fmt.Errorf("可执行文件不存在: %s", executablePath)
 	}
 
-	// 检查GOPATH/bin目录是否存在，不存在则创建
-	binDir := filepath.Join(gopath, "bin")
+	// 检查安装目录是否存在，不存在则创建
 	if err := os.MkdirAll(binDir, 0755); err != nil {
-		return fmt.Errorf("创建bin目录失败: %w", err)
+		return fmt.Errorf("创建安装目录失败: %w", err)
 	}
 
 	// 构建目标路径
