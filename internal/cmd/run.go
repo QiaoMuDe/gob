@@ -36,8 +36,6 @@ func Run() {
 		}
 	}()
 
-	globls.CL.PrintDbg("gob 构建工具")
-
 	// 获取verman对象
 	v := verman.Get()
 
@@ -112,7 +110,7 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 	buildCmds := globls.GoBuildCmd.Cmds
 
 	// 生成输出路径
-	outputPath := filepath.Join(outputDir, genOutputName(v.AppName, simpleNameFlag.Get(), v.GitVersion, sysPlatform, sysArch))
+	outputPath := filepath.Join(outputDir, genOutputName(nameFlag.Get(), simpleNameFlag.Get(), v.GitVersion, sysPlatform, sysArch))
 
 	// 动态替换命令中的占位符
 	for i, cmd := range buildCmds {
