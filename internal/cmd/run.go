@@ -47,6 +47,18 @@ func Run() {
 		os.Exit(1)
 	}
 
+	// 检查批量构建和安装选项是否同时启用
+	if batchFlag.Get() && installFlag.Get() {
+		globls.CL.PrintErr("错误: 不能同时使用批量构建和安装选项")
+		os.Exit(1)
+	}
+
+	// 检查安装和zip选项是否同时启用
+	if installFlag.Get() && zipFlag.Get() {
+		globls.CL.PrintErr("错误: 不能同时使用安装和zip选项")
+		os.Exit(1)
+	}
+
 	// 第二阶段：根据参数获取git信息
 	if gitFlag.Get() {
 		if err := getGitMetaData(v); err != nil {
@@ -152,8 +164,20 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 	// 构建成功
 	globls.CL.PrintOkf("build %s %s %s success\n", sysPlatform, sysArch, outputDir)
 
+	// 如果启用了安装选项，则执行安装
+	if installFlag.Get() {
+		if err := installExecutable(outputPath); err != nil {
+			return fmt.Errorf("安装失败: %w", err)
+		}
+	}
+
 	// 在buildSingle函数中添加zip打包逻辑
 	if zipFlag.Get() {
+		// 检查输出路径是否存在, 不存在则跳过
+		if _, err := os.Stat(outputPath); os.IsNotExist(err) {
+			return fmt.Errorf("编译后的可执行文件不存在: %w", err)
+		}
+
 		// 处理文件名
 		baseName := strings.TrimSuffix(outputPath, filepath.Ext(filepath.Base(outputPath)))
 		zipPath := fmt.Sprint(baseName, ".zip")
@@ -216,5 +240,56 @@ func buildBatch(v *verman.VerMan, ldflags string, outputDir string) error {
 			}
 		}
 	}
+	return nil
+}
+
+// installExecutable 将可执行文件安装到GOPATH/bin目录
+//
+// 参数:
+//   - executablePath: 要安装的可执行文件路径
+//
+// 返回值:
+//   - error: 错误信息
+func installExecutable(executablePath string) error {
+	// 获取GOPATH环境变量
+	gopath := os.Getenv("GOPATH")
+	if gopath == "" {
+		return fmt.Errorf("未找到GOPATH环境变量")
+	}
+
+	// 检查可执行文件是否存在
+	if _, err := os.Stat(executablePath); os.IsNotExist(err) {
+		return fmt.Errorf("可执行文件不存在: %s", executablePath)
+	}
+
+	// 检查GOPATH/bin目录是否存在，不存在则创建
+	binDir := filepath.Join(gopath, "bin")
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		return fmt.Errorf("创建bin目录失败: %w", err)
+	}
+
+	// 构建目标路径
+	targetPath := filepath.Join(binDir, filepath.Base(executablePath))
+
+	// 检查目标文件是否已存在
+	if _, err := os.Stat(targetPath); err == nil {
+		if !forceFlag.Get() {
+			return fmt.Errorf("文件已存在: %s, 使用--force强制覆盖", targetPath)
+		}
+		// 强制删除现有文件
+		if err := os.Remove(targetPath); err != nil {
+			return fmt.Errorf("删除现有文件失败: %w", err)
+		}
+		globls.CL.PrintInff("已删除现有文件: %s\n", targetPath)
+	}
+
+	// 移动文件到目标路径
+	if err := os.Rename(executablePath, targetPath); err != nil {
+		return fmt.Errorf("移动文件失败: %w", err)
+	}
+
+	// 打印安装成功信息
+	globls.CL.PrintOkf("已将 %s 安装到 %s\n", executablePath, binDir)
+
 	return nil
 }

@@ -22,8 +22,9 @@ var (
 	cgoFlag        *qflag.BoolFlag   // --enable-cgo, -ec 启用cgo
 	colorFlag      *qflag.BoolFlag   // --color, -c 启用颜色输出
 
-	// installFlag             *qflag.BoolFlag // --install, -i 安装编译后的二进制文件
-	// forceFlag               *qflag.BoolFlag // --force, -f 执行强制操作
+	installFlag *qflag.BoolFlag // --install, -i 安装编译后的二进制文件
+	forceFlag   *qflag.BoolFlag // --force, -f 执行强制操作
+
 	batchFlag               *qflag.BoolFlag // --batch, -b 批量编译
 	currentPlatformOnlyFlag *qflag.BoolFlag // --current-platform-only, -cpo 仅编译当前平台
 	zipFlag                 *qflag.BoolFlag // --zip, -z 在编译时打包输出文件为 zip 文件
@@ -44,9 +45,8 @@ func init() {
 	colorFlag = qflag.Bool("color", "c", false, "启用颜色输出")
 	batchFlag = qflag.Bool("batch", "b", false, "批量编译")
 	zipFlag = qflag.Bool("zip", "z", false, "在编译时打包输出文件为 zip 文件")
-
-	// installFlag = qflag.Bool("install", "i", false, "安装编译后的二进制文件")
-	// forceFlag = qflag.Bool("force", "f", false, "执行强制操作")
+	installFlag = qflag.Bool("install", "i", false, "安装编译后的二进制文件")
+	forceFlag = qflag.Bool("force", "f", false, "执行强制操作")
 	currentPlatformOnlyFlag = qflag.Bool("current-platform-only", "cpo", false, "仅编译当前平台")
 
 	// 设置命令行工具的描述
