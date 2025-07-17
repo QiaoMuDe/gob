@@ -53,5 +53,53 @@ const (
 	DefaultLDFlags = "-s -w"
 
 	// DefaultGitLDFlags 默认启用的Git元数据链接器标志
-	DefaultGitLDFlags = "-X 'gitee.com/MM-Q/verman.appName={app_name}' -X 'gitee.com/MM-Q/verman.gitVersion={git_version}' -X 'gitee.com/MM-Q/verman.gitCommit={git_commit}' -X 'gitee.com/MM-Q/verman.gitCommitTime={commit_time}' -X 'gitee.com/MM-Q/verman.buildTime={build_time}' -X 'gitee.com/MM-Q/verman.gitTreeState={tree_state}' -s -w"
+	DefaultGitLDFlags = "-X 'gitee.com/MM-Q/verman.appName=%s' -X 'gitee.com/MM-Q/verman.gitVersion=%s' -X 'gitee.com/MM-Q/verman.gitCommit=%s' -X 'gitee.com/MM-Q/verman.gitCommitTime=%s' -X 'gitee.com/MM-Q/verman.buildTime=%s' -X 'gitee.com/MM-Q/verman.gitTreeState=%s' -s -w"
 )
+
+// 定义命令结构体类型
+type CommandGroup struct {
+	Name string
+	Cmds []string
+}
+
+// 定义默认执行检查期间的命令切片
+var DefaultCheckCmds = []CommandGroup{
+	{"go fmt 格式化", []string{"go", "fmt", "./..."}},
+	{"go vet 静态检查", []string{"go", "vet", "./..."}},
+}
+
+// 定义golangci-lint检查命令切片
+var GolangciLintCheckCmds = []CommandGroup{
+	{"golangci-lint 格式化", []string{"golangci-lint", "fmt", "./..."}},
+	{"golangci-lint 静态检查", []string{"golangci-lint", "run", "./..."}},
+}
+
+// 获取git版本号的命令
+var GitVersionCmd = CommandGroup{
+	"获取git版本号",
+	[]string{"git", "describe", "--tags", "--always", "--dirty"},
+}
+
+// 获取git提交哈希值的命令
+var GitCommitHashCmd = CommandGroup{
+	"获取git提交哈希值",
+	[]string{"git", "rev-parse", "--short", "HEAD"},
+}
+
+// 获取git提交时间的命令
+var GitCommitTimeCmd = CommandGroup{
+	"获取git提交时间",
+	[]string{"git", "log", "-1", "--format=%cd", "--date=iso"},
+}
+
+// 获取git树状态的命令
+var GitTreeStatusCmd = CommandGroup{
+	"获取git树状态",
+	[]string{"git", "status", "--porcelain"},
+}
+
+// 编译命令
+var GoBuildCmd = CommandGroup{
+	"编译GO程序",
+	[]string{"go", "build", "-ldflags", "{{ldflags}}", "-o", "{{output}}"},
+}
