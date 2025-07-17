@@ -50,7 +50,7 @@ func init() {
 	installPathFlag = qflag.Path("install-path", "ip", "", "指定安装路径, 优先于GOPATH环境变量")
 
 	// 设置命令行工具的描述
-	qflag.SetDescription("gob 构建工具")
+	qflag.SetDescription("gob 构建工具 - 支持自定义安装路径和跨平台构建的Go项目构建工具")
 
 	// 启用自动补全
 	qflag.SetEnableCompletion(true)
