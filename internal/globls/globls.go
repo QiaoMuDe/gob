@@ -100,3 +100,8 @@ var GitIsInsideWorkTreeCmd = CommandGroup{
 	"判断当前目录是否为git仓库",
 	[]string{"git", "rev-parse", "--is-inside-work-tree"},
 }
+
+const (
+	// 定义gob.toml配置文件名称
+	ConfigFileName = "gob.toml"
+)

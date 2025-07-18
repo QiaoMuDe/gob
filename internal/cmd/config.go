@@ -7,9 +7,9 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-// Config 表示gob构建工具的完整配置结构
+// gobConfig 表示gob构建工具的完整配置结构
 // 对应gob.toml配置文件的结构
-type Config struct {
+type gobConfig struct {
 	Build   BuildConfig       `toml:"build"`
 	Install InstallConfig     `toml:"install"`
 	Env     map[string]string `toml:"env"`
@@ -48,9 +48,9 @@ type InstallConfig struct {
 //
 // 返回:
 //   - 解析后的Config结构体指针和可能的错误
-func loadConfig(filePath string) (*Config, error) {
+func loadConfig(filePath string) (*gobConfig, error) {
 	// 创建默认配置
-	config := &Config{
+	config := &gobConfig{
 		Build: BuildConfig{
 			OutputDir:  globls.DefaultOutputDir,
 			OutputName: globls.DefaultAppName,
