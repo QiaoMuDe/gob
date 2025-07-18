@@ -1,0 +1,59 @@
+# gob 构建工具配置文件
+# 此文件包含所有可用的构建配置选项，与命令行参数对应
+
+[build]
+# --output, -o: 指定输出目录
+output_dir = "dist"
+
+# --name, -n: 指定输出文件名
+output_name = "gob"
+
+# --main, -m: 指定入口文件
+main_file = "main.go"
+
+# --ldflags, -l: 指定链接器标志
+ldflags = "-s -w"
+
+# --use-vendor, -uv: 在编译时使用 vendor 目录
+use_vendor = false
+
+# --git, -g: 在编译时注入 git 信息
+inject_git_info = false
+
+# --simple-name, -sn: 使用简单名称（不包含平台和架构信息）
+simple_name = false
+
+# --proxy, -p: 设置 Go 代理
+proxy = "https://goproxy.cn"
+
+# --enable-cgo, -ec: 启用 CGO
+enable_cgo = false
+
+# --color, -c: 启用颜色输出
+color_output = false
+
+# --batch, -b: 批量编译模式
+batch_mode = false
+
+# --current-platform-only, -cpo: 仅编译当前平台
+current_platform_only = false
+
+# --zip, -z: 将输出文件打包为 zip
+zip_output = false
+
+[install]
+# --install, -i: 安装编译后的二进制文件
+install = false
+
+# --install-path, -ip: 指定安装路径
+install_path = "~/go/bin"
+
+# --force, -f: 强制安装（覆盖已存在文件）
+force = false
+
+# --env, -e: 环境变量配置
+[env]
+# 示例: 
+# GOOS = "linux"
+# GOARCH = "amd64"
+# CGO_ENABLED = "1"

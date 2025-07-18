@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"gitee.com/MM-Q/gob/internal/globls"
 	"gitee.com/MM-Q/qflag"
@@ -28,6 +29,21 @@ var (
 	zipFlag                 *qflag.BoolFlag   // --zip, -z 在编译时打包输出文件为 zip 文件
 	installPathFlag         *qflag.PathFlag   // --install-path, -ip 指定安装路径
 )
+
+// isTestMode 判断当前是否为测试模式
+//
+// 原理：
+//   - 判断可执行文件名是否以 .test.exe 结尾
+func isTestMode() bool {
+	// 获取当前可执行文件的路径
+	exePath, err := os.Executable()
+	if err != nil {
+		return false
+	}
+
+	// 判断可执行文件名是否以 .test.exe 结尾
+	return strings.HasSuffix(exePath, ".test.exe")
+}
 
 // init 初始化命令行参数
 func init() {
@@ -62,9 +78,11 @@ func init() {
 	v := verman.Get()
 	qflag.SetVersion(fmt.Sprintf("%s %s", v.AppName, v.GitVersion))
 
-	// 解析命令行参数
-	if err := qflag.Parse(); err != nil {
-		fmt.Printf("err: %v\n", err)
-		os.Exit(1)
+	// 解析命令行参数 - 仅在非测试模式下执行
+	if !isTestMode() {
+		if err := qflag.Parse(); err != nil {
+			fmt.Printf("err: %v\n", err)
+			os.Exit(1)
+		}
 	}
 }
