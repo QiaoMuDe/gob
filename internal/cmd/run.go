@@ -14,8 +14,39 @@ import (
 
 // Run 运行 gob 构建工具
 func Run() {
+	// 加载配置
+	configPath := filepath.Join("./gob.toml")
+	config, err := loadConfig(configPath)
+	if err != nil {
+		globls.CL.PrintErrf("加载配置文件失败: %v\n", err)
+		os.Exit(1)
+	}
+
+	// 将命令行标志的值设置到配置结构体
+	config.Build.ColorOutput = colorFlag.Get()
+	config.Build.BatchMode = batchFlag.Get()
+	config.Install.Install = installFlag.Get()
+	config.Build.ZipOutput = zipFlag.Get()
+	config.Install.Force = forceFlag.Get()
+	config.Build.CurrentPlatformOnly = currentPlatformOnlyFlag.Get()
+	config.Build.UseVendor = vendorFlag.Get()
+	config.Build.EnableCgo = cgoFlag.Get()
+	config.Build.InjectGitInfo = gitFlag.Get()
+	config.Build.SimpleName = simpleNameFlag.Get()
+	config.Build.OutputDir = outputFlag.Get()
+	config.Build.OutputName = nameFlag.Get()
+	config.Build.MainFile = mainFlag.Get()
+	config.Build.Ldflags = ldflagsFlag.Get()
+	config.Build.Proxy = proxyFlag.Get()
+	config.Install.InstallPath = installPathFlag.Get()
+
+	// 处理环境变量
+	for k, v := range envFlag.Get() {
+		config.Env[k] = v
+	}
+
 	// 默认关闭颜色输出
-	if !colorFlag.Get() {
+	if !config.Build.ColorOutput {
 		globls.CL.SetNoColor(true)
 	}
 
@@ -70,20 +101,20 @@ func Run() {
 	// 第三阶段：设置构建命令参数
 	// 获取链接器标志
 	var ldflags string
-	ldflags = ldflagsFlag.Get()
-	if gitFlag.Get() {
+	ldflags = config.Build.Ldflags
+	if config.Build.InjectGitInfo {
 		// 添加git信息
 		ldflags = fmt.Sprintf(globls.DefaultGitLDFlags, v.AppName, v.GitVersion, v.GitCommit, v.GitCommitTime, v.BuildTime, v.GitTreeState)
 	}
 
 	// 获取输出目录
-	outputDir := outputFlag.Get()
+	outputDir := config.Build.OutputDir
 
 	// 第四阶段：执行构建命令
 	globls.CL.PrintInf("开始构建")
 	if batchFlag.Get() {
 		// 批量构建
-		if err := buildBatch(v, ldflags, outputDir); err != nil {
+		if err := buildBatch(v, config); err != nil {
 			globls.CL.PrintErr(err.Error())
 			os.Exit(1)
 		}
@@ -208,12 +239,11 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 //
 // 参数:
 //   - v: verman对象
-//   - ldflags: 链接器标志
-//   - outputDir: 输出目录
+//   - config: 配置对象
 //
 // 返回值:
 //   - error: 错误信息
-func buildBatch(v *verman.VerMan, ldflags string, outputDir string) error {
+func buildBatch(v *verman.VerMan, config *Config) error {
 	// 遍历平台
 	for _, platform := range globls.DefaultPlatforms {
 		// 遍历架构
@@ -242,7 +272,7 @@ func buildBatch(v *verman.VerMan, ldflags string, outputDir string) error {
 			envs = append(envs, GOOS, GOARCH)
 
 			// 调用单个构建函数
-			if buildErr := buildSingle(v, ldflags, outputDir, envs, platform, arch); buildErr != nil {
+			if buildErr := buildSingle(v, config.Build.Ldflags, config.Build.OutputDir, envs, platform, arch); buildErr != nil {
 				globls.CL.PrintErrf("build %s %s error: %s\n", platform, arch, buildErr)
 				continue
 			}
