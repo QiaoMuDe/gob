@@ -13,15 +13,15 @@ ldflags = "-s -w"
 # --use-vendor, -uv: 在编译时使用 vendor 目录
 use_vendor = false
 # --git, -g: 在编译时注入 git 信息
-inject_git_info = false
+inject_git_info = true
 # --simple-name, -sn: 使用简单名称（不包含平台和架构信息）
-simple_name = false
+simple_name = true
 # --proxy, -p: 设置 Go 代理
 proxy = "https://goproxy.cn,https://goproxy.io,direct"
 # --enable-cgo, -ec: 启用 CGO
 enable_cgo = false
 # --color, -c: 启用颜色输出
-color_output = false
+color_output = true
 # --batch, -b: 批量编译模式
 batch_mode = false
 # --current-platform-only, -cpo: 仅编译当前平台
@@ -31,11 +31,11 @@ zip_output = false
 
 [install]
 # --install, -i: 安装编译后的二进制文件
-install = false
+install = true
 # --install-path, -ip: 指定安装路径
 install_path = "$GOPATH/bin"
 # --force, -f: 强制安装（覆盖已存在文件）
-force = false
+force = true
 
 # --env, -e: 环境变量配置
 [env]

@@ -31,14 +31,6 @@ func Run() {
 		}
 	}()
 
-	// // 加载配置
-	// configPath := filepath.Join("./gob.toml")
-	// config, err := loadConfig(configPath)
-	// if err != nil {
-	// 	globls.CL.PrintErrf("加载配置文件失败: %v\n", err)
-	// 	os.Exit(1)
-	// }
-
 	// 创建配置结构体
 	config := &gobConfig{}
 
@@ -66,6 +58,37 @@ func Run() {
 		// 处理环境变量
 		for k, v := range envFlag.Get() {
 			config.Env[k] = v
+		}
+	} else {
+		// 加载配置
+		var err error
+		config, err = loadConfig(globls.ConfigFileName)
+		if err != nil {
+			globls.CL.PrintErrf("加载构建文件 %s 失败: %v\n", globls.ConfigFileName, err)
+			os.Exit(1)
+		}
+
+		// 如果启用安装, 则检查处理特殊的安装路径
+		if config.Install.Install {
+			// 统一转为小写+标准化路径分隔符+精确匹配
+			lowerPath := strings.ToLower(config.Install.InstallPath)
+
+			// 将Windows反斜杠统一转为正斜杠, 便于统一比较
+			standardizedPath := strings.ReplaceAll(lowerPath, "\\", "/")
+
+			// 移除尾部可能存在的斜杠, 便于统一比较
+			normalizedPath := strings.TrimSuffix(standardizedPath, "/")
+
+			// 精确匹配空字符串或"$gopath/bin"
+			if normalizedPath == "" || normalizedPath == "$gopath/bin" {
+				config.Install.InstallPath = getDefaultInstallPath()
+			}
+
+			// 检查最终的路径是否合法
+			if _, err := os.Stat(config.Install.InstallPath); err != nil {
+				globls.CL.PrintErrf("配置的安装路径 %s 无效: %v\n", config.Install.InstallPath, err)
+				os.Exit(1)
+			}
 		}
 	}
 
