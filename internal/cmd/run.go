@@ -40,29 +40,33 @@ func Run() {
 	v := verman.Get()
 
 	// 第一阶段：执行检查和准备阶段
+	globls.CL.PrintInf("=== 开始构建准备 ===")
 	if err := checkBaseEnv(); err != nil {
-		globls.CL.PrintErr(err.Error())
+		globls.CL.PrintErrf("环境检查失败: %v\n", err)
 		os.Exit(1)
 	}
+	globls.CL.PrintOk("=== 构建准备完成 ===")
 
 	// 检查批量构建和安装选项是否同时启用
 	if batchFlag.Get() && installFlag.Get() {
-		globls.CL.PrintErr("错误: 不能同时使用批量构建和安装选项")
+		globls.CL.PrintErr("不能同时使用批量构建和安装选项")
 		os.Exit(1)
 	}
 
 	// 检查安装和zip选项是否同时启用
 	if installFlag.Get() && zipFlag.Get() {
-		globls.CL.PrintErr("错误: 不能同时使用安装和zip选项")
+		globls.CL.PrintErr("不能同时使用安装和zip选项")
 		os.Exit(1)
 	}
 
 	// 第二阶段：根据参数获取git信息
 	if gitFlag.Get() {
+		globls.CL.PrintInf("=== 获取Git元数据 ===")
 		if err := getGitMetaData(v); err != nil {
-			globls.CL.PrintErr(err.Error())
+			globls.CL.PrintErrf("Git信息获取失败: %v\n", err)
 			os.Exit(1)
 		}
+		globls.CL.PrintOk("=== Git元数据获取完成 ===")
 	}
 
 	// 第三阶段：设置构建命令参数
@@ -77,19 +81,22 @@ func Run() {
 	// 获取输出目录
 	outputDir := outputFlag.Get()
 
-	// 第四阶段：执行构建
+	// 第四阶段：执行构建命令
+	globls.CL.PrintInf("=== 开始构建 ===")
 	if batchFlag.Get() {
 		// 批量构建
 		if err := buildBatch(v, ldflags, outputDir); err != nil {
 			globls.CL.PrintErr(err.Error())
 			os.Exit(1)
 		}
+		globls.CL.PrintOk("=== 批量构建完成 ===")
 	} else {
 		// 单个构建
 		if err := buildSingle(v, ldflags, outputDir, os.Environ(), runtime.GOOS, runtime.GOARCH); err != nil {
 			globls.CL.PrintErr(err.Error())
 			os.Exit(1)
 		}
+		globls.CL.PrintOk("=== 构建完成 ===")
 	}
 }
 
@@ -125,6 +132,7 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 
 	// 在输出目录下检查即将生成的可执行文件是否存在，存在则删除
 	if _, err := os.Stat(outputPath); err == nil {
+		globls.CL.PrintInff("清理历史构建文件: %s\n", outputPath)
 		if err := os.Remove(outputPath); err != nil {
 			return fmt.Errorf("删除历史构建的可执行文件失败: %w", err)
 		}
@@ -163,11 +171,11 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 
 	// 执行构建命令
 	if result, buildErr := runCmd(buildCmds, envs); buildErr != nil {
-		return fmt.Errorf("执行 %s 失败: \n%s \n%v", buildCmds, result, buildErr)
+		return fmt.Errorf("build %s Error: \n%s \n%v", buildCmds, result, buildErr)
 	}
 
 	// 构建成功
-	globls.CL.PrintOkf("build %s %s %s OK\n", sysPlatform, sysArch, outputPath)
+	globls.CL.PrintOkf("build %s %s %s OK\n", sysPlatform, sysArch, filepath.Base(outputPath))
 
 	// 如果启用了安装选项，则执行安装
 	if installFlag.Get() {
@@ -223,7 +231,7 @@ func buildBatch(v *verman.VerMan, ldflags string, outputDir string) error {
 			// 如果开启了仅构建当前平台，则跳过其他平台
 			if currentPlatformOnlyFlag.Get() {
 				if platform != runtime.GOOS || arch != runtime.GOARCH {
-					globls.CL.PrintInff("跳过非当前平台: %s %s\n", platform, arch)
+					globls.CL.PrintInff("跳过非当前平台: %s/%s\n", platform, arch)
 					continue
 				}
 			}
@@ -265,6 +273,7 @@ func installExecutable(executablePath string) error {
 	}
 
 	// 检查安装目录是否存在，不存在则创建
+	globls.CL.PrintInff("准备安装目录: %s\n", binDir)
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		return fmt.Errorf("创建安装目录失败: %w", err)
 	}
@@ -290,7 +299,7 @@ func installExecutable(executablePath string) error {
 	}
 
 	// 打印安装成功信息
-	globls.CL.PrintOkf("已将 %s -> %s\n", executablePath, targetPath)
+	globls.CL.PrintOkf("已安装至: %s\n", targetPath)
 
 	return nil
 }
