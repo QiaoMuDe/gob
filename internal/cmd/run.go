@@ -89,14 +89,14 @@ func Run() {
 			globls.CL.PrintErr(err.Error())
 			os.Exit(1)
 		}
-		globls.CL.PrintOk("=== 批量构建完成 ===")
+		globls.CL.PrintInf("=== 批量构建完成 ===")
 	} else {
 		// 单个构建
 		if err := buildSingle(v, ldflags, outputDir, os.Environ(), runtime.GOOS, runtime.GOARCH); err != nil {
 			globls.CL.PrintErr(err.Error())
 			os.Exit(1)
 		}
-		globls.CL.PrintOk("=== 构建完成 ===")
+		globls.CL.PrintInf("=== 构建完成 ===")
 	}
 }
 
@@ -272,8 +272,10 @@ func installExecutable(executablePath string) error {
 		return fmt.Errorf("可执行文件不存在: %s", executablePath)
 	}
 
+	// 打印安装信息
+	globls.CL.PrintInf("=== 开始安装 ===")
+
 	// 检查安装目录是否存在，不存在则创建
-	globls.CL.PrintInff("准备安装目录: %s\n", binDir)
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		return fmt.Errorf("创建安装目录失败: %w", err)
 	}
