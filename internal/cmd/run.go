@@ -202,11 +202,11 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 
 	// 执行构建命令
 	if result, buildErr := runCmd(buildCmds, envs); buildErr != nil {
-		return fmt.Errorf("build %s Error: \n%s \n%v", buildCmds, result, buildErr)
+		return fmt.Errorf("build %s/%s ✗\nCommand: %s\nError: %v\nOutput: %s", sysPlatform, sysArch, buildCmds, buildErr, result)
 	}
 
 	// 构建成功
-	globls.CL.PrintOkf("build %s %s OK\n", sysPlatform, sysArch)
+	globls.CL.PrintOkf("build %s/%s ✓\n", sysPlatform, sysArch)
 
 	// 如果启用了安装选项，则执行安装
 	if c.Install.Install {
