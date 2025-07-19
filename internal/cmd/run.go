@@ -34,62 +34,32 @@ func Run() {
 	// 创建配置结构体
 	config := &gobConfig{}
 
-	// 检查gob.toml文件是否存在, 如果存在就读取配置,不存在则通过命令行参数获取配置
-	if _, statErr := os.Stat(globls.ConfigFileName); statErr != nil {
-		// 将命令行标志的值设置到配置结构体
-		config.Build.ColorOutput = colorFlag.Get()                       // 是否启用颜色输出
-		config.Build.BatchMode = batchFlag.Get()                         // 是否启用批量构建
-		config.Build.ZipOutput = zipFlag.Get()                           // 是否启用zip打包
-		config.Build.CurrentPlatformOnly = currentPlatformOnlyFlag.Get() // 是否仅编译当前平台
-		config.Build.UseVendor = vendorFlag.Get()                        // 是否启用vendor模式
-		config.Build.EnableCgo = cgoFlag.Get()                           // 是否启用cgo
-		config.Build.InjectGitInfo = gitFlag.Get()                       // 是否启用Git信息注入
-		config.Build.SimpleName = simpleNameFlag.Get()                   // 是否启用简单名称
-		config.Build.OutputDir = outputFlag.Get()                        // 输出目录
-		config.Build.OutputName = nameFlag.Get()                         // 输出文件名
-		config.Build.MainFile = mainFlag.Get()                           // 主入口文件
-		config.Build.Ldflags = ldflagsFlag.Get()                         // 链接器标志
-		config.Build.Proxy = proxyFlag.Get()                             // 代理
-		config.Install.Install = installFlag.Get()                       // 是否启用安装
-		config.Install.InstallPath = installPathFlag.Get()               // 安装路径
-		config.Install.Force = forceFlag.Get()                           // 是否启用强制操作
-		config.Env = envFlag.Get()                                       // 环境变量
+	// 处理--init参数: 生成默认配置文件
+	if initFlag.Get() {
+		// 创建默认配置
+		applyConfigFlags(config)
 
-		// 处理环境变量
-		for k, v := range envFlag.Get() {
-			config.Env[k] = v
-		}
-	} else {
-		// 加载配置
-		var err error
-		config, err = loadConfig(globls.ConfigFileName)
-		if err != nil {
-			globls.CL.PrintErrf("加载构建文件 %s 失败: %v\n", globls.ConfigFileName, err)
+		// 生成默认配置文件
+		if err := generateDefaultConfig(config); err != nil {
+			globls.CL.PrintErrf("%v\n", err)
 			os.Exit(1)
 		}
 
-		// 如果启用安装, 则检查处理特殊的安装路径
-		if config.Install.Install {
-			// 统一转为小写+标准化路径分隔符+精确匹配
-			lowerPath := strings.ToLower(config.Install.InstallPath)
+		globls.CL.PrintOkf("默认gob.toml文件已生成: %s\n", globls.ConfigFileName)
+		os.Exit(0)
+	}
 
-			// 将Windows反斜杠统一转为正斜杠, 便于统一比较
-			standardizedPath := strings.ReplaceAll(lowerPath, "\\", "/")
-
-			// 移除尾部可能存在的斜杠, 便于统一比较
-			normalizedPath := strings.TrimSuffix(standardizedPath, "/")
-
-			// 精确匹配空字符串或"$gopath/bin"
-			if normalizedPath == "" || normalizedPath == "$gopath/bin" {
-				config.Install.InstallPath = getDefaultInstallPath()
-			}
-
-			// 检查最终的路径是否合法
-			if _, err := os.Stat(config.Install.InstallPath); err != nil {
-				globls.CL.PrintErrf("配置的安装路径 %s 无效: %v\n", config.Install.InstallPath, err)
-				os.Exit(1)
-			}
+	// 执行主逻辑
+	// 检查gob.toml文件是否存在, 如果存在就读取配置,不存在则通过命令行参数获取配置
+	if _, statErr := os.Stat(globls.ConfigFileName); statErr == nil {
+		// 如果存在, 则通过loadAndValidateConfig函数读取配置
+		if err := loadAndValidateConfig(config); err != nil {
+			globls.CL.PrintErrf("%v\n", err)
+			os.Exit(1)
 		}
+	} else {
+		// 如果不存在，则将命令行标志的值设置到配置结构体
+		applyConfigFlags(config)
 	}
 
 	// 默认关闭颜色输出
@@ -339,8 +309,8 @@ func installExecutable(executablePath string, c *gobConfig) error {
 
 	// 检查目标文件是否已存在
 	if _, err := os.Stat(targetPath); err == nil {
-		if !forceFlag.Get() {
-			return fmt.Errorf("文件已存在: %s, 使用--%s强制覆盖", targetPath, forceFlag.Name())
+		if !c.Install.Force {
+			return fmt.Errorf("文件已存在: %s, 使用--%s/-%s强制覆盖", targetPath, forceFlag.LongName(), forceFlag.ShortName())
 		}
 		// 强制删除现有文件
 		if err := os.Remove(targetPath); err != nil {
@@ -355,6 +325,47 @@ func installExecutable(executablePath string, c *gobConfig) error {
 
 	// 打印安装成功信息
 	globls.CL.PrintOkf("已安装至: %s\n", targetPath)
+
+	return nil
+}
+
+// loadAndValidateConfig 加载并验证配置文件
+// 参数:
+//
+//	config: 指向配置结构体的指针，用于存储加载的配置
+//
+// 返回值:
+//
+//	error: 如果加载或验证过程中出现错误，则返回错误信息
+func loadAndValidateConfig(config *gobConfig) error {
+	// 加载配置文件
+	loadedConfig, err := loadConfig(globls.ConfigFileName)
+	if err != nil {
+		return fmt.Errorf("加载构建文件 %s 失败: %v", globls.ConfigFileName, err)
+	}
+
+	// 将加载的配置复制到传入的config指针
+	*config = *loadedConfig
+
+	// 如果启用了安装选项，则处理安装路径
+	if config.Install.Install {
+		// 如果安装路径为空或者为 $GOPATH/bin, 则使用默认安装路径
+		if config.Install.InstallPath == "" || strings.EqualFold(config.Install.InstallPath, "$GOPATH/bin") {
+			config.Install.InstallPath = getDefaultInstallPath() // 获取默认安装路径
+		} else {
+			// 处理自定义路径
+			standardizedPath := filepath.ToSlash(config.Install.InstallPath) // 标准化路径
+			normalizedPath := strings.TrimSuffix(standardizedPath, "/")      // 去除末尾的斜杠
+
+			// 检查路径有效性
+			if _, err := os.Stat(normalizedPath); err != nil {
+				return fmt.Errorf("自定义安装路径 %s 无效: %v", normalizedPath, err)
+			}
+
+			// 更新为标准化后的路径
+			config.Install.InstallPath = normalizedPath
+		}
+	}
 
 	return nil
 }

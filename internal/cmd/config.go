@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"gitee.com/MM-Q/gob/internal/globls"
@@ -10,35 +11,36 @@ import (
 // gobConfig 表示gob构建工具的完整配置结构
 // 对应gob.toml配置文件的结构
 type gobConfig struct {
+	//Title   string            `toml:"title" comment:"gob 构建工具配置文件 - 此文件包含所有可用的构建配置选项，与命令行参数对应"` //
 	Build   BuildConfig       `toml:"build"`
 	Install InstallConfig     `toml:"install"`
-	Env     map[string]string `toml:"env"`
+	Env     map[string]string `toml:"env" comment:"--env, -e: 环境变量配置"` // 默认值为空映射
 }
 
 // BuildConfig 表示构建相关的配置项
 // 对应gob.toml中的[build]部分
 type BuildConfig struct {
-	OutputDir           string `toml:"output_dir"`            // 输出目录，对应--output标志
-	OutputName          string `toml:"output_name"`           // 输出文件名，对应--name标志
-	MainFile            string `toml:"main_file"`             // 入口文件路径，对应--main标志
-	Ldflags             string `toml:"ldflags"`               // 链接器标志，对应--ldflags标志
-	UseVendor           bool   `toml:"use_vendor"`            // 是否使用vendor目录，对应--use-vendor标志
-	InjectGitInfo       bool   `toml:"inject_git_info"`       // 是否注入git信息，对应--git标志
-	SimpleName          bool   `toml:"simple_name"`           // 是否使用简单名称，对应--simple-name标志
-	Proxy               string `toml:"proxy"`                 // Go代理地址，对应--proxy标志
-	EnableCgo           bool   `toml:"enable_cgo"`            // 是否启用CGO，对应--enable-cgo标志
-	ColorOutput         bool   `toml:"color_output"`          // 是否启用颜色输出，对应--color标志
-	BatchMode           bool   `toml:"batch_mode"`            // 是否批量编译模式，对应--batch标志
-	CurrentPlatformOnly bool   `toml:"current_platform_only"` // 是否仅编译当前平台，对应--current-platform-only标志
-	ZipOutput           bool   `toml:"zip_output"`            // 是否打包为zip文件，对应--zip标志
+	OutputDir           string `toml:"output_dir" comment:"--output, -o: 指定输出目录"`                              // 默认值为"output"
+	OutputName          string `toml:"output_name" comment:"--name, -n: 指定输出文件名"`                              // 默认值为"gob"
+	MainFile            string `toml:"main_file" comment:"--main, -m: 指定入口文件"`                                 // 默认值为"main.go"
+	Ldflags             string `toml:"ldflags" comment:"--ldflags, -l: 指定链接器标志"`                               // 默认值为"-s -w"
+	UseVendor           bool   `toml:"use_vendor" comment:"--use-vendor, -uv: 在编译时使用vendor目录"`                 // 默认值为false
+	InjectGitInfo       bool   `toml:"inject_git_info" comment:"--git, -g: 在编译时注入git信息"`                       // 默认值为false
+	SimpleName          bool   `toml:"simple_name" comment:"--simple-name, -sn: 使用简单名称（不包含平台和架构信息）"`           // 默认值为false
+	Proxy               string `toml:"proxy" comment:"--proxy, -p: 设置Go代理"`                                    // 默认值为"https://goproxy.cn,https://goproxy.io,direct"
+	EnableCgo           bool   `toml:"enable_cgo" comment:"--enable-cgo, -ec: 启用CGO"`                          // 默认值为false
+	ColorOutput         bool   `toml:"color_output" comment:"--color, -c: 启用颜色输出"`                             // 默认值为false
+	BatchMode           bool   `toml:"batch_mode" comment:"--batch, -b: 批量编译模式"`                               // 默认值为false
+	CurrentPlatformOnly bool   `toml:"current_platform_only" comment:"--current-platform-only, -cpo: 仅编译当前平台"` // 默认值为false
+	ZipOutput           bool   `toml:"zip_output" comment:"--zip, -z: 将输出文件打包为zip"`                            // 默认值为false
 }
 
 // InstallConfig 表示安装相关的配置项
 // 对应gob.toml中的[install]部分
 type InstallConfig struct {
-	Install     bool   `toml:"install"`      // 是否安装二进制文件，对应--install标志
-	InstallPath string `toml:"install_path"` // 安装路径，对应--install-path标志
-	Force       bool   `toml:"force"`        // 是否强制安装，对应--force标志
+	Install     bool   `toml:"install" comment:"--install, -i: 安装编译后的二进制文件"`       // 默认值为false
+	InstallPath string `toml:"install_path" comment:"--install-path, -ip: 指定安装路径"` // 默认值为"$GOPATH/bin"
+	Force       bool   `toml:"force" comment:"--force, -f: 强制安装（覆盖已存在文件）"`         // 默认值为false
 }
 
 // loadConfig 从指定路径加载TOML配置文件并解析为Config结构体
@@ -81,4 +83,83 @@ func loadConfig(filePath string) (*gobConfig, error) {
 	}
 
 	return config, nil
+}
+
+// applyConfigFlags 将命令行标志的值应用到配置结构体
+//
+// 参数值:
+//   - config: 要应用标志的配置结构体指针
+func applyConfigFlags(config *gobConfig) {
+	// 将命令行标志的值设置到配置结构体
+	config.Build.ColorOutput = colorFlag.Get()                       // 是否启用颜色输出
+	config.Build.BatchMode = batchFlag.Get()                         // 是否启用批量构建
+	config.Build.ZipOutput = zipFlag.Get()                           // 是否启用zip打包
+	config.Build.CurrentPlatformOnly = currentPlatformOnlyFlag.Get() // 是否仅编译当前平台
+	config.Build.UseVendor = vendorFlag.Get()                        // 是否启用vendor模式
+	config.Build.EnableCgo = cgoFlag.Get()                           // 是否启用cgo
+	config.Build.InjectGitInfo = gitFlag.Get()                       // 是否启用Git信息注入
+	config.Build.SimpleName = simpleNameFlag.Get()                   // 是否启用简单名称
+	config.Build.OutputDir = outputFlag.Get()                        // 输出目录
+	config.Build.OutputName = nameFlag.Get()                         // 输出文件名
+	config.Build.MainFile = mainFlag.Get()                           // 主入口文件
+	config.Build.Ldflags = ldflagsFlag.Get()                         // 链接器标志
+	config.Build.Proxy = proxyFlag.Get()                             // 代理
+	config.Install.Install = installFlag.Get()                       // 是否启用安装
+	config.Install.InstallPath = installPathFlag.Get()               // 安装路径
+	config.Install.Force = forceFlag.Get()                           // 是否启用强制操作
+	config.Env = envFlag.Get()                                       // 环境变量
+
+	// 处理环境变量
+	for k, v := range envFlag.Get() {
+		config.Env[k] = v
+	}
+}
+
+// generateDefaultConfig 生成默认的gob.toml配置文件
+//
+// 参数值:
+//   - config: 默认配置结构体指针
+func generateDefaultConfig(config *gobConfig) error {
+	// 检查gob.toml文件是否已存在
+	if _, err := os.Stat(globls.ConfigFileName); err == nil {
+		// 如果没启用--force, 则返回错误
+		if !forceFlag.Get() {
+			return fmt.Errorf("配置文件 %s 已存在，使用 --%s/-%s 强制覆盖", globls.ConfigFileName, forceFlag.LongName(), forceFlag.ShortName())
+		}
+	}
+
+	// 设置默认安装路径
+	config.Install.InstallPath = "$GOPATH/bin"
+
+	// 创建文件
+	file, err := os.Create(globls.ConfigFileName)
+	if err != nil {
+		return fmt.Errorf("创建gob.toml失败: %v", err)
+	}
+	defer func() { _ = file.Close() }()
+
+	// 使用toml.Marshal序列化配置
+	data, err := toml.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("序列化gob.toml失败: %v", err)
+	}
+
+	// 写入文件
+	// 先写入配置文件注释
+	comment := []byte(globls.ConfigFileHeaderComment)
+	if _, err := file.Write(comment); err != nil {
+		return fmt.Errorf("写入注释失败: %v", err)
+	}
+
+	// 再写入配置数据
+	if _, err := file.Write(data); err != nil {
+		return fmt.Errorf("写入gob.toml失败: %v", err)
+	}
+
+	// 写入示例的ENV配置
+	if _, err := file.Write([]byte(globls.EnvExample)); err != nil {
+		return fmt.Errorf("写入示例配置失败: %v", err)
+	}
+
+	return nil
 }
