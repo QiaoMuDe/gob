@@ -70,6 +70,9 @@ func init() {
 	// 设置命令行工具的描述
 	qflag.SetDescription("gob 构建工具 - 支持自定义安装路径和跨平台构建的Go项目构建工具")
 
+	// 设置命令行工具的提示
+	qflag.AddNote("默认在当前目录下寻找gob.toml构建文件, 如果不存在, 则使用命令行参数进行构建")
+
 	// 启用自动补全
 	qflag.SetEnableCompletion(true)
 
