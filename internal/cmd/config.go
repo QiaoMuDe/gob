@@ -51,13 +51,13 @@ type InstallConfig struct {
 // 返回:
 //   - 解析后的Config结构体指针和可能的错误
 func loadConfig(filePath string) (*gobConfig, error) {
-	// 如果文件不存在，则返回默认配置结构体和错误
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return nil, err
-	}
-
 	// 创建默认配置结构体
 	config := getDefaultConfig()
+
+	// 如果文件不存在, 则返回默认配置
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return config, nil
+	}
 
 	// 读取文件内容
 	content, err := os.ReadFile(filePath)

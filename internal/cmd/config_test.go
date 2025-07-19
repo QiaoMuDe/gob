@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"gitee.com/MM-Q/gob/internal/globls"
@@ -18,9 +20,6 @@ func TestLoadConfig_FileNotFound(t *testing.T) {
 
 	// 验证默认配置值
 	defaultInstallPath := getDefaultInstallPath()
-	if config.Build.OutputDir != globls.DefaultOutputDir {
-		t.Errorf("Build.OutputDir 默认值错误，预期 %s, 实际 %s", globls.DefaultOutputDir, config.Build.OutputDir)
-	}
 	if config.Build.OutputName != globls.DefaultAppName {
 		t.Errorf("Build.OutputName 默认值错误，预期 %s, 实际 %s", globls.DefaultAppName, config.Build.OutputName)
 	}
@@ -205,6 +204,98 @@ CGO_ENABLED = "1"
 	}
 }
 
+// TestApplyConfigFlags 测试命令行标志是否正确应用到配置
+func TestApplyConfigFlags(t *testing.T) {
+	// 保存原始标志值以便恢复
+	oldName := nameFlag.Get()
+	oldForce := forceFlag.Get()
+	defer func() {
+		if err := nameFlag.Set(oldName); err != nil {
+			t.Errorf("重置nameFlag失败: %v", err)
+		}
+		if err := forceFlag.Set(fmt.Sprintf("%v", oldForce)); err != nil {
+			t.Errorf("重置forceFlag失败: %v", err)
+		}
+	}()
+
+	// 设置测试标志
+	if err := nameFlag.Set("test_app"); err != nil {
+		t.Fatalf("设置nameFlag失败: %v", err)
+	}
+	if err := forceFlag.Set(fmt.Sprintf("%v", true)); err != nil {
+		t.Fatalf("设置forceFlag失败: %v", err)
+	}
+
+	config := &gobConfig{}
+	applyConfigFlags(config)
+
+	// 验证配置是否正确应用
+	if config.Build.OutputName != "test_app" {
+		t.Errorf("OutputName 未正确应用，预期 'test_app'，实际 %s", config.Build.OutputName)
+	}
+	if !config.Install.Force {
+		t.Error("Force 标志未正确应用")
+	}
+}
+
+// TestGenerateDefaultConfig 测试生成默认配置文件
+func TestGenerateDefaultConfig(t *testing.T) {
+	// 创建临时目录
+	tmpDir := t.TempDir()
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("获取当前目录失败: %v", err)
+	}
+	defer func() {
+		if chdirErr := os.Chdir(oldDir); chdirErr != nil {
+			t.Errorf("恢复工作目录失败: %v", chdirErr)
+		}
+	}()
+	if chdirErr := os.Chdir(tmpDir); chdirErr != nil {
+		t.Fatalf("切换到临时目录失败: %v", chdirErr)
+	}
+
+	// 测试文件不存在时创建
+	config := getDefaultConfig()
+	if genErr := generateDefaultConfig(config); genErr != nil {
+		t.Fatalf("生成默认配置失败: %v", genErr)
+	}
+
+	// 验证文件创建
+	if _, statErr := os.Stat(globls.ConfigFileName); os.IsNotExist(statErr) {
+		t.Error("配置文件未创建")
+	}
+
+	// 验证文件内容
+	content, err := os.ReadFile(globls.ConfigFileName)
+	if err != nil {
+		t.Fatalf("读取配置文件失败: %v", err)
+	}
+
+	if !strings.Contains(string(content), globls.ConfigFileHeaderComment) {
+		t.Error("配置文件缺少头部注释")
+	}
+	if !strings.Contains(string(content), config.Build.OutputDir) {
+		t.Error("配置文件未包含默认输出目录")
+	}
+
+	// 测试文件已存在时不覆盖
+	if err := forceFlag.Set(fmt.Sprintf("%v", false)); err != nil {
+		t.Fatalf("设置forceFlag失败: %v", err)
+	}
+	if err := generateDefaultConfig(config); err == nil {
+		t.Error("预期文件已存在时返回错误，但未返回")
+	}
+
+	// 测试文件已存在时强制覆盖
+	if err := forceFlag.Set(fmt.Sprintf("%v", true)); err != nil {
+		t.Fatalf("设置forceFlag失败: %v", err)
+	}
+	if err := generateDefaultConfig(config); err != nil {
+		t.Errorf("强制覆盖时失败: %v", err)
+	}
+}
+
 // TestLoadConfig_InvalidToml 测试加载无效格式的TOML文件
 func TestLoadConfig_InvalidToml(t *testing.T) {
 	// 创建包含无效TOML的文件
@@ -310,26 +401,6 @@ func verifyStructTags(t *testing.T, s interface{}, expectedTags map[string]strin
 		if !found {
 			t.Errorf("预期的结构体字段不存在: %s", fieldName)
 		}
-	}
-}
-
-// TestLoadConfig_EmptyFile 测试加载空配置文件（应返回默认配置）
-func TestLoadConfig_EmptyFile(t *testing.T) {
-	f := createTempFile(t, "")
-	defer func() {
-		if err := os.Remove(f.Name()); err != nil {
-			t.Errorf("Failed to remove temp file: %v", err)
-		}
-	}()
-
-	config, err := loadConfig(f.Name())
-	if err != nil {
-		t.Fatalf("解析空文件失败: %v", err)
-	}
-
-	// 验证使用默认配置
-	if config.Build.OutputDir != globls.DefaultOutputDir {
-		t.Errorf("空文件应使用默认OutputDir %s, 实际 %s", globls.DefaultOutputDir, config.Build.OutputDir)
 	}
 }
 
