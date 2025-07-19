@@ -108,6 +108,6 @@ var GitIsInsideWorkTreeCmd = CommandGroup{
 }
 
 const (
-	// 定义gob.toml配置文件名称
-	ConfigFileName = "gob.toml"
+	// 定义gob.toml配置文件
+	GobBuildFile = "gob.toml"
 )

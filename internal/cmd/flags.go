@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"gitee.com/MM-Q/gob/internal/globls"
@@ -78,6 +79,9 @@ func init() {
 
 	// 启用中文
 	qflag.SetUseChinese(true)
+
+	// 设置用法
+	qflag.SetUsageSyntax(fmt.Sprintf("%s [options] [args]", filepath.Base(os.Args[0])))
 
 	// 设置版本信息
 	v := verman.Get()

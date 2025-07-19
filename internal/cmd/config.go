@@ -55,8 +55,10 @@ func loadConfig(filePath string) (*gobConfig, error) {
 	config := getDefaultConfig()
 
 	// 如果文件不存在, 则返回默认配置
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+	if info, err := os.Stat(filePath); os.IsNotExist(err) {
 		return config, nil
+	} else if info.IsDir() {
+		return nil, fmt.Errorf("file '%s' is a directory", filePath)
 	}
 
 	// 读取文件内容
@@ -150,10 +152,10 @@ func getDefaultConfig() *gobConfig {
 //   - config: 默认配置结构体指针
 func generateDefaultConfig(config *gobConfig) error {
 	// 检查gob.toml文件是否已存在
-	if _, err := os.Stat(globls.ConfigFileName); err == nil {
+	if _, err := os.Stat(globls.GobBuildFile); err == nil {
 		// 如果没启用--force, 则返回错误
 		if !forceFlag.Get() {
-			return fmt.Errorf("配置文件 %s 已存在，使用 --%s/-%s 强制覆盖", globls.ConfigFileName, forceFlag.LongName(), forceFlag.ShortName())
+			return fmt.Errorf("配置文件 %s 已存在，使用 --%s/-%s 强制覆盖", globls.GobBuildFile, forceFlag.LongName(), forceFlag.ShortName())
 		}
 	}
 
@@ -167,7 +169,7 @@ func generateDefaultConfig(config *gobConfig) error {
 	config.Build.MainFile = globls.DefaultMainFile
 
 	// 创建文件
-	file, err := os.Create(globls.ConfigFileName)
+	file, err := os.Create(globls.GobBuildFile)
 	if err != nil {
 		return fmt.Errorf("创建gob.toml失败: %v", err)
 	}

@@ -262,12 +262,12 @@ func TestGenerateDefaultConfig(t *testing.T) {
 	}
 
 	// 验证文件创建
-	if _, statErr := os.Stat(globls.ConfigFileName); os.IsNotExist(statErr) {
+	if _, statErr := os.Stat(globls.GobBuildFile); os.IsNotExist(statErr) {
 		t.Error("配置文件未创建")
 	}
 
 	// 验证文件内容
-	content, err := os.ReadFile(globls.ConfigFileName)
+	content, err := os.ReadFile(globls.GobBuildFile)
 	if err != nil {
 		t.Fatalf("读取配置文件失败: %v", err)
 	}

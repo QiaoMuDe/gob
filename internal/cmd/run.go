@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"gitee.com/MM-Q/gob/internal/globls"
+	"gitee.com/MM-Q/qflag"
 	"gitee.com/MM-Q/verman"
 )
 
@@ -42,29 +43,43 @@ func Run() {
 			os.Exit(1)
 		}
 
-		globls.CL.PrintOkf("默认gob.toml文件已生成: %s\n", globls.ConfigFileName)
+		globls.CL.PrintOkf("默认gob.toml文件已生成: %s\n", globls.GobBuildFile)
 		os.Exit(0)
 	}
+
+	// 获取非标志参数0作为gob.toml的文件路径
+	configFilePath := filepath.Clean(qflag.Arg(0))
 
 	// 创建配置结构体
 	config := &gobConfig{}
 
-	// 执行主逻辑
-	// 检查gob.toml文件是否存在, 如果存在就读取配置,不存在则通过命令行参数获取配置
-	if _, statErr := os.Stat(globls.ConfigFileName); statErr == nil {
+	// 如果命令行参数0为空, 则使用默认配置文件路径
+	if configFilePath == "" || configFilePath == "." {
+		configFilePath = globls.GobBuildFile
+	}
+
+	// 执行主逻辑: 检查gob.toml文件是否存在, 如果存在就读取配置,不存在则通过命令行参数获取配置
+	if _, statErr := os.Stat(configFilePath); statErr == nil {
 		// 如果存在, 则通过loadAndValidateConfig函数读取配置
-		if err := loadAndValidateConfig(config); err != nil {
+		if err := loadAndValidateConfig(config, configFilePath); err != nil {
 			globls.CL.PrintErrf("%v\n", err)
 			os.Exit(1)
 		}
+		// 默认关闭颜色输出
+		if !config.Build.ColorOutput {
+			globls.CL.SetNoColor(true)
+		}
+		// 输出加载模式
+		globls.CL.PrintOkf("BuildFile: %s\n", configFilePath)
 	} else {
 		// 如果不存在，则将命令行标志的值设置到配置结构体
 		applyConfigFlags(config)
-	}
-
-	// 默认关闭颜色输出
-	if !config.Build.ColorOutput {
-		globls.CL.SetNoColor(true)
+		// 默认关闭颜色输出
+		if !config.Build.ColorOutput {
+			globls.CL.SetNoColor(true)
+		}
+		// 输出加载模式
+		globls.CL.PrintOk("CLI args")
 	}
 
 	// 获取verman对象
@@ -332,17 +347,17 @@ func installExecutable(executablePath string, c *gobConfig) error {
 
 // loadAndValidateConfig 加载并验证配置文件
 // 参数:
-//
-//	config: 指向配置结构体的指针，用于存储加载的配置
+// - config: 指向配置结构体的指针，用于存储加载的配置
+// - configFilePath: 配置文件的路径
 //
 // 返回值:
 //
 //	error: 如果加载或验证过程中出现错误，则返回错误信息
-func loadAndValidateConfig(config *gobConfig) error {
+func loadAndValidateConfig(config *gobConfig, configFilePath string) error {
 	// 加载配置文件
-	loadedConfig, err := loadConfig(globls.ConfigFileName)
+	loadedConfig, err := loadConfig(configFilePath)
 	if err != nil {
-		return fmt.Errorf("加载构建文件 %s 失败: %v", globls.ConfigFileName, err)
+		return fmt.Errorf("加载构建文件 %s 失败: %v", configFilePath, err)
 	}
 
 	// 将加载的配置复制到传入的config指针
