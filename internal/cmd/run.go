@@ -158,7 +158,8 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 	// 在输出目录下检查即将生成的可执行文件是否存在，存在则删除
 	if _, err := os.Stat(outputPath); err == nil {
 		if err := os.Remove(outputPath); err != nil {
-			return fmt.Errorf("删除历史构建的可执行文件失败: %w", err)
+			// 仅记录警告并继续，不阻断构建流程
+			globls.CL.PrintWarnf("删除历史构建文件失败，将继续构建: %v\n", err)
 		}
 	}
 

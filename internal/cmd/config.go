@@ -51,25 +51,13 @@ type InstallConfig struct {
 // 返回:
 //   - 解析后的Config结构体指针和可能的错误
 func loadConfig(filePath string) (*gobConfig, error) {
-	// 创建默认配置
-	config := &gobConfig{
-		Build: BuildConfig{
-			OutputDir:  globls.DefaultOutputDir,
-			OutputName: globls.DefaultAppName,
-			MainFile:   globls.DefaultMainFile,
-			Ldflags:    globls.DefaultLDFlags,
-			Proxy:      globls.DefaultGoProxy,
-		},
-		Install: InstallConfig{
-			InstallPath: getDefaultInstallPath(),
-		},
-		Env: make(map[string]string),
+	// 如果文件不存在，则返回默认配置结构体和错误
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return nil, err
 	}
 
-	// 如果文件不存在，返回默认配置
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return config, nil
-	}
+	// 创建默认配置结构体
+	config := getDefaultConfig()
 
 	// 读取文件内容
 	content, err := os.ReadFile(filePath)
@@ -79,7 +67,12 @@ func loadConfig(filePath string) (*gobConfig, error) {
 
 	// 解析TOML内容到配置结构体
 	if err := toml.Unmarshal(content, config); err != nil {
-		return nil, err
+		// 提取TOML解析错误的详细位置信息
+		if decodeErr, ok := err.(*toml.DecodeError); ok {
+			row, col := decodeErr.Position() // 获取行和列信息
+			return nil, fmt.Errorf("TOML解析错误 (行 %d, 列 %d): %v", row, col, decodeErr.Error())
+		}
+		return nil, fmt.Errorf("TOML解析失败: %v", err)
 	}
 
 	return config, nil
