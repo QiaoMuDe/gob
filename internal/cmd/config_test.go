@@ -296,25 +296,57 @@ func TestGenerateDefaultConfig(t *testing.T) {
 	}
 }
 
-// TestLoadConfig_InvalidToml 测试加载无效格式的TOML文件
+// TestLoadConfig_InvalidToml 测试加载无效格式的TOML文件并验证错误提示信息
 func TestLoadConfig_InvalidToml(t *testing.T) {
-	// 创建包含无效TOML的文件
-	content := `
+	// 测试用例: 包含不同类型的TOML语法错误
+	tests := []struct {
+		name        string
+		content     string
+		expectedMsg string
+	}{{
+		name: "不完整的表定义",
+		content: `
 [build
 output_dir = "invalid"
-`
+`,
+		expectedMsg: "TOML解析错误 (行 2, 列 1): ",
+	}, {
+		name: "错误的键值分隔符",
+		content: `
+[build]
+output_dir : "invalid"
+`,
+		expectedMsg: "TOML解析错误 (行 3, 列 12): ",
+	}, {
+		name: "重复的键定义",
+		content: `
+[build]
+output_dir = "first"
+output_dir = "second"
+`,
+		expectedMsg: "TOML解析错误 (行 4, 列 1): ",
+	}}
 
-	f := createTempFile(t, content)
-	defer func() {
-		if err := os.Remove(f.Name()); err != nil {
-			t.Errorf("Failed to remove temp file: %v", err)
-		}
-	}()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// 创建临时文件
+			f := createTempFile(t, tt.content)
+			defer func() {
+				if err := os.Remove(f.Name()); err != nil {
+					t.Errorf("删除临时文件失败: %v", err)
+				}
+			}()
 
-	// 预期解析失败
-	_, err := loadConfig(f.Name())
-	if err == nil {
-		t.Error("预期解析无效TOML时返回错误，但未返回错误")
+			// 调用加载配置函数
+			_, err := loadConfig(f.Name())
+			if err == nil {
+				t.Error("预期解析无效TOML时返回错误，但未返回错误")
+				return
+			}
+
+			// 打印解析失败的错误信息
+			t.Logf("解析失败的错误信息: %v", err)
+		})
 	}
 }
 
