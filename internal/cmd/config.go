@@ -115,6 +115,42 @@ func applyConfigFlags(config *gobConfig) {
 	}
 }
 
+// getDefaultConfig 获取配置的默认值
+//
+// 返回值:
+//   - *gobConfig: 包含所有默认配置值的结构体指针
+func getDefaultConfig() *gobConfig {
+	// 创建配置结构体
+	defaultConfig := &gobConfig{}
+
+	// 将命令行标志的值设置到配置结构体
+	defaultConfig.Build.ColorOutput = colorFlag.GetDefault()                       // 是否启用颜色输出
+	defaultConfig.Build.BatchMode = batchFlag.GetDefault()                         // 是否启用批量构建
+	defaultConfig.Build.ZipOutput = zipFlag.GetDefault()                           // 是否启用zip打包
+	defaultConfig.Build.CurrentPlatformOnly = currentPlatformOnlyFlag.GetDefault() // 是否仅编译当前平台
+	defaultConfig.Build.UseVendor = vendorFlag.GetDefault()                        // 是否启用vendor模式
+	defaultConfig.Build.EnableCgo = cgoFlag.GetDefault()                           // 是否启用cgo
+	defaultConfig.Build.InjectGitInfo = gitFlag.GetDefault()                       // 是否启用Git信息注入
+	defaultConfig.Build.SimpleName = simpleNameFlag.GetDefault()                   // 是否启用简单名称
+	defaultConfig.Build.OutputDir = outputFlag.GetDefault()                        // 输出目录
+	defaultConfig.Build.OutputName = nameFlag.GetDefault()                         // 输出文件名
+	defaultConfig.Build.MainFile = mainFlag.GetDefault()                           // 主入口文件
+	defaultConfig.Build.Ldflags = ldflagsFlag.GetDefault()                         // 链接器标志
+	defaultConfig.Build.Proxy = proxyFlag.GetDefault()                             // 代理
+	defaultConfig.Install.Install = installFlag.GetDefault()                       // 是否启用安装
+	defaultConfig.Install.InstallPath = installPathFlag.GetDefault()               // 安装路径
+	defaultConfig.Install.Force = forceFlag.GetDefault()                           // 是否启用强制操作
+	defaultConfig.Env = envFlag.GetDefault()                                       // 环境变量
+
+	// 处理环境变量
+	for k, v := range envFlag.GetDefault() {
+		defaultConfig.Env[k] = v
+	}
+
+	// 返回配置结构体
+	return defaultConfig
+}
+
 // generateDefaultConfig 生成默认的gob.toml配置文件
 //
 // 参数值:
@@ -130,6 +166,12 @@ func generateDefaultConfig(config *gobConfig) error {
 
 	// 设置默认安装路径
 	config.Install.InstallPath = "$GOPATH/bin"
+
+	// 设置默认的输出路径
+	config.Build.OutputDir = globls.DefaultOutputDir
+
+	// 设置默认的入口文件
+	config.Build.MainFile = globls.DefaultMainFile
 
 	// 创建文件
 	file, err := os.Create(globls.ConfigFileName)

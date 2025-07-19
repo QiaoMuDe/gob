@@ -31,16 +31,13 @@ func Run() {
 		}
 	}()
 
-	// 创建配置结构体
-	config := &gobConfig{}
-
 	// 处理--init参数: 生成默认配置文件
 	if initFlag.Get() {
-		// 创建默认配置
-		applyConfigFlags(config)
+		// 生成默认配置
+		defaultConfig := getDefaultConfig()
 
 		// 生成默认配置文件
-		if err := generateDefaultConfig(config); err != nil {
+		if err := generateDefaultConfig(defaultConfig); err != nil {
 			globls.CL.PrintErrf("%v\n", err)
 			os.Exit(1)
 		}
@@ -48,6 +45,9 @@ func Run() {
 		globls.CL.PrintOkf("默认gob.toml文件已生成: %s\n", globls.ConfigFileName)
 		os.Exit(0)
 	}
+
+	// 创建配置结构体
+	config := &gobConfig{}
 
 	// 执行主逻辑
 	// 检查gob.toml文件是否存在, 如果存在就读取配置,不存在则通过命令行参数获取配置
