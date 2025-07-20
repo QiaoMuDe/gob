@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"gitee.com/MM-Q/gob/internal/globls"
 	"gitee.com/MM-Q/qflag"
@@ -31,6 +32,15 @@ func Run() {
 			fmt.Printf("panic: %v\nstack: %s\n", err, buf)
 			os.Exit(1)
 		}
+	}()
+
+	// 记录构建开始时间
+	startTime := time.Now()
+	defer func() {
+		// 获取构建耗时
+		duration := time.Since(startTime)
+		// 格式化耗时为秒并保留两位小数
+		globls.CL.PrintOkf("本次构建耗时 %.2fs\n", duration.Seconds())
 	}()
 
 	// 处理--init参数: 生成默认配置文件
@@ -87,7 +97,7 @@ func Run() {
 	v := verman.Get()
 
 	// 第一阶段：执行检查和准备阶段
-	globls.CL.PrintInf("开始构建准备")
+	globls.CL.PrintOk("开始构建准备")
 	if err := checkBaseEnv(); err != nil {
 		globls.CL.PrintErrf("环境检查失败: %v\n", err)
 		os.Exit(1)
@@ -107,7 +117,7 @@ func Run() {
 
 	// 第二阶段: 根据参数获取git信息
 	if config.Build.InjectGitInfo {
-		globls.CL.PrintInf("获取Git元数据")
+		globls.CL.PrintOk("获取Git元数据")
 		if err := getGitMetaData(v); err != nil {
 			globls.CL.PrintErrf("Git信息获取失败: %v\n", err)
 			os.Exit(1)
@@ -124,7 +134,7 @@ func Run() {
 	}
 
 	// 第四阶段: 执行构建命令
-	globls.CL.PrintInf("开始构建")
+	globls.CL.PrintOk("开始构建")
 	if config.Build.BatchMode {
 		// 批量构建
 		if err := buildBatch(v, config); err != nil {
@@ -234,17 +244,19 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 
 		// 处理文件名
 		baseName := strings.TrimSuffix(outputPath, ".exe") // 去除.exe后缀
-		zipPath := fmt.Sprint(baseName, ".zip")
+		zipPath := fmt.Sprint(baseName, ".zip")            // 添加.zip后缀
 
 		// 调用CreateZip函数
 		if err := createZip(zipPath, outputPath); err != nil {
-			return fmt.Errorf("zip %s ✗\nError: %w", filepath.Base(zipPath), err)
+			return fmt.Errorf("zip %s/%s ✗\nError: %w", sysPlatform, sysArch, err)
 		}
-		globls.CL.PrintOkf("zip %s ✓\n", filepath.Base(zipPath))
+		globls.CL.PrintOkf("zip %s/%s ✓\n", sysPlatform, sysArch)
 
 		// 删除原始文件
-		if err := os.Remove(outputPath); err != nil {
-			return fmt.Errorf("删除原始文件失败: %w", err)
+		if _, err := os.Stat(outputPath); err == nil {
+			if err := os.Remove(outputPath); err != nil {
+				return fmt.Errorf("删除编译生成的文件 %s 失败: %w", outputPath, err)
+			}
 		}
 	}
 	return nil
@@ -283,7 +295,7 @@ func buildBatch(v *verman.VerMan, config *gobConfig) error {
 			if config.Build.CurrentPlatformOnly {
 				if platform != runtime.GOOS || arch != runtime.GOARCH {
 					printMutex.Lock()
-					globls.CL.PrintInff("跳过非当前平台: %s/%s\n", platform, arch)
+					globls.CL.PrintOkf("跳过非当前平台: %s/%s\n", platform, arch)
 					printMutex.Unlock()
 					continue
 				}
@@ -346,7 +358,7 @@ func installExecutable(executablePath string, c *gobConfig) error {
 	}
 
 	// 打印安装信息
-	globls.CL.PrintInf("开始安装")
+	globls.CL.PrintOk("开始安装")
 
 	// 检查安装目录是否存在，不存在则创建
 	if err := os.MkdirAll(binDir, 0755); err != nil {
