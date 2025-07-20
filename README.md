@@ -32,8 +32,7 @@ git clone https://gitee.com/MM-Q/gob.git
 cd gob
 
 # 构建并安装
-go build -o gob.exe ./main.go
-./gob.exe --install
+python3 build.py -s -ai -f
 ```
 
 ## 使用示例
