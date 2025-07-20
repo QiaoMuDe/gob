@@ -43,7 +43,7 @@ func Run() {
 			os.Exit(1)
 		}
 
-		globls.CL.PrintOkf("默认gob.toml文件已生成: %s\n", globls.GobBuildFile)
+		globls.CL.PrintOkf("已生成默认构建配置: %s\n", globls.GobBuildFile)
 		os.Exit(0)
 	}
 
@@ -119,7 +119,7 @@ func Run() {
 	ldflags = config.Build.Ldflags // 加载默认链接器标志
 	if config.Build.InjectGitInfo {
 		// 如果启用了git信息注入, 则使用Git链接器标志
-		ldflags = fmt.Sprintf(config.Build.GitLdflags, v.AppName, v.GitVersion, v.GitCommit, v.GitCommitTime, v.BuildTime, v.GitTreeState)
+		ldflags = replaceGitPlaceholders(config.Build.GitLdflags, v)
 	}
 
 	// 第四阶段: 执行构建命令
@@ -384,4 +384,33 @@ func loadAndValidateConfig(config *gobConfig, configFilePath string) error {
 	}
 
 	return nil
+}
+
+// replaceGitPlaceholders 将链接器标志中的占位符替换为实际的Git元数据
+//
+// 参数:
+//
+//	ldflags - 包含占位符的链接器标志字符串
+//	v - 包含Git元数据的结构体
+//
+// 返回值:
+//
+//	替换后的链接器标志字符串
+func replaceGitPlaceholders(ldflags string, v *verman.VerMan) string {
+	// 定义占位符映射关系
+	placeholders := map[string]string{
+		"{{AppName}}":       v.AppName,
+		"{{GitVersion}}":    v.GitVersion,
+		"{{GitCommit}}":     v.GitCommit,
+		"{{GitCommitTime}}": v.GitCommitTime,
+		"{{BuildTime}}":     v.BuildTime,
+		"{{GitTreeState}}":  v.GitTreeState,
+	}
+
+	// 替换所有占位符
+	for placeholder, value := range placeholders {
+		ldflags = strings.ReplaceAll(ldflags, placeholder, value)
+	}
+
+	return ldflags
 }

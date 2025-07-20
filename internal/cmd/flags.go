@@ -82,8 +82,9 @@ func init() {
 	// 启用中文
 	qflag.SetUseChinese(true)
 
-	// 设置用法
-	qflag.SetUsageSyntax(fmt.Sprintf("%s [options] [args]", filepath.Base(os.Args[0])))
+	// 设置用法语法
+	qflag.SetUsageSyntax(fmt.Sprintf("%s [options] [build-file]", filepath.Base(os.Args[0])))
+	qflag.AddNote("[build-file] 可选参数, 指定gob配置文件路径, 默认为gob.toml")
 
 	// 设置版本信息
 	v := verman.Get()

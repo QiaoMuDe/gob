@@ -44,7 +44,7 @@ const (
 	DefaultLDFlags = "-s -w"
 
 	// DefaultGitLDFlags 默认启用的Git元数据链接器标志
-	DefaultGitLDFlags = "-X 'gitee.com/MM-Q/verman.appName=%s' -X 'gitee.com/MM-Q/verman.gitVersion=%s' -X 'gitee.com/MM-Q/verman.gitCommit=%s' -X 'gitee.com/MM-Q/verman.gitCommitTime=%s' -X 'gitee.com/MM-Q/verman.buildTime=%s' -X 'gitee.com/MM-Q/verman.gitTreeState=%s' -s -w"
+	DefaultGitLDFlags = "-X 'gitee.com/MM-Q/verman.appName={{AppName}}' -X 'gitee.com/MM-Q/verman.gitVersion={{GitVersion}}' -X 'gitee.com/MM-Q/verman.gitCommit={{GitCommit}}' -X 'gitee.com/MM-Q/verman.gitCommitTime={{GitCommitTime}}' -X 'gitee.com/MM-Q/verman.buildTime={{BuildTime}}' -X 'gitee.com/MM-Q/verman.gitTreeState={{GitTreeState}}' -s -w"
 
 	// ConfigFileHeaderComment 配置文件头注释
 	ConfigFileHeaderComment = "# gob 构建工具配置文件 - 此文件包含所有可用的构建配置选项，与命令行参数对应\n# 项目地址: https://gitee.com/MM-Q/gob.git\n\n"

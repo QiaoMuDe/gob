@@ -109,6 +109,39 @@ gob --zip
 | `--current-platform-only` | `-cpo` | 仅编译当前平台 |
 | `--zip` | `-z` | 打包输出文件为zip文件 |
 | `--install-path` | `-ip` | 指定安装路径，优先于GOPATH环境变量 |
+| `--git-ldflags` | `-gl` | 指定包含Git信息的链接器标志 |
+| `--init` |  | 生成默认的gob.toml配置文件 |
+
+## Git链接器标志占位符
+
+`gob`支持在链接器标志中使用以下命名字符串占位符，用于注入Git元数据和应用信息：
+
+| 占位符 | 描述 |
+|--------|------|
+| `{{AppName}}` | 应用程序名称 |
+| `{{GitVersion}}` | Git版本标签 |
+| `{{GitCommit}}` | Git提交哈希 |
+| `{{GitCommitTime}}` | Git提交时间 |
+| `{{BuildTime}}` | 构建时间 |
+| `{{GitTreeState}}` | Git树状态（clean/dirty） |
+
+### 配置示例
+
+在`gob.toml`中自定义Git链接器标志：
+```toml
+[build]
+git_ldflags = "-X main.version={{GitVersion}} -X main.commit={{GitCommit}}"
+```
+
+在命令行中使用：
+```bash
+gob --git-ldflags "-X main.app={{AppName}} -X main.buildTime={{BuildTime}}"
+```
+
+默认Git链接器标志配置：
+```go
+"-X 'gitee.com/MM-Q/verman.appName={{AppName}}' -X 'gitee.com/MM-Q/verman.gitVersion={{GitVersion}}' -X 'gitee.com/MM-Q/verman.gitCommit={{GitCommit}}' -X 'gitee.com/MM-Q/verman.gitCommitTime={{GitCommitTime}}' -X 'gitee.com/MM-Q/verman.buildTime={{BuildTime}}' -X 'gitee.com/MM-Q/verman.gitTreeState={{GitTreeState}}' -s -w"
+```
 
 ## 许可证
 

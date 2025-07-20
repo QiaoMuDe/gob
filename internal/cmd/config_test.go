@@ -358,6 +358,7 @@ func TestConfigStruct_TagMatching(t *testing.T) {
 		"OutputName":          "output_name",
 		"MainFile":            "main_file",
 		"Ldflags":             "ldflags",
+		"GitLdflags":          "git_ldflags",
 		"UseVendor":           "use_vendor",
 		"InjectGitInfo":       "inject_git_info",
 		"SimpleName":          "simple_name",
