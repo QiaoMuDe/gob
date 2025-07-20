@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"gitee.com/MM-Q/gob/internal/globls"
 	"gitee.com/MM-Q/qflag"
@@ -258,6 +259,17 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 // 返回值:
 //   - error: 错误信息
 func buildBatch(v *verman.VerMan, config *gobConfig) error {
+	var wg sync.WaitGroup                                  // 用于同步goroutine
+	var printMutex sync.Mutex                              // 用于同步打印输出
+	maxConcurrency := runtime.NumCPU()                     // 使用CPU核心数作为默认并发数
+	concurrencyChan := make(chan struct{}, maxConcurrency) // 控制并发数量的信号量
+
+	// 获取根环境变量
+	rootEnvs := os.Environ()
+
+	// 根环境变量长度
+	rootEnvLen := len(rootEnvs)
+
 	// 遍历平台
 	for _, platform := range globls.DefaultPlatforms {
 		// 遍历架构
@@ -270,28 +282,49 @@ func buildBatch(v *verman.VerMan, config *gobConfig) error {
 			// 如果开启了仅构建当前平台，则跳过其他平台
 			if config.Build.CurrentPlatformOnly {
 				if platform != runtime.GOOS || arch != runtime.GOARCH {
+					printMutex.Lock()
 					globls.CL.PrintInff("跳过非当前平台: %s/%s\n", platform, arch)
+					printMutex.Unlock()
 					continue
 				}
 			}
 
-			// 设置环境变量
-			envs := os.Environ()
+			// 增加等待组计数
+			wg.Add(1)
 
-			// 设置平台和架构
-			GOOS := fmt.Sprintf("GOOS=%s", platform)
-			GOARCH := fmt.Sprintf("GOARCH=%s", arch)
+			// 获取并发信号量
+			concurrencyChan <- struct{}{}
 
-			// 添加环境变量
-			envs = append(envs, GOOS, GOARCH)
+			// 启动goroutine执行并行构建
+			go func(p, a string) {
+				defer func() {
+					wg.Done()         // 完成后减少等待组计数
+					<-concurrencyChan // 释放并发信号量
+				}()
 
-			// 调用单个构建函数
-			if buildErr := buildSingle(v, config.Build.Ldflags, config.Build.OutputDir, envs, platform, arch, config); buildErr != nil {
-				globls.CL.PrintErrf("build %s %s error: %s\n", platform, arch, buildErr)
-				continue
-			}
+				// 拷贝根环境变量
+				envs := make([]string, rootEnvLen)
+				copy(envs, rootEnvs)
+
+				// 设置平台和架构
+				GOOS := fmt.Sprintf("GOOS=%s", p)
+				GOARCH := fmt.Sprintf("GOARCH=%s", a)
+
+				// 添加环境变量
+				envs = append(envs, GOOS, GOARCH)
+
+				// 调用单个构建函数
+				if buildErr := buildSingle(v, config.Build.Ldflags, config.Build.OutputDir, envs, p, a, config); buildErr != nil {
+					printMutex.Lock()
+					globls.CL.PrintErr(buildErr)
+					printMutex.Unlock()
+				}
+			}(platform, arch)
 		}
 	}
+
+	// 等待所有goroutine完成
+	wg.Wait()
 	return nil
 }
 
