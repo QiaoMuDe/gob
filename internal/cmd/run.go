@@ -237,9 +237,9 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 
 		// 调用CreateZip函数
 		if err := createZip(zipPath, outputPath); err != nil {
-			return fmt.Errorf("打包文件失败: %w", err)
+			return fmt.Errorf("zip %s ✗\nError: %w", zipPath, err)
 		}
-		globls.CL.PrintOkf("打包完成: %s\n", zipPath)
+		globls.CL.PrintOkf("zip %s ✓\n", zipPath)
 
 		// 删除原始文件
 		if err := os.Remove(outputPath); err != nil {
