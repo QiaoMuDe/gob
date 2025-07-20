@@ -59,8 +59,6 @@ func genOutputName(appName string, useSimpleName bool, version string, sysPlatfo
 		switch sysPlatform {
 		case "windows":
 			return fmt.Sprint(strings.TrimSuffix(appName, ".exe"), ".exe")
-		case "darwin":
-			return fmt.Sprint(strings.TrimSuffix(appName, ".app"), ".app")
 		default:
 			return appName
 		}
@@ -70,8 +68,6 @@ func genOutputName(appName string, useSimpleName bool, version string, sysPlatfo
 	switch sysPlatform {
 	case "windows":
 		return fmt.Sprintf("%s_%s_%s_%s.exe", appName, sysPlatform, sysArch, version)
-	case "darwin":
-		return fmt.Sprintf("%s_%s_%s_%s.app", appName, sysPlatform, sysArch, version)
 	default:
 		return fmt.Sprintf("%s_%s_%s_%s", appName, sysPlatform, sysArch, version)
 	}

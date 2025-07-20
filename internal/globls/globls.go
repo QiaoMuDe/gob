@@ -32,10 +32,10 @@ const (
 	DefaultGoProxy = "https://goproxy.cn,https://goproxy.io,direct"
 
 	// DefaultOutputDir 默认输出目录
-	DefaultOutputDir = "./output"
+	DefaultOutputDir = "output"
 
 	// DefaultMainFile 默认入口文件
-	DefaultMainFile = "./main.go"
+	DefaultMainFile = "main.go"
 
 	// DefaultAppName 默认应用程序名称
 	DefaultAppName = "myapp"

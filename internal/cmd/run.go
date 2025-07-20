@@ -232,14 +232,14 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 		}
 
 		// 处理文件名
-		baseName := strings.TrimSuffix(outputPath, filepath.Ext(filepath.Base(outputPath)))
+		baseName := strings.TrimSuffix(outputPath, ".exe") // 去除.exe后缀
 		zipPath := fmt.Sprint(baseName, ".zip")
 
 		// 调用CreateZip函数
 		if err := createZip(zipPath, outputPath); err != nil {
-			return fmt.Errorf("zip %s ✗\nError: %w", zipPath, err)
+			return fmt.Errorf("zip %s ✗\nError: %w", filepath.Base(zipPath), err)
 		}
-		globls.CL.PrintOkf("zip %s ✓\n", zipPath)
+		globls.CL.PrintOkf("zip %s ✓\n", filepath.Base(zipPath))
 
 		// 删除原始文件
 		if err := os.Remove(outputPath); err != nil {
