@@ -24,6 +24,7 @@ type BuildConfig struct {
 	OutputName          string `toml:"output_name" comment:"--name, -n: 指定输出文件名"`                              // 默认值为"gob"
 	MainFile            string `toml:"main_file" comment:"--main, -m: 指定入口文件"`                                 // 默认值为"main.go"
 	Ldflags             string `toml:"ldflags" comment:"--ldflags, -l: 指定链接器标志"`                               // 默认值为"-s -w"
+	GitLdflags          string `toml:"git_ldflags" comment:"--git-ldflags, -gl: 指定包含Git信息的链接器标志"`              // 默认值为globls.DefaultGitLDFlags
 	UseVendor           bool   `toml:"use_vendor" comment:"--use-vendor, -uv: 在编译时使用vendor目录"`                 // 默认值为false
 	InjectGitInfo       bool   `toml:"inject_git_info" comment:"--git, -g: 在编译时注入git信息"`                       // 默认值为false
 	SimpleName          bool   `toml:"simple_name" comment:"--simple-name, -sn: 使用简单名称（不包含平台和架构信息）"`           // 默认值为false
@@ -98,6 +99,7 @@ func applyConfigFlags(config *gobConfig) {
 	config.Build.OutputName = nameFlag.Get()                         // 输出文件名
 	config.Build.MainFile = mainFlag.Get()                           // 主入口文件
 	config.Build.Ldflags = ldflagsFlag.Get()                         // 链接器标志
+	config.Build.GitLdflags = gitLdflagsFlag.Get()                   // Git链接器标志
 	config.Build.Proxy = proxyFlag.Get()                             // 代理
 	config.Install.Install = installFlag.Get()                       // 是否启用安装
 	config.Install.InstallPath = installPathFlag.Get()               // 安装路径
@@ -131,6 +133,7 @@ func getDefaultConfig() *gobConfig {
 	defaultConfig.Build.OutputName = nameFlag.GetDefault()                         // 输出文件名
 	defaultConfig.Build.MainFile = mainFlag.GetDefault()                           // 主入口文件
 	defaultConfig.Build.Ldflags = ldflagsFlag.GetDefault()                         // 链接器标志
+	defaultConfig.Build.GitLdflags = gitLdflagsFlag.GetDefault()                   // Git链接器标志
 	defaultConfig.Build.Proxy = proxyFlag.GetDefault()                             // 代理
 	defaultConfig.Install.Install = installFlag.GetDefault()                       // 是否启用安装
 	defaultConfig.Install.InstallPath = installPathFlag.GetDefault()               // 安装路径

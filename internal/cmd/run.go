@@ -116,10 +116,10 @@ func Run() {
 	// 第三阶段: 设置构建命令参数
 	// 获取链接器标志
 	var ldflags string
-	ldflags = config.Build.Ldflags
+	ldflags = config.Build.Ldflags // 加载默认链接器标志
 	if config.Build.InjectGitInfo {
-		// 添加git信息
-		ldflags = fmt.Sprintf(globls.DefaultGitLDFlags, v.AppName, v.GitVersion, v.GitCommit, v.GitCommitTime, v.BuildTime, v.GitTreeState)
+		// 如果启用了git信息注入, 则使用Git链接器标志
+		ldflags = fmt.Sprintf(config.Build.GitLdflags, v.AppName, v.GitVersion, v.GitCommit, v.GitCommitTime, v.BuildTime, v.GitTreeState)
 	}
 
 	// 第四阶段: 执行构建命令
