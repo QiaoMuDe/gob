@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -19,17 +20,7 @@ import (
 func Run() {
 	defer func() {
 		if err := recover(); err != nil {
-			// 打印错误信息和堆栈并退出
-			buf := make([]byte, 1024)
-			for {
-				n := runtime.Stack(buf, false)
-				if n < len(buf) {
-					buf = buf[:n]
-					break
-				}
-				buf = make([]byte, 2*len(buf))
-			}
-			fmt.Printf("panic: %v\nstack: %s\n", err, buf)
+			fmt.Printf("panic: %v\nstack: %s\n", err, debug.Stack())
 			os.Exit(1)
 		}
 	}()
@@ -312,6 +303,12 @@ func buildBatch(v *verman.VerMan, config *gobConfig) error {
 				defer func() {
 					wg.Done()         // 完成后减少等待组计数
 					<-concurrencyChan // 释放并发信号量
+				}()
+
+				defer func() {
+					if err := recover(); err != nil {
+						fmt.Printf("panic: %v\nstack: %s\n", err, debug.Stack())
+					}
 				}()
 
 				// 拷贝根环境变量
