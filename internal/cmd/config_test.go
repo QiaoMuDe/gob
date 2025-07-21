@@ -368,6 +368,8 @@ func TestConfigStruct_TagMatching(t *testing.T) {
 		"BatchMode":           "batch_mode",
 		"CurrentPlatformOnly": "current_platform_only",
 		"ZipOutput":           "zip_output",
+		"Platforms":           "platforms",
+		"Architectures":       "architectures",
 	}
 
 	verifyStructTags(t, BuildConfig{}, buildFields)

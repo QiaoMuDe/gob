@@ -472,13 +472,13 @@ func replaceGitPlaceholders(ldflags string, v *verman.VerMan) string {
 //   - error: 错误信息
 func runTests() error {
 	// 清理测试缓存
-	globls.CL.PrintInfo("清理测试缓存")
+	globls.CL.PrintOk("清理测试缓存")
 	if result, err := runCmd(globls.GoCleanTestCacheCmd.Cmds, os.Environ()); err != nil {
 		return fmt.Errorf("%s:\n%s\n%w", globls.GoCleanTestCacheCmd.Name, string(result), err)
 	}
 
 	// 执行go test命令
-	globls.CL.PrintInfo("开始执行单元测试")
+	globls.CL.PrintOk("开始执行单元测试")
 	result, err := runCmd(globls.GoTestCmd.Cmds, os.Environ())
 	if err != nil {
 		return fmt.Errorf("%s:\n%s\n%w", globls.GoTestCmd.Name, string(result), err)
