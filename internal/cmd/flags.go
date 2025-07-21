@@ -31,6 +31,7 @@ var (
 	zipFlag                 *qflag.BoolFlag   // --zip, -z 在编译时打包输出文件为 zip 文件
 	installPathFlag         *qflag.PathFlag   // --install-path, -ip 指定安装路径
 	initFlag                *qflag.BoolFlag   // --init 生成默认配置文件
+	testFlag                *qflag.BoolFlag   // --test 在构建前运行单元测试
 )
 
 // isTestMode 判断当前是否为测试模式
@@ -69,6 +70,7 @@ func init() {
 	currentPlatformOnlyFlag = qflag.Bool("current-platform-only", "cpo", false, "仅编译当前平台")
 	installPathFlag = qflag.Path("install-path", "ip", getDefaultInstallPath(), "指定安装路径, 优先于GOPATH环境变量")
 	initFlag = qflag.Bool("init", "", false, "生成默认的gob.toml配置文件")
+	testFlag = qflag.Bool("test", "t", false, "在构建前运行单元测试")
 
 	// 设置命令行工具的描述
 	qflag.SetDescription("gob 构建工具 - 支持自定义安装路径和跨平台构建的Go项目构建工具")

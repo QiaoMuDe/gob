@@ -104,6 +104,18 @@ var GitIsInsideWorkTreeCmd = CommandGroup{
 	[]string{"git", "rev-parse", "--is-inside-work-tree"},
 }
 
+// 执行清理 go 测试缓存的命令
+var GoCleanTestCacheCmd = CommandGroup{
+	"清理 go 测试缓存",
+	[]string{"go", "clean", "-testcache"},
+}
+
+// 执行 go 测试的命令
+var GoTestCmd = CommandGroup{
+	"执行 go 测试",
+	[]string{"go", "test", "-race", "./..."},
+}
+
 const (
 	// 定义gob.toml配置文件
 	GobBuildFile = "gob.toml"

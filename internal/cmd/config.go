@@ -11,7 +11,6 @@ import (
 // gobConfig 表示gob构建工具的完整配置结构
 // 对应gob.toml配置文件的结构
 type gobConfig struct {
-	//Title   string            `toml:"title" comment:"gob 构建工具配置文件 - 此文件包含所有可用的构建配置选项，与命令行参数对应"` //
 	Build   BuildConfig       `toml:"build"`
 	Install InstallConfig     `toml:"install"`
 	Env     map[string]string `toml:"env" comment:"--env, -e: 环境变量配置"` // 默认值为空映射

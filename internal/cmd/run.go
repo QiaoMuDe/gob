@@ -90,8 +90,17 @@ func Run() {
 	// 第一阶段：执行检查和准备阶段
 	globls.CL.PrintOk("开始构建准备")
 	if err := checkBaseEnv(); err != nil {
-		globls.CL.PrintErrf("环境检查失败: %v\n", err)
+		globls.CL.PrintErrf("%v\n", err)
 		os.Exit(1)
+	}
+
+	// 如果启用了测试选项，则运行单元测试
+	if testFlag.Get() {
+		globls.CL.PrintOk("开始运行单元测试")
+		if err := runTests(); err != nil {
+			globls.CL.PrintErrf("%v\n", err)
+			os.Exit(1)
+		}
 	}
 
 	// 检查批量构建和安装选项是否同时启用
@@ -455,4 +464,24 @@ func replaceGitPlaceholders(ldflags string, v *verman.VerMan) string {
 	}
 
 	return ldflags
+}
+
+// runTests 运行单元测试
+//
+// 返回值:
+//   - error: 错误信息
+func runTests() error {
+	// 清理测试缓存
+	globls.CL.PrintInfo("清理测试缓存")
+	if result, err := runCmd(globls.GoCleanTestCacheCmd.Cmds, os.Environ()); err != nil {
+		return fmt.Errorf("%s:\n%s\n%w", globls.GoCleanTestCacheCmd.Name, string(result), err)
+	}
+
+	// 执行go test命令
+	globls.CL.PrintInfo("开始执行单元测试")
+	result, err := runCmd(globls.GoTestCmd.Cmds, os.Environ())
+	if err != nil {
+		return fmt.Errorf("%s:\n%s\n%w", globls.GoTestCmd.Name, string(result), err)
+	}
+	return nil
 }
