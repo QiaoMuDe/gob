@@ -20,20 +20,22 @@ type gobConfig struct {
 // BuildConfig 表示构建相关的配置项
 // 对应gob.toml中的[build]部分
 type BuildConfig struct {
-	OutputDir           string `toml:"output_dir" comment:"--output, -o: 指定输出目录"`                              // 默认值为"output"
-	OutputName          string `toml:"output_name" comment:"--name, -n: 指定输出文件名"`                              // 默认值为"gob"
-	MainFile            string `toml:"main_file" comment:"--main, -m: 指定入口文件"`                                 // 默认值为"main.go"
-	Ldflags             string `toml:"ldflags" comment:"--ldflags, -l: 指定链接器标志"`                               // 默认值为"-s -w"
-	GitLdflags          string `toml:"git_ldflags" comment:"--git-ldflags, -gl: 指定包含Git信息的链接器标志"`              // 默认值为globls.DefaultGitLDFlags
-	UseVendor           bool   `toml:"use_vendor" comment:"--use-vendor, -uv: 在编译时使用vendor目录"`                 // 默认值为false
-	InjectGitInfo       bool   `toml:"inject_git_info" comment:"--git, -g: 在编译时注入git信息"`                       // 默认值为false
-	SimpleName          bool   `toml:"simple_name" comment:"--simple-name, -sn: 使用简单名称（不包含平台和架构信息）"`           // 默认值为false
-	Proxy               string `toml:"proxy" comment:"--proxy, -p: 设置Go代理"`                                    // 默认值为"https://goproxy.cn,https://goproxy.io,direct"
-	EnableCgo           bool   `toml:"enable_cgo" comment:"--enable-cgo, -ec: 启用CGO"`                          // 默认值为false
-	ColorOutput         bool   `toml:"color_output" comment:"--color, -c: 启用颜色输出"`                             // 默认值为false
-	BatchMode           bool   `toml:"batch_mode" comment:"--batch, -b: 批量编译模式"`                               // 默认值为false
-	CurrentPlatformOnly bool   `toml:"current_platform_only" comment:"--current-platform-only, -cpo: 仅编译当前平台"` // 默认值为false
-	ZipOutput           bool   `toml:"zip_output" comment:"--zip, -z: 将输出文件打包为zip"`                            // 默认值为false
+	OutputDir           string   `toml:"output_dir" comment:"--output, -o: 指定输出目录"`                              // 默认值为"output"
+	OutputName          string   `toml:"output_name" comment:"--name, -n: 指定输出文件名"`                              // 默认值为"gob"
+	MainFile            string   `toml:"main_file" comment:"--main, -m: 指定入口文件"`                                 // 默认值为"main.go"
+	Ldflags             string   `toml:"ldflags" comment:"--ldflags, -l: 指定链接器标志"`                               // 默认值为"-s -w"
+	GitLdflags          string   `toml:"git_ldflags" comment:"--git-ldflags, -gl: 指定包含Git信息的链接器标志"`              // 默认值为globls.DefaultGitLDFlags
+	UseVendor           bool     `toml:"use_vendor" comment:"--use-vendor, -uv: 在编译时使用vendor目录"`                 // 默认值为false
+	InjectGitInfo       bool     `toml:"inject_git_info" comment:"--git, -g: 在编译时注入git信息"`                       // 默认值为false
+	SimpleName          bool     `toml:"simple_name" comment:"--simple-name, -sn: 使用简单名称（不包含平台和架构信息）"`           // 默认值为false
+	Proxy               string   `toml:"proxy" comment:"--proxy, -p: 设置Go代理"`                                    // 默认值为"https://goproxy.cn,https://goproxy.io,direct"
+	EnableCgo           bool     `toml:"enable_cgo" comment:"--enable-cgo, -ec: 启用CGO"`                          // 默认值为false
+	ColorOutput         bool     `toml:"color_output" comment:"--color, -c: 启用颜色输出"`                             // 默认值为false
+	BatchMode           bool     `toml:"batch_mode" comment:"--batch, -b: 批量编译模式"`                               // 默认值为false
+	CurrentPlatformOnly bool     `toml:"current_platform_only" comment:"--current-platform-only, -cpo: 仅编译当前平台"` // 默认值为false
+	ZipOutput           bool     `toml:"zip_output" comment:"--zip, -z: 将输出文件打包为zip"`                            // 默认值为false
+	Platforms           []string `toml:"platforms" comment:"支持的目标平台列表，多个平台用逗号分隔"`                                // 默认值为["darwin", "linux", "windows"]
+	Architectures       []string `toml:"architectures" comment:"支持的目标架构列表，多个架构用逗号分隔"`                            // 默认值为["amd64", "arm64"]
 }
 
 // InstallConfig 表示安装相关的配置项
@@ -105,8 +107,10 @@ func applyConfigFlags(config *gobConfig) {
 	config.Install.InstallPath = installPathFlag.Get()               // 安装路径
 	config.Install.Force = forceFlag.Get()                           // 是否启用强制操作
 	config.Env = envFlag.Get()                                       // 环境变量
+	config.Build.Platforms = globls.DefaultPlatforms                 // 设置默认支持的平台
+	config.Build.Architectures = globls.DefaultArchs                 // 设置默认支持的架构
 
-	// 处理环境变量
+	// 处理添加环境变量
 	for k, v := range envFlag.Get() {
 		config.Env[k] = v
 	}
@@ -139,8 +143,10 @@ func getDefaultConfig() *gobConfig {
 	defaultConfig.Install.InstallPath = installPathFlag.GetDefault()               // 安装路径
 	defaultConfig.Install.Force = forceFlag.GetDefault()                           // 是否启用强制操作
 	defaultConfig.Env = envFlag.GetDefault()                                       // 环境变量
+	defaultConfig.Build.Platforms = globls.DefaultPlatforms                        // 设置默认支持的平台
+	defaultConfig.Build.Architectures = globls.DefaultArchs                        // 设置默认支持的架构
 
-	// 处理环境变量
+	// 处理添加环境变量
 	for k, v := range envFlag.GetDefault() {
 		defaultConfig.Env[k] = v
 	}

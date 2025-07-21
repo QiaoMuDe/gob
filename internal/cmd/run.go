@@ -274,9 +274,9 @@ func buildBatch(v *verman.VerMan, config *gobConfig) error {
 	rootEnvLen := len(rootEnvs)
 
 	// 遍历平台
-	for _, platform := range globls.DefaultPlatforms {
+	for _, platform := range config.Build.Platforms {
 		// 遍历架构
-		for _, arch := range globls.DefaultArchs {
+		for _, arch := range config.Build.Architectures {
 			// 跳过不支持的darwin/386和darwin/arm组合
 			if platform == "darwin" && (arch == "386" || arch == "arm") {
 				continue

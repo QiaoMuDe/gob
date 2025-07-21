@@ -16,10 +16,7 @@ type GitMetaData struct {
 var DefaultPlatforms = []string{"darwin", "linux", "windows"}
 
 // DefaultArchs 默认支持的架构
-var DefaultArchs = []string{
-	"amd64",
-	"arm64",
-}
+var DefaultArchs = []string{"amd64", "arm64"}
 
 var (
 	// CL 颜色实例
