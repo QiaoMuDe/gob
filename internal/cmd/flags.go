@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gitee.com/MM-Q/gob/internal/globls"
 	"gitee.com/MM-Q/qflag"
@@ -12,24 +13,25 @@ import (
 )
 
 var (
-	envFlag                 *qflag.MapFlag    // --env, -e 指定环境变量
-	outputFlag              *qflag.PathFlag   // --output, -o 指定输出目录
-	nameFlag                *qflag.StringFlag // --name, -n 指定输出文件名
-	mainFlag                *qflag.PathFlag   // --main, -m 指定入口文件
-	vendorFlag              *qflag.BoolFlag   // --use-vendor, -uv 在编译时使用 vendor 目录
-	gitFlag                 *qflag.BoolFlag   // --git, -g 在编译时注入 git 信息
-	simpleNameFlag          *qflag.BoolFlag   // --simple-name, -sn 简单名称
-	proxyFlag               *qflag.StringFlag // --proxy, -p 设置代理
-	cgoFlag                 *qflag.BoolFlag   // --enable-cgo, -ec 启用cgo
-	colorFlag               *qflag.BoolFlag   // --color, -c 启用颜色输出
-	installFlag             *qflag.BoolFlag   // --install, -i 安装编译后的二进制文件
-	forceFlag               *qflag.BoolFlag   // --force, -f 执行强制操作
-	batchFlag               *qflag.BoolFlag   // --batch, -b 批量编译
-	currentPlatformOnlyFlag *qflag.BoolFlag   // --current-platform-only, -cpo 仅编译当前平台
-	zipFlag                 *qflag.BoolFlag   // --zip, -z 在编译时打包输出文件为 zip 文件
-	installPathFlag         *qflag.PathFlag   // --install-path, -ip 指定安装路径
-	generateConfigFlag      *qflag.BoolFlag   // --generate-config 生成默认配置文件
-	testFlag                *qflag.BoolFlag   // --test 在构建前运行单元测试
+	envFlag                 *qflag.MapFlag      // --env, -e 指定环境变量
+	outputFlag              *qflag.PathFlag     // --output, -o 指定输出目录
+	nameFlag                *qflag.StringFlag   // --name, -n 指定输出文件名
+	mainFlag                *qflag.PathFlag     // --main, -m 指定入口文件
+	vendorFlag              *qflag.BoolFlag     // --use-vendor, -uv 在编译时使用 vendor 目录
+	gitFlag                 *qflag.BoolFlag     // --git, -g 在编译时注入 git 信息
+	simpleNameFlag          *qflag.BoolFlag     // --simple-name, -sn 简单名称
+	proxyFlag               *qflag.StringFlag   // --proxy, -p 设置代理
+	cgoFlag                 *qflag.BoolFlag     // --enable-cgo, -ec 启用cgo
+	colorFlag               *qflag.BoolFlag     // --color, -c 启用颜色输出
+	installFlag             *qflag.BoolFlag     // --install, -i 安装编译后的二进制文件
+	forceFlag               *qflag.BoolFlag     // --force, -f 执行强制操作
+	batchFlag               *qflag.BoolFlag     // --batch, -b 批量编译
+	currentPlatformOnlyFlag *qflag.BoolFlag     // --current-platform-only, -cpo 仅编译当前平台
+	zipFlag                 *qflag.BoolFlag     // --zip, -z 在编译时打包输出文件为 zip 文件
+	installPathFlag         *qflag.PathFlag     // --install-path, -ip 指定安装路径
+	generateConfigFlag      *qflag.BoolFlag     // --generate-config 生成默认配置文件
+	testFlag                *qflag.BoolFlag     // --test 在构建前运行单元测试
+	timeoutFlag             *qflag.DurationFlag // --timeout 构建超时时间
 )
 
 // isTestMode 判断当前是否为测试模式
@@ -67,6 +69,7 @@ func init() {
 	installPathFlag = qflag.Path("install-path", "ip", getDefaultInstallPath(), "指定安装路径, 优先于GOPATH环境变量")
 	generateConfigFlag = qflag.Bool("generate-config", "gcf", false, "生成默认配置文件")
 	testFlag = qflag.Bool("test", "t", false, "在构建前运行单元测试")
+	timeoutFlag = qflag.Duration("timeout", "", 30*time.Second, "构建超时时间(秒)")
 
 	// 设置命令行工具的描述
 	qflag.SetDescription("gob 构建工具 - 支持自定义安装路径和跨平台构建的Go项目构建工具")

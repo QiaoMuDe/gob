@@ -108,6 +108,8 @@ gob --zip
 | `--zip` | `-z` | 打包输出文件为zip文件 |
 | `--install-path` | `-ip` | 指定安装路径，优先于GOPATH环境变量 |
 | `--generate-config` | `-gcf` | 生成默认配置文件 |
+| `--test` | `-t` | 在构建前运行单元测试 |
+| `--timeout` | 无 | 设置编译超时时间 |
 
 ## 编译命令模板占位符
 

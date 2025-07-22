@@ -2,6 +2,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -44,7 +45,6 @@ func Run() {
 			globls.CL.PrintErrf("%v\n", err)
 			os.Exit(1)
 		}
-
 		globls.CL.PrintOkf("已生成默认配置文件: %s\n", globls.GobBuildFile)
 		os.Exit(0)
 	}
@@ -87,9 +87,13 @@ func Run() {
 	// 获取verman对象
 	v := verman.Get()
 
+	// 根据标志创建全局超时上下文
+	ctx, cancel := context.WithTimeout(context.Background(), config.Build.Timeout)
+	defer cancel()
+
 	// 第一阶段：执行检查和准备阶段
 	globls.CL.PrintOk("开始构建准备")
-	if err := checkBaseEnv(); err != nil {
+	if err := checkBaseEnv(ctx); err != nil {
 		globls.CL.PrintErrf("%v\n", err)
 		os.Exit(1)
 	}
@@ -97,7 +101,7 @@ func Run() {
 	// 如果启用了测试选项，则运行单元测试
 	if testFlag.Get() {
 		globls.CL.PrintOk("开始运行单元测试")
-		if err := runTests(); err != nil {
+		if err := runTests(ctx); err != nil {
 			globls.CL.PrintErrf("%v\n", err)
 			os.Exit(1)
 		}
@@ -118,7 +122,7 @@ func Run() {
 	// 第二阶段: 根据参数获取git信息
 	if config.Build.InjectGitInfo {
 		globls.CL.PrintOk("获取Git元数据")
-		if err := getGitMetaData(v); err != nil {
+		if err := getGitMetaData(ctx, v); err != nil {
 			globls.CL.PrintErrf("Git信息获取失败: %v\n", err)
 			os.Exit(1)
 		}
@@ -143,7 +147,7 @@ func Run() {
 		}
 	} else {
 		// 单个构建
-		if err := buildSingle(v, ldflags, config.Build.OutputDir, os.Environ(), runtime.GOOS, runtime.GOARCH, config); err != nil {
+		if err := buildSingle(ctx, v, ldflags, config.Build.OutputDir, os.Environ(), runtime.GOOS, runtime.GOARCH, config); err != nil {
 			globls.CL.PrintErr(err.Error())
 			os.Exit(1)
 		}
@@ -153,6 +157,7 @@ func Run() {
 // buildSingle 执行单个平台和架构的构建
 //
 // 参数:
+//   - ctx: 上下文对象，用于超时控制
 //   - v: verman对象
 //   - ldflags: 链接器标志
 //   - outputDir: 输出目录
@@ -163,7 +168,7 @@ func Run() {
 //
 // 返回值:
 //   - error: 错误信息
-func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []string, sysPlatform string, sysArch string, c *gobConfig) error {
+func buildSingle(ctx context.Context, v *verman.VerMan, ldflags string, outputDir string, env []string, sysPlatform string, sysArch string, c *gobConfig) error {
 	// 获取构建命令 - 创建副本避免修改全局模板
 	buildCmds := make([]string, len(c.Build.BuildCommand))
 	copy(buildCmds, c.Build.BuildCommand)
@@ -222,7 +227,7 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 	}
 
 	// 执行构建命令
-	if result, buildErr := runCmd(buildCmds, envs); buildErr != nil {
+	if result, buildErr := runCmd(ctx, buildCmds, envs); buildErr != nil {
 		return fmt.Errorf("build %s/%s ✗\nCommand: %s\nError: %v\nOutput: %s", sysPlatform, sysArch, buildCmds, buildErr, result)
 	}
 
@@ -332,11 +337,28 @@ func buildBatch(v *verman.VerMan, config *gobConfig) error {
 				// 添加环境变量
 				envs = append(envs, GOOS, GOARCH)
 
-				// 调用单个构建函数
-				if buildErr := buildSingle(v, config.Build.Ldflags, config.Build.OutputDir, envs, p, a, config); buildErr != nil {
+				// 创建带超时的上下文
+				ctx, cancel := context.WithTimeout(context.Background(), config.Build.Timeout)
+				defer cancel()
+
+				// 使用通道处理构建结果和超时
+				resultChan := make(chan error, 1)
+				go func() {
+					resultChan <- buildSingle(ctx, v, config.Build.Ldflags, config.Build.OutputDir, envs, p, a, config)
+				}()
+
+				select {
+				case buildErr := <-resultChan: // 构建结果
+					if buildErr != nil {
+						printMutex.Lock()
+						globls.CL.PrintErr(buildErr)
+						printMutex.Unlock()
+					}
+				case <-ctx.Done(): // 超时
 					printMutex.Lock()
-					globls.CL.PrintErr(buildErr)
+					globls.CL.PrintErrf("构建 %s/%s 超时 (超过 %v)，如需更长时间，请使用 --timeout 标志指定超时时间\n", p, a, config.Build.Timeout)
 					printMutex.Unlock()
+					return
 				}
 			}(platform, arch)
 		}
@@ -469,18 +491,21 @@ func replaceGitPlaceholders(ldflags string, v *verman.VerMan) string {
 
 // runTests 运行单元测试
 //
+// 参数:
+//   - ctx: 上下文对象，用于超时控制
+//
 // 返回值:
 //   - error: 错误信息
-func runTests() error {
+func runTests(ctx context.Context) error {
 	// 清理测试缓存
 	globls.CL.PrintOk("清理测试缓存")
-	if result, err := runCmd(globls.GoCleanTestCacheCmd.Cmds, os.Environ()); err != nil {
+	if result, err := runCmd(ctx, globls.GoCleanTestCacheCmd.Cmds, os.Environ()); err != nil {
 		return fmt.Errorf("%s:\n%s\n%w", globls.GoCleanTestCacheCmd.Name, string(result), err)
 	}
 
 	// 执行go test命令
 	globls.CL.PrintOk("开始执行单元测试")
-	result, err := runCmd(globls.GoTestCmd.Cmds, os.Environ())
+	result, err := runCmd(ctx, globls.GoTestCmd.Cmds, os.Environ())
 	if err != nil {
 		return fmt.Errorf("%s:\n%s\n%w", globls.GoTestCmd.Name, string(result), err)
 	}
