@@ -16,9 +16,7 @@ var (
 	outputFlag              *qflag.PathFlag   // --output, -o 指定输出目录
 	nameFlag                *qflag.StringFlag // --name, -n 指定输出文件名
 	mainFlag                *qflag.PathFlag   // --main, -m 指定入口文件
-	ldflagsFlag             *qflag.StringFlag // --ldflags, -l 指定链接器标志
 	vendorFlag              *qflag.BoolFlag   // --use-vendor, -uv 在编译时使用 vendor 目录
-	gitLdflagsFlag          *qflag.StringFlag // --git-ldflags, -gl 指定包含Git信息的链接器标志
 	gitFlag                 *qflag.BoolFlag   // --git, -g 在编译时注入 git 信息
 	simpleNameFlag          *qflag.BoolFlag   // --simple-name, -sn 简单名称
 	proxyFlag               *qflag.StringFlag // --proxy, -p 设置代理
@@ -55,8 +53,6 @@ func init() {
 	outputFlag = qflag.Path("output", "o", globls.DefaultOutputDir, "指定输出目录")
 	nameFlag = qflag.String("name", "n", globls.DefaultAppName, "指定输出文件名")
 	mainFlag = qflag.Path("main", "m", globls.DefaultMainFile, "指定main文件")
-	ldflagsFlag = qflag.String("ldflags", "l", globls.DefaultLDFlags, "指定链接器标志")
-	gitLdflagsFlag = qflag.String("git-ldflags", "gl", globls.DefaultGitLDFlags, "指定包含Git信息的链接器标志")
 	vendorFlag = qflag.Bool("use-vendor", "uv", false, "在编译时使用 vendor 目录")
 	gitFlag = qflag.Bool("git", "g", false, "在编译时注入 git 信息")
 	simpleNameFlag = qflag.Bool("simple-name", "sn", false, "简单名称")

@@ -165,8 +165,8 @@ func Run() {
 //   - error: 错误信息
 func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []string, sysPlatform string, sysArch string, c *gobConfig) error {
 	// 获取构建命令 - 创建副本避免修改全局模板
-	buildCmds := make([]string, len(globls.GoBuildCmd.Cmds))
-	copy(buildCmds, globls.GoBuildCmd.Cmds)
+	buildCmds := make([]string, len(c.Build.BuildCommand))
+	copy(buildCmds, c.Build.BuildCommand)
 
 	// 生成输出路径
 	outputPath := filepath.Join(outputDir, genOutputName(c.Build.OutputName, c.Build.SimpleName, v.GitVersion, sysPlatform, sysArch))
@@ -178,24 +178,25 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 			buildCmds[i] = ldflags
 		case "{{output}}": // 替换输出路径
 			buildCmds[i] = outputPath
+		case "{{if UseVendor}}-mod=vendor{{end}}": // 条件添加vendor标志
+			if c.Build.UseVendor {
+				buildCmds[i] = "-mod=vendor" // 添加vendor标志
+			} else {
+				buildCmds[i] = "-mod=readonly" // 添加readonly标志
+			}
+		case "{{mainFile}}": // 替换入口文件
+			buildCmds[i] = c.Build.MainFile
 		}
 	}
 
 	// 在输出目录下检查即将生成的可执行文件是否存在，存在则删除
 	if _, err := os.Stat(outputPath); err == nil {
 		if err := os.Remove(outputPath); err != nil {
-			// 仅记录警告并继续，不阻断构建流程
-			globls.CL.PrintWarnf("删除历史构建文件失败，将继续构建: %v\n", err)
+			// 退出并打印提示让用户手动删除
+			globls.CL.PrintErrf("删除 %s 失败: %v\n请手动删除该文件后重试\n", outputPath, err)
+			os.Exit(1)
 		}
 	}
-
-	// 如果指定了vendor, 则添加-vendor标志
-	if c.Build.UseVendor {
-		buildCmds = append(buildCmds, "-mod=vendor")
-	}
-
-	// 添加入口文件
-	buildCmds = append(buildCmds, c.Build.MainFile)
 
 	// 获取环境变量
 	envs := env

@@ -95,7 +95,6 @@ gob --zip
 | `--output` | `-o` | 指定输出目录 |
 | `--name` | `-n` | 指定输出文件名 |
 | `--main` | `-m` | 指定入口文件 |
-| `--ldflags` | `-l` | 指定链接器标志 |
 | `--use-vendor` | `-uv` | 在编译时使用vendor目录 |
 | `--git` | `-g` | 在编译时注入git信息 |
 | `--simple-name` | `-sn` | 使用简单名称 |
@@ -108,8 +107,28 @@ gob --zip
 | `--current-platform-only` | `-cpo` | 仅编译当前平台 |
 | `--zip` | `-z` | 打包输出文件为zip文件 |
 | `--install-path` | `-ip` | 指定安装路径，优先于GOPATH环境变量 |
-| `--git-ldflags` | `-gl` | 指定包含Git信息的链接器标志 |
 | `--generate-config` | `-gcf` | 生成默认配置文件 |
+
+## 编译命令模板占位符
+
+`gob`支持在编译命令模板中使用以下占位符，用于动态生成go build命令：
+
+| 占位符 | 描述 |
+|--------|------|
+| `{{ldflags}}` | 链接器标志，对应--ldflags选项 |
+| `{{output}}` | 输出路径，对应--output选项 |
+| `{{if UseVendor}}-mod=vendor{{end}}` | 条件包含-vendor标志，基于use_vendor配置 |
+| `{{mainFile}}` | 入口文件路径，对应--main选项 |
+
+### 配置示例
+
+在`gob.toml`中自定义构建命令模板：
+```toml
+[build]
+build_command = ["go", "build", "-trimpath", "-ldflags", "{{ldflags}}", "-o", "{{output}}", "{{if UseVendor}}-mod=vendor{{end}}", "{{mainFile}}"]
+```
+
+此示例展示了完整的构建命令模板配置，包含所有可用占位符。你可以根据项目需求调整命令参数和占位符组合。
 
 ## Git链接器标志占位符
 
@@ -130,11 +149,6 @@ gob --zip
 ```toml
 [build]
 git_ldflags = "-X main.version={{GitVersion}} -X main.commit={{GitCommit}}"
-```
-
-在命令行中使用：
-```bash
-gob --git-ldflags "-X main.app={{AppName}} -X main.buildTime={{BuildTime}}"
 ```
 
 默认Git链接器标志配置：

@@ -92,10 +92,10 @@ var GitTreeStatusCmd = CommandGroup{
 	[]string{"git", "status", "--porcelain"},
 }
 
-// 编译命令
+// 编译命令 - 包含条件编译选项和入口文件
 var GoBuildCmd = CommandGroup{
 	"编译GO程序",
-	[]string{"go", "build", "-ldflags", "{{ldflags}}", "-o", "{{output}}"},
+	[]string{"go", "build", "-trimpath", "-ldflags", "{{ldflags}}", "-o", "{{output}}", "{{if UseVendor}}-mod=vendor{{end}}", "{{mainFile}}"},
 }
 
 // git rev-parse --is-inside-work-tree 用于判断当前目录是否为git仓库

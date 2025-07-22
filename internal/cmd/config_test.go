@@ -370,6 +370,7 @@ func TestConfigStruct_TagMatching(t *testing.T) {
 		"ZipOutput":           "zip_output",
 		"Platforms":           "platforms",
 		"Architectures":       "architectures",
+		"BuildCommand":        "build_command",
 	}
 
 	verifyStructTags(t, BuildConfig{}, buildFields)
