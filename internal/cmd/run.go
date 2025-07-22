@@ -34,8 +34,8 @@ func Run() {
 		globls.CL.PrintOkf("本次构建耗时 %.2fs\n", duration.Seconds())
 	}()
 
-	// 处理--init参数: 生成默认配置文件
-	if initFlag.Get() {
+	// 处理--generate-config参数: 生成默认配置文件
+	if generateConfigFlag.Get() {
 		// 生成默认配置
 		defaultConfig := getDefaultConfig()
 
@@ -45,7 +45,7 @@ func Run() {
 			os.Exit(1)
 		}
 
-		globls.CL.PrintOkf("已生成默认构建配置: %s\n", globls.GobBuildFile)
+		globls.CL.PrintOkf("已生成默认配置文件: %s\n", globls.GobBuildFile)
 		os.Exit(0)
 	}
 

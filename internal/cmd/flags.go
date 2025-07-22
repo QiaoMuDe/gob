@@ -30,7 +30,7 @@ var (
 	currentPlatformOnlyFlag *qflag.BoolFlag   // --current-platform-only, -cpo 仅编译当前平台
 	zipFlag                 *qflag.BoolFlag   // --zip, -z 在编译时打包输出文件为 zip 文件
 	installPathFlag         *qflag.PathFlag   // --install-path, -ip 指定安装路径
-	initFlag                *qflag.BoolFlag   // --init 生成默认配置文件
+	generateConfigFlag      *qflag.BoolFlag   // --generate-config 生成默认配置文件
 	testFlag                *qflag.BoolFlag   // --test 在构建前运行单元测试
 )
 
@@ -69,7 +69,7 @@ func init() {
 	forceFlag = qflag.Bool("force", "f", false, "执行强制操作")
 	currentPlatformOnlyFlag = qflag.Bool("current-platform-only", "cpo", false, "仅编译当前平台")
 	installPathFlag = qflag.Path("install-path", "ip", getDefaultInstallPath(), "指定安装路径, 优先于GOPATH环境变量")
-	initFlag = qflag.Bool("init", "", false, "生成默认的gob.toml配置文件")
+	generateConfigFlag = qflag.Bool("generate-config", "gcf", false, "生成默认配置文件")
 	testFlag = qflag.Bool("test", "t", false, "在构建前运行单元测试")
 
 	// 设置命令行工具的描述

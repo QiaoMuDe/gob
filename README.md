@@ -109,7 +109,7 @@ gob --zip
 | `--zip` | `-z` | 打包输出文件为zip文件 |
 | `--install-path` | `-ip` | 指定安装路径，优先于GOPATH环境变量 |
 | `--git-ldflags` | `-gl` | 指定包含Git信息的链接器标志 |
-| `--init` |  | 生成默认的gob.toml配置文件 |
+| `--generate-config` | `-gcf` | 生成默认配置文件 |
 
 ## Git链接器标志占位符
 

@@ -76,7 +76,7 @@ func loadConfig(filePath string) (*gobConfig, error) {
 			row, col := decodeErr.Position() // 获取行和列信息
 			return nil, fmt.Errorf("TOML解析错误 (行 %d, 列 %d): %v", row, col, decodeErr.Error())
 		}
-		return nil, fmt.Errorf("TOML解析失败: %v", err)
+		return nil, fmt.Errorf("加载配置文件 %s 失败: %w", filePath, err)
 	}
 
 	return config, nil
