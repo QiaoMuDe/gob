@@ -372,6 +372,7 @@ func TestConfigStruct_TagMatching(t *testing.T) {
 		"Architectures":       "architectures",
 		"BuildCommand":        "build_command",
 		"Timeout":             "timeout",
+		"TimeoutDuration":     "-",
 	}
 
 	verifyStructTags(t, BuildConfig{}, buildFields)
