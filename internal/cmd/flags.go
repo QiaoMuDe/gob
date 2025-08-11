@@ -14,9 +14,9 @@ import (
 
 var (
 	envFlag                 *qflag.MapFlag      // --env, -e 指定环境变量
-	outputFlag              *qflag.PathFlag     // --output, -o 指定输出目录
+	outputFlag              *qflag.StringFlag   // --output, -o 指定输出目录
 	nameFlag                *qflag.StringFlag   // --name, -n 指定输出文件名
-	mainFlag                *qflag.PathFlag     // --main, -m 指定入口文件
+	mainFlag                *qflag.StringFlag   // --main, -m 指定入口文件
 	vendorFlag              *qflag.BoolFlag     // --use-vendor, -uv 在编译时使用 vendor 目录
 	gitFlag                 *qflag.BoolFlag     // --git, -g 在编译时注入 git 信息
 	simpleNameFlag          *qflag.BoolFlag     // --simple-name, -sn 简单名称
@@ -28,7 +28,7 @@ var (
 	batchFlag               *qflag.BoolFlag     // --batch, -b 批量编译
 	currentPlatformOnlyFlag *qflag.BoolFlag     // --current-platform-only, -cpo 仅编译当前平台
 	zipFlag                 *qflag.BoolFlag     // --zip, -z 在编译时打包输出文件为 zip 文件
-	installPathFlag         *qflag.PathFlag     // --install-path, -ip 指定安装路径
+	installPathFlag         *qflag.StringFlag   // --install-path, -ip 指定安装路径
 	generateConfigFlag      *qflag.BoolFlag     // --generate-config 生成默认配置文件
 	testFlag                *qflag.BoolFlag     // --test 在构建前运行单元测试
 	timeoutFlag             *qflag.DurationFlag // --timeout 构建超时时间
@@ -52,9 +52,9 @@ func isTestMode() bool {
 // init 初始化命令行参数
 func init() {
 	envFlag = qflag.Map("env", "e", map[string]string{}, "指定环境变量,格式为: key=value")
-	outputFlag = qflag.Path("output", "o", globls.DefaultOutputDir, "指定输出目录")
+	outputFlag = qflag.String("output", "o", globls.DefaultOutputDir, "指定输出目录")
 	nameFlag = qflag.String("name", "n", globls.DefaultAppName, "指定输出文件名")
-	mainFlag = qflag.Path("main", "m", globls.DefaultMainFile, "指定main文件")
+	mainFlag = qflag.String("main", "m", globls.DefaultMainFile, "指定main文件")
 	vendorFlag = qflag.Bool("use-vendor", "uv", false, "在编译时使用 vendor 目录")
 	gitFlag = qflag.Bool("git", "g", false, "在编译时注入 git 信息")
 	simpleNameFlag = qflag.Bool("simple-name", "sn", false, "简单名称")
@@ -66,7 +66,7 @@ func init() {
 	installFlag = qflag.Bool("install", "i", false, "安装编译后的二进制文件")
 	forceFlag = qflag.Bool("force", "f", false, "执行强制操作")
 	currentPlatformOnlyFlag = qflag.Bool("current-platform-only", "cpo", false, "仅编译当前平台")
-	installPathFlag = qflag.Path("install-path", "ip", getDefaultInstallPath(), "指定安装路径, 优先于GOPATH环境变量")
+	installPathFlag = qflag.String("install-path", "ip", getDefaultInstallPath(), "指定安装路径, 优先于GOPATH环境变量")
 	generateConfigFlag = qflag.Bool("generate-config", "gcf", false, "生成默认配置文件")
 	testFlag = qflag.Bool("test", "t", false, "在构建前运行单元测试")
 	timeoutFlag = qflag.Duration("timeout", "", 30*time.Second, "构建超时时间(秒)")

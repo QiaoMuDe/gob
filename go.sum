@@ -1,7 +1,7 @@
 gitee.com/MM-Q/colorlib v1.2.4 h1:jZkAFmPNqg7kUHXj1/pPbD1PRbKRBQPRHL8ArenYwf8=
 gitee.com/MM-Q/colorlib v1.2.4/go.mod h1:k7AxDD3mOIFVdGRqLqz3jYOGRC2vV7QVjnZWpt/J3Ds=
-gitee.com/MM-Q/qflag v0.1.42 h1:KBsc1Zj9qi3H7x8t1pHZGzMYVTxohMHZwrgGUji6e0o=
-gitee.com/MM-Q/qflag v0.1.42/go.mod h1:zdfgSAenBfAqzq6q7hugWctDaQbvEl9WEWwv32G5444=
+gitee.com/MM-Q/qflag v0.2.3 h1:lST1Z6IWz+mpGQDYTlUFQ3xbljPO3kHJA3BWSlIx/Pg=
+gitee.com/MM-Q/qflag v0.2.3/go.mod h1:L0vRjPlzqNJKMvcI7mlRM+nPyYaJQIKJRMVBE87BaRs=
 gitee.com/MM-Q/verman v0.0.16 h1:95+AT2DS4I3QuW3Qh1amV0k3rJrlsgAWnUk3EQGfjRE=
 gitee.com/MM-Q/verman v0.0.16/go.mod h1:sJaGRO3zat1r9e6qu8mcwlJDI5IvFBFBG5NqgCwa6m0=
 github.com/pelletier/go-toml/v2 v2.2.4 h1:mye9XuhQ6gvn5h28+VilKrrPoQVanw5PMw/TB0t5Ec4=
