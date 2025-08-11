@@ -170,10 +170,11 @@ func checkBaseEnv(timeout time.Duration) error {
 // 参数：
 //   - timeout: 每个命令的超时时间
 //   - v: verman.VerMan 结构体指针，用于存储获取到的git元数据
+//   - c: gobConfig 结构体指针，用于获取配置信息
 //
 // 返回值：
 //   - error: 错误信息，如果获取成功则返回nil
-func getGitMetaData(timeout time.Duration, v *verman.VerMan) error {
+func getGitMetaData(timeout time.Duration, v *verman.VerMan, c *gobConfig) error {
 	// 检查Git是否安装
 	if _, err := runCmd(timeout, []string{"git", "--version"}, os.Environ()); err != nil {
 		return fmt.Errorf("未检测到Git, 请先安装Git并确保其在PATH中: %w", err)
@@ -221,7 +222,7 @@ func getGitMetaData(timeout time.Duration, v *verman.VerMan) error {
 	}
 
 	// 设置appName字段
-	v.AppName = nameFlag.Get()
+	v.AppName = c.Build.OutputName
 
 	return nil
 }

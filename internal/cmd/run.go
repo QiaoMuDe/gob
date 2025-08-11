@@ -117,7 +117,7 @@ func Run() {
 	// 第二阶段: 根据参数获取git信息
 	if config.Build.InjectGitInfo {
 		globls.CL.PrintOk("获取Git元数据")
-		if err := getGitMetaData(config.Build.TimeoutDuration, v); err != nil {
+		if err := getGitMetaData(config.Build.TimeoutDuration, v, config); err != nil {
 			globls.CL.PrintErrf("Git信息获取失败: %v\n", err)
 			os.Exit(1)
 		}
