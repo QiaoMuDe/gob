@@ -41,7 +41,7 @@ func Run() {
 
 		// 生成默认配置文件
 		if err := generateDefaultConfig(defaultConfig); err != nil {
-			globls.CL.PrintErrf("%v\n", err)
+			globls.CL.PrintErrorf("%v\n", err)
 			os.Exit(1)
 		}
 		globls.CL.PrintOkf("已生成默认配置文件: %s\n", globls.GobBuildFile)
@@ -63,22 +63,19 @@ func Run() {
 	if _, statErr := os.Stat(configFilePath); statErr == nil {
 		// 如果存在, 则通过loadAndValidateConfig函数读取配置
 		if err := loadAndValidateConfig(config, configFilePath); err != nil {
-			globls.CL.PrintErrf("%v\n", err)
+			globls.CL.PrintErrorf("%v\n", err)
 			os.Exit(1)
 		}
 		// 默认关闭颜色输出
-		if !config.Build.ColorOutput {
-			globls.CL.SetNoColor(true)
-		}
+		globls.CL.SetColor(config.Build.ColorOutput)
 		// 输出加载模式
 		globls.CL.PrintOkf("BuildFile: %s\n", configFilePath)
+
 	} else {
 		// 如果不存在，则将命令行标志的值设置到配置结构体
 		applyConfigFlags(config)
 		// 默认关闭颜色输出
-		if !config.Build.ColorOutput {
-			globls.CL.SetNoColor(true)
-		}
+		globls.CL.SetColor(config.Build.ColorOutput)
 		// 输出加载模式
 		globls.CL.PrintOk("CLI args")
 	}
@@ -89,7 +86,7 @@ func Run() {
 	// 第一阶段：执行检查和准备阶段
 	globls.CL.PrintOk("开始构建准备")
 	if err := checkBaseEnv(config); err != nil {
-		globls.CL.PrintErrf("%v\n", err)
+		globls.CL.PrintErrorf("%v\n", err)
 		os.Exit(1)
 	}
 
@@ -97,20 +94,20 @@ func Run() {
 	if testFlag.Get() {
 		globls.CL.PrintOk("开始运行单元测试")
 		if err := runTests(config.Build.TimeoutDuration); err != nil {
-			globls.CL.PrintErrf("%v\n", err)
+			globls.CL.PrintErrorf("%v\n", err)
 			os.Exit(1)
 		}
 	}
 
 	// 检查批量构建和安装选项是否同时启用
 	if config.Build.BatchMode && config.Install.Install {
-		globls.CL.PrintErr("不能同时使用批量构建和安装选项")
+		globls.CL.PrintError("不能同时使用批量构建和安装选项")
 		os.Exit(1)
 	}
 
 	// 检查安装和zip选项是否同时启用
 	if config.Install.Install && config.Build.ZipOutput {
-		globls.CL.PrintErr("不能同时使用安装和zip选项")
+		globls.CL.PrintError("不能同时使用安装和zip选项")
 		os.Exit(1)
 	}
 
@@ -118,7 +115,7 @@ func Run() {
 	if config.Build.InjectGitInfo {
 		globls.CL.PrintOk("获取Git元数据")
 		if err := getGitMetaData(config.Build.TimeoutDuration, v, config); err != nil {
-			globls.CL.PrintErrf("Git信息获取失败: %v\n", err)
+			globls.CL.PrintErrorf("Git信息获取失败: %v\n", err)
 			os.Exit(1)
 		}
 	}
@@ -137,13 +134,13 @@ func Run() {
 	if config.Build.BatchMode {
 		// 批量构建
 		if err := buildBatch(v, config); err != nil {
-			globls.CL.PrintErr(err.Error())
+			globls.CL.PrintError(err.Error())
 			os.Exit(1)
 		}
 	} else {
 		// 单个构建
 		if err := buildSingle(v, ldflags, config.Build.OutputDir, os.Environ(), runtime.GOOS, runtime.GOARCH, config); err != nil {
-			globls.CL.PrintErr(err.Error())
+			globls.CL.PrintError(err.Error())
 			os.Exit(1)
 		}
 	}
@@ -192,7 +189,7 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 	if _, err := os.Stat(outputPath); err == nil {
 		if err := os.Remove(outputPath); err != nil {
 			// 退出并打印提示让用户手动删除
-			globls.CL.PrintErrf("删除 %s 失败: %v\n请手动删除该文件后重试\n", outputPath, err)
+			globls.CL.PrintErrorf("删除 %s 失败: %v\n请手动删除该文件后重试\n", outputPath, err)
 			os.Exit(1)
 		}
 	}
@@ -334,7 +331,7 @@ func buildBatch(v *verman.VerMan, config *gobConfig) error {
 				// 直接调用构建函数并处理错误
 				if buildErr := buildSingle(v, config.Build.Ldflags, config.Build.OutputDir, envs, p, a, config); buildErr != nil {
 					printMutex.Lock()
-					globls.CL.PrintErr(buildErr)
+					globls.CL.PrintError(buildErr)
 					printMutex.Unlock()
 				}
 			}(platform, arch)
