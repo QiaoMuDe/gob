@@ -48,7 +48,7 @@ func runCmd(timeout time.Duration, args []string, env []string) ([]byte, error) 
 	if err != nil {
 		// 检查是否为超时错误
 		if ctx.Err() == context.DeadlineExceeded {
-			return output, fmt.Errorf("命令超时 (超过 %v): %s", timeout, strings.Join(args, " "))
+			return output, fmt.Errorf("命令执行超时 (超过 %v)", timeout)
 		}
 		// 其他错误类型，只返回简洁的错误信息
 		return output, fmt.Errorf("命令执行失败: %v", err)
