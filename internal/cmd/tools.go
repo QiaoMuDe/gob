@@ -48,10 +48,10 @@ func runCmd(timeout time.Duration, args []string, env []string) ([]byte, error) 
 	if err != nil {
 		// 检查是否为超时错误
 		if ctx.Err() == context.DeadlineExceeded {
-			return output, fmt.Errorf("命令超时 (超过 %v): %s\n输出: %s", timeout, strings.Join(args, " "), string(output))
+			return output, fmt.Errorf("命令超时 (超过 %v): %s", timeout, strings.Join(args, " "))
 		}
-		// 其他错误类型
-		return output, fmt.Errorf("执行命令失败: %s\n错误: %v\n输出: %s", strings.Join(args, " "), err, string(output))
+		// 其他错误类型，只返回简洁的错误信息
+		return output, fmt.Errorf("命令执行失败: %v", err)
 	}
 
 	return output, nil
@@ -153,7 +153,13 @@ func checkBaseEnv(config *gobConfig) error {
 	// 遍历处理命令组
 	for _, cmdGroup := range cmds {
 		if result, runErr := runCmd(config.Build.TimeoutDuration, cmdGroup.Cmds, env); runErr != nil {
-			return fmt.Errorf("执行 %s 失败: %s %w", cmdGroup.Cmds, string(result), runErr)
+			// 如果存在输出，则打印
+			if len(result) > 0 {
+				return fmt.Errorf("执行 %s 失败: %s", cmdGroup.Cmds, string(result))
+			}
+
+			// 如果没有输出，则打印错误
+			return fmt.Errorf("执行 %s 失败: %w", cmdGroup.Cmds, runErr)
 		}
 	}
 
