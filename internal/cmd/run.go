@@ -88,7 +88,7 @@ func Run() {
 
 	// 第一阶段：执行检查和准备阶段
 	globls.CL.PrintOk("开始构建准备")
-	if err := checkBaseEnv(config.Build.TimeoutDuration); err != nil {
+	if err := checkBaseEnv(config); err != nil {
 		globls.CL.PrintErrf("%v\n", err)
 		os.Exit(1)
 	}

@@ -99,13 +99,13 @@ func genOutputName(appName string, useSimpleName bool, version string, sysPlatfo
 // checkBaseEnv 检查基础环境以及格式化和静态检查
 //
 // 参数:
-//   - timeout: 超时时间
+//   - config: 配置结构体
 //
 // 返回值:
 //   - error: 错误信息
-func checkBaseEnv(timeout time.Duration) error {
+func checkBaseEnv(config *gobConfig) error {
 	// 检查go环境
-	if _, err := runCmd(timeout, []string{"go", "version"}, os.Environ()); err != nil {
+	if _, err := runCmd(config.Build.TimeoutDuration, []string{"go", "version"}, os.Environ()); err != nil {
 		return fmt.Errorf("未找到go环境, 请先安装go环境: %w", err)
 	}
 
@@ -115,12 +115,12 @@ func checkBaseEnv(timeout time.Duration) error {
 	}
 
 	// 检查指定的入口文件是否存在
-	if _, statErr := os.Stat(mainFlag.Get()); os.IsNotExist(statErr) {
+	if _, statErr := os.Stat(config.Build.MainFile); os.IsNotExist(statErr) {
 		return fmt.Errorf("入口文件不存在: %w", statErr)
 	}
 
 	// 如果启用vendor模式，检查vendor目录是否存在
-	if vendorFlag.Get() {
+	if config.Build.UseVendor {
 		if _, statErr := os.Stat("vendor"); os.IsNotExist(statErr) {
 			return fmt.Errorf("当前路径下不存在vendor目录, 请先执行 go mod vendor 命令生成vendor目录: %w", statErr)
 		}
@@ -130,7 +130,7 @@ func checkBaseEnv(timeout time.Duration) error {
 	var checkMode bool
 
 	// 检查系统中是否存在golangci-lint否则执行默认的处理命令
-	if _, err := runCmd(timeout, []string{"golangci-lint", "version"}, os.Environ()); err != nil {
+	if _, err := runCmd(config.Build.TimeoutDuration, []string{"golangci-lint", "version"}, os.Environ()); err != nil {
 		checkMode = true
 	}
 
@@ -145,21 +145,21 @@ func checkBaseEnv(timeout time.Duration) error {
 	// 获取环境变量
 	env := os.Environ()
 
-	// 设置Go代理
-	env = append(env, fmt.Sprintf("GOPROXY=%s", proxyFlag.Get()))
+	// 设置Go代理(如果配置了代理)
+	if config.Build.Proxy != "" {
+		env = append(env, fmt.Sprintf("GOPROXY=%s", config.Build.Proxy))
+	}
 
 	// 遍历处理命令组
 	for _, cmdGroup := range cmds {
-		if result, runErr := runCmd(timeout, cmdGroup.Cmds, env); runErr != nil {
+		if result, runErr := runCmd(config.Build.TimeoutDuration, cmdGroup.Cmds, env); runErr != nil {
 			return fmt.Errorf("执行 %s 失败: %s %w", cmdGroup.Cmds, string(result), runErr)
 		}
 	}
 
-	// 检查输出目录是否存在，不存在则创建
-	if _, err := os.Stat(outputFlag.Get()); os.IsNotExist(err) {
-		if err := os.MkdirAll(outputFlag.Get(), os.ModePerm); err != nil {
-			return fmt.Errorf("创建输出目录失败: %w", err)
-		}
+	// 创建输出目录(如果不存在)
+	if err := os.MkdirAll(config.Build.OutputDir, os.ModePerm); err != nil {
+		return fmt.Errorf("创建输出目录失败: %w", err)
 	}
 
 	return nil
