@@ -31,7 +31,7 @@ func Run() {
 		// 获取构建耗时
 		duration := time.Since(startTime)
 		// 格式化耗时为秒并保留两位小数
-		globls.CL.PrintOkf("本次构建耗时 %.2fs\n", duration.Seconds())
+		globls.CL.Greenf("本次构建耗时 %.2fs\n", duration.Seconds())
 	}()
 
 	// 处理--generate-config参数: 生成默认配置文件
@@ -44,7 +44,7 @@ func Run() {
 			globls.CL.PrintErrorf("%v\n", err)
 			os.Exit(1)
 		}
-		globls.CL.PrintOkf("已生成默认配置文件: %s\n", globls.GobBuildFile)
+		globls.CL.Greenf("已生成默认配置文件: %s\n", globls.GobBuildFile)
 		os.Exit(0)
 	}
 
@@ -69,7 +69,7 @@ func Run() {
 		// 默认关闭颜色输出
 		globls.CL.SetColor(config.Build.ColorOutput)
 		// 输出加载模式
-		globls.CL.PrintOkf("BuildFile: %s\n", configFilePath)
+		globls.CL.Greenf("BuildFile: %s\n", configFilePath)
 
 	} else {
 		// 如果不存在，则将命令行标志的值设置到配置结构体
@@ -77,14 +77,14 @@ func Run() {
 		// 默认关闭颜色输出
 		globls.CL.SetColor(config.Build.ColorOutput)
 		// 输出加载模式
-		globls.CL.PrintOk("CLI args")
+		globls.CL.Green("CLI args")
 	}
 
 	// 获取verman对象
 	v := verman.Get()
 
 	// 第一阶段：执行检查和准备阶段
-	globls.CL.PrintOk("开始构建准备")
+	globls.CL.Green("开始构建准备")
 	if err := checkBaseEnv(config); err != nil {
 		globls.CL.PrintErrorf("%v\n", err)
 		os.Exit(1)
@@ -92,7 +92,7 @@ func Run() {
 
 	// 如果启用了测试选项，则运行单元测试
 	if testFlag.Get() {
-		globls.CL.PrintOk("开始运行单元测试")
+		globls.CL.Green("开始运行单元测试")
 		if err := runTests(config.Build.TimeoutDuration); err != nil {
 			globls.CL.PrintErrorf("%v\n", err)
 			os.Exit(1)
@@ -113,7 +113,7 @@ func Run() {
 
 	// 第二阶段: 根据参数获取git信息
 	if config.Build.InjectGitInfo {
-		globls.CL.PrintOk("获取Git元数据")
+		globls.CL.Green("获取Git元数据")
 		if err := getGitMetaData(config.Build.TimeoutDuration, v, config); err != nil {
 			globls.CL.PrintErrorf("Git信息获取失败: %v\n", err)
 			os.Exit(1)
@@ -130,7 +130,7 @@ func Run() {
 	}
 
 	// 第四阶段: 执行构建命令
-	globls.CL.PrintOk("开始构建")
+	globls.CL.Green("开始构建")
 	if config.Build.BatchMode {
 		// 批量构建
 		if err := buildBatch(v, config); err != nil {
@@ -223,7 +223,7 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 	}
 
 	// 构建成功
-	globls.CL.PrintOkf("build %s/%s ✓\n", sysPlatform, sysArch)
+	globls.CL.Greenf("build %s/%s ✓\n", sysPlatform, sysArch)
 
 	// 如果启用了安装选项，则执行安装
 	if c.Install.Install {
@@ -247,7 +247,7 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 		if err := createZip(zipPath, outputPath); err != nil {
 			return fmt.Errorf("zip %s/%s ✗ Error: %w", sysPlatform, sysArch, err)
 		}
-		globls.CL.PrintOkf("zip %s/%s ✓\n", sysPlatform, sysArch)
+		globls.CL.Greenf("zip %s/%s ✓\n", sysPlatform, sysArch)
 
 		// 删除原始文件
 		if _, err := os.Stat(outputPath); err == nil {
@@ -472,14 +472,14 @@ func replaceGitPlaceholders(ldflags string, v *verman.VerMan) string {
 //   - error: 错误信息
 func runTests(timeout time.Duration) error {
 	// 清理测试缓存
-	globls.CL.PrintOk("清理测试缓存")
+	globls.CL.Green("清理测试缓存")
 	result, err := runCmd(timeout, globls.GoCleanTestCacheCmd.Cmds, os.Environ())
 	if err != nil {
 		return fmt.Errorf("%s:\n%s\n%w", globls.GoCleanTestCacheCmd.Name, string(result), err)
 	}
 
 	// 执行go test命令
-	globls.CL.PrintOk("开始执行单元测试")
+	globls.CL.Green("开始执行单元测试")
 	result, err = runCmd(timeout, globls.GoTestCmd.Cmds, os.Environ())
 	if err != nil {
 		return fmt.Errorf("%s:\n%s\n%w", globls.GoTestCmd.Name, string(result), err)
