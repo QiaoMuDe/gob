@@ -16,6 +16,15 @@ import (
 	"gitee.com/MM-Q/verman"
 )
 
+// BuildContext 构建上下文，封装构建所需的所有参数
+type BuildContext struct {
+	VerMan      *verman.VerMan // verman对象
+	Env         []string       // 环境变量
+	SysPlatform string         // 系统平台
+	SysArch     string         // 系统架构
+	Config      *gobConfig     // 配置对象
+}
+
 // Run 运行 gob 构建工具
 func Run() {
 	defer func() {
@@ -120,16 +129,7 @@ func Run() {
 		}
 	}
 
-	// 第三阶段: 设置构建命令参数
-	// 获取链接器标志
-	var ldflags string
-	ldflags = config.Build.Ldflags // 加载默认链接器标志
-	if config.Build.InjectGitInfo {
-		// 如果启用了git信息注入, 则使用Git链接器标志
-		ldflags = replaceGitPlaceholders(config.Build.GitLdflags, v)
-	}
-
-	// 第四阶段: 执行构建命令
+	// 第三阶段: 执行构建命令
 	globls.CL.Green("开始构建")
 	if config.Build.BatchMode {
 		// 批量构建
@@ -139,7 +139,14 @@ func Run() {
 		}
 	} else {
 		// 单个构建
-		if err := buildSingle(v, ldflags, config.Build.OutputDir, os.Environ(), runtime.GOOS, runtime.GOARCH, config); err != nil {
+		ctx := &BuildContext{
+			VerMan:      v,
+			Env:         os.Environ(),
+			SysPlatform: runtime.GOOS,
+			SysArch:     runtime.GOARCH,
+			Config:      config,
+		}
+		if err := buildSingle(ctx); err != nil {
 			globls.CL.PrintError(err.Error())
 			os.Exit(1)
 		}
@@ -149,39 +156,40 @@ func Run() {
 // buildSingle 执行单个平台和架构的构建
 //
 // 参数:
-//   - v: verman对象
-//   - ldflags: 链接器标志
-//   - outputDir: 输出目录
-//   - env: 环境变量
-//   - sysPlatform: 系统平台
-//   - sysArch: 系统架构
-//   - c: 配置对象
+//   - ctx: 构建上下文，包含所有构建所需的参数
 //
 // 返回值:
 //   - error: 错误信息
-func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []string, sysPlatform string, sysArch string, c *gobConfig) error {
+func buildSingle(ctx *BuildContext) error {
 	// 获取构建命令 - 创建副本避免修改全局模板
-	buildCmds := make([]string, len(c.Build.BuildCommand))
-	copy(buildCmds, c.Build.BuildCommand)
+	buildCmds := make([]string, len(ctx.Config.Build.BuildCommand))
+	copy(buildCmds, ctx.Config.Build.BuildCommand)
 
 	// 生成输出路径
-	outputPath := filepath.Join(outputDir, genOutputName(c.Build.OutputName, c.Build.SimpleName, v.GitVersion, sysPlatform, sysArch))
+	outputPath := filepath.Join(ctx.Config.Build.OutputDir, genOutputName(ctx.Config.Build.OutputName, ctx.Config.Build.SimpleName, ctx.VerMan.GitVersion, ctx.SysPlatform, ctx.SysArch))
 
 	// 动态替换命令中的占位符
 	for i, cmd := range buildCmds {
 		switch cmd {
 		case "{{ldflags}}": // 替换链接器标志
-			buildCmds[i] = ldflags
+			if ctx.Config.Build.InjectGitInfo {
+				// 如果启用了Git信息注入，则替换链接器标志
+				buildCmds[i] = replaceGitPlaceholders(ctx.Config.Build.GitLdflags, ctx.VerMan)
+			} else {
+				// 否则使用默认链接器标志
+				buildCmds[i] = ctx.Config.Build.Ldflags
+			}
+
 		case "{{output}}": // 替换输出路径
 			buildCmds[i] = outputPath
 		case "{{if UseVendor}}-mod=vendor{{end}}": // 条件添加vendor标志
-			if c.Build.UseVendor {
+			if ctx.Config.Build.UseVendor {
 				buildCmds[i] = "-mod=vendor" // 添加vendor标志
 			} else {
 				buildCmds[i] = "-mod=readonly" // 添加readonly标志
 			}
 		case "{{mainFile}}": // 替换入口文件
-			buildCmds[i] = c.Build.MainFile
+			buildCmds[i] = ctx.Config.Build.MainFile
 		}
 	}
 
@@ -195,45 +203,46 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 	}
 
 	// 获取环境变量
-	envs := env
+	envs := ctx.Env
 
 	// 如果指定了环境变量，则添加环境变量
-	if len(c.Env) > 0 {
-		for k, v := range c.Env {
+	if len(ctx.Config.Env) > 0 {
+		for k, v := range ctx.Config.Env {
 			envs = append(envs, fmt.Sprintf("%s=%s", k, v))
 		}
 	}
 
 	// 获取Go代理
-	GOPROXY := fmt.Sprintf("GOPROXY=%s", c.Build.Proxy)
+	GOPROXY := fmt.Sprintf("GOPROXY=%s", ctx.Config.Build.Proxy)
 
 	// 添加Go代理
 	envs = append(envs, GOPROXY)
 
 	// 检查是否启用CGO
-	if c.Build.EnableCgo {
+	if ctx.Config.Build.EnableCgo {
 		envs = append(envs, "CGO_ENABLED=1")
 	} else {
 		envs = append(envs, "CGO_ENABLED=0")
 	}
 
 	// 执行构建命令
-	if result, buildErr := runCmd(c.Build.TimeoutDuration, buildCmds, envs); buildErr != nil {
-		return fmt.Errorf("build %s/%s ✗ Command: %s Error: %v Output: %s", sysPlatform, sysArch, buildCmds, buildErr, result)
+	if result, buildErr := runCmd(ctx.Config.Build.TimeoutDuration, buildCmds, envs); buildErr != nil {
+		return fmt.Errorf("build %s/%s ✗ Command: %s Error: %v Output: %s", ctx.SysPlatform, ctx.SysArch, buildCmds, buildErr, result)
 	}
 
 	// 构建成功
-	globls.CL.Greenf("build %s/%s ✓\n", sysPlatform, sysArch)
+	globls.CL.Greenf("build %s/%s ✓\n", ctx.SysPlatform, ctx.SysArch)
 
 	// 如果启用了安装选项，则执行安装
-	if c.Install.Install {
-		if err := installExecutable(outputPath, c); err != nil {
+	if ctx.Config.Install.Install {
+		if err := installExecutable(outputPath, ctx.Config); err != nil {
 			return fmt.Errorf("安装失败: %w", err)
 		}
+		return nil
 	}
 
 	// 在buildSingle函数中添加zip打包逻辑
-	if c.Build.ZipOutput {
+	if ctx.Config.Build.ZipOutput {
 		// 检查输出路径是否存在, 不存在则跳过
 		if _, err := os.Stat(outputPath); os.IsNotExist(err) {
 			return fmt.Errorf("编译后的可执行文件不存在: %w", err)
@@ -245,9 +254,9 @@ func buildSingle(v *verman.VerMan, ldflags string, outputDir string, env []strin
 
 		// 调用CreateZip函数创建zip文件
 		if err := createZip(zipPath, outputPath); err != nil {
-			return fmt.Errorf("zip %s/%s ✗ Error: %w", sysPlatform, sysArch, err)
+			return fmt.Errorf("zip %s/%s ✗ Error: %w", ctx.SysPlatform, ctx.SysArch, err)
 		}
-		globls.CL.Greenf("zip %s/%s ✓\n", sysPlatform, sysArch)
+		globls.CL.Greenf("zip %s/%s ✓\n", ctx.SysPlatform, ctx.SysArch)
 
 		// 删除原始文件
 		if _, err := os.Stat(outputPath); err == nil {
@@ -328,8 +337,17 @@ func buildBatch(v *verman.VerMan, config *gobConfig) error {
 				// 添加环境变量
 				envs = append(envs, GOOS, GOARCH)
 
+				// 构建上下文
+				ctx := &BuildContext{
+					VerMan:      v,
+					Env:         envs,
+					SysPlatform: p,
+					SysArch:     a,
+					Config:      config,
+				}
+
 				// 直接调用构建函数并处理错误
-				if buildErr := buildSingle(v, config.Build.Ldflags, config.Build.OutputDir, envs, p, a, config); buildErr != nil {
+				if buildErr := buildSingle(ctx); buildErr != nil {
 					printMutex.Lock()
 					globls.CL.PrintError(buildErr)
 					printMutex.Unlock()
