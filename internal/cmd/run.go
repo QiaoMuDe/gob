@@ -196,9 +196,7 @@ func buildSingle(ctx *BuildContext) error {
 	// 在输出目录下检查即将生成的可执行文件是否存在，存在则删除
 	if _, err := os.Stat(outputPath); err == nil {
 		if err := os.Remove(outputPath); err != nil {
-			// 退出并打印提示让用户手动删除
-			globls.CL.PrintErrorf("删除 %s 失败: %v\n请手动删除该文件后重试\n", outputPath, err)
-			os.Exit(1)
+			return fmt.Errorf("删除 %s 失败: %v，请手动删除该文件后重试", outputPath, err)
 		}
 	}
 
@@ -227,11 +225,8 @@ func buildSingle(ctx *BuildContext) error {
 
 	// 执行构建命令
 	if result, buildErr := runCmd(ctx.Config.Build.TimeoutDuration, buildCmds, envs); buildErr != nil {
-		return fmt.Errorf("build %s/%s ✗ Command: %s Error: %v Output: %s", ctx.SysPlatform, ctx.SysArch, buildCmds, buildErr, result)
+		return fmt.Errorf("command: %s Error: %v Output: %s", buildCmds, buildErr, result)
 	}
-
-	// 构建成功
-	globls.CL.Greenf("build %s/%s ✓\n", ctx.SysPlatform, ctx.SysArch)
 
 	// 如果启用了安装选项，则执行安装
 	if ctx.Config.Install.Install {
@@ -254,9 +249,8 @@ func buildSingle(ctx *BuildContext) error {
 
 		// 调用CreateZip函数创建zip文件
 		if err := createZip(zipPath, outputPath); err != nil {
-			return fmt.Errorf("zip %s/%s ✗ Error: %w", ctx.SysPlatform, ctx.SysArch, err)
+			return fmt.Errorf("创建zip文件失败: %w", err)
 		}
-		globls.CL.Greenf("zip %s/%s ✓\n", ctx.SysPlatform, ctx.SysArch)
 
 		// 删除原始文件
 		if _, err := os.Stat(outputPath); err == nil {
@@ -345,7 +339,11 @@ func buildBatch(v *verman.VerMan, config *gobConfig) error {
 				// 直接调用构建函数并处理错误
 				if buildErr := buildSingle(ctx); buildErr != nil {
 					printMutex.Lock()
-					globls.CL.PrintError(buildErr)
+					globls.CL.PrintErrorf("  build %s/%s ✗ %v\n", platform, arch, buildErr)
+					printMutex.Unlock()
+				} else {
+					printMutex.Lock()
+					globls.CL.Greenf("  build %s/%s ✓\n", platform, arch)
 					printMutex.Unlock()
 				}
 			})
