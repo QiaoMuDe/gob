@@ -307,16 +307,12 @@ func buildBatch(v *verman.VerMan, config *gobConfig) error {
 				}
 			}
 
-			// 增加等待组计数
-			wg.Add(1)
-
 			// 获取并发信号量
 			concurrencyChan <- struct{}{}
 
 			// 启动goroutine执行并行构建
-			go func(p, a string) {
+			wg.Go(func() {
 				defer func() {
-					wg.Done()         // 完成后减少等待组计数
 					<-concurrencyChan // 释放并发信号量
 				}()
 
@@ -331,19 +327,19 @@ func buildBatch(v *verman.VerMan, config *gobConfig) error {
 				copy(envs, rootEnvs)
 
 				// 设置平台和架构
-				GOOS := fmt.Sprintf("GOOS=%s", p)
-				GOARCH := fmt.Sprintf("GOARCH=%s", a)
+				GOOS := fmt.Sprintf("GOOS=%s", platform)
+				GOARCH := fmt.Sprintf("GOARCH=%s", arch)
 
 				// 添加环境变量
 				envs = append(envs, GOOS, GOARCH)
 
 				// 构建上下文
 				ctx := &BuildContext{
-					VerMan:      v,
-					Env:         envs,
-					SysPlatform: p,
-					SysArch:     a,
-					Config:      config,
+					VerMan:      v,        // VerMan对象
+					Env:         envs,     // 环境变量
+					SysPlatform: platform, // 平台
+					SysArch:     arch,     // 架构
+					Config:      config,   // 配置
 				}
 
 				// 直接调用构建函数并处理错误
@@ -352,7 +348,7 @@ func buildBatch(v *verman.VerMan, config *gobConfig) error {
 					globls.CL.PrintError(buildErr)
 					printMutex.Unlock()
 				}
-			}(platform, arch)
+			})
 		}
 	}
 

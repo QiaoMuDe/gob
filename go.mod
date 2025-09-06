@@ -1,6 +1,6 @@
 module gitee.com/MM-Q/gob
 
-go 1.24.4
+go 1.25.0
 
 require (
 	gitee.com/MM-Q/colorlib v1.3.0
