@@ -78,15 +78,14 @@ func Run() {
 		// 默认关闭颜色输出
 		globls.CL.SetColor(config.Build.ColorOutput)
 		// 输出加载模式
-		globls.CL.Greenf("BuildFile: %s\n", configFilePath)
-
+		globls.CL.Greenf("Config: %s\n", configFilePath)
 	} else {
 		// 如果不存在, 则将命令行标志的值设置到配置结构体
 		applyConfigFlags(config)
 		// 默认关闭颜色输出
 		globls.CL.SetColor(config.Build.ColorOutput)
 		// 输出加载模式
-		globls.CL.Green("CLI args")
+		globls.CL.Green("Config: CLI flags")
 	}
 
 	// 获取verman对象
@@ -283,7 +282,10 @@ func buildBatch(v *verman.VerMan, config *gobConfig) error {
 			if config.Build.CurrentPlatformOnly {
 				if platform != runtime.GOOS || arch != runtime.GOARCH {
 					printMutex.Lock()
-					globls.CL.Greenf("跳过非当前平台: %s/%s\n", platform, arch)
+					// 仅在批量模式下打印跳过信息
+					if config.Build.BatchMode {
+						globls.CL.Greenf("跳过非当前平台: %s/%s\n", platform, arch)
+					}
 					printMutex.Unlock()
 					continue
 				}
