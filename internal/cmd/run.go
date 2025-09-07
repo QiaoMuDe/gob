@@ -16,7 +16,7 @@ import (
 	"gitee.com/MM-Q/verman"
 )
 
-// BuildContext 构建上下文，封装构建所需的所有参数
+// BuildContext 构建上下文, 封装构建所需的所有参数
 type BuildContext struct {
 	VerMan      *verman.VerMan // verman对象
 	Env         []string       // 环境变量
@@ -81,7 +81,7 @@ func Run() {
 		globls.CL.Greenf("BuildFile: %s\n", configFilePath)
 
 	} else {
-		// 如果不存在，则将命令行标志的值设置到配置结构体
+		// 如果不存在, 则将命令行标志的值设置到配置结构体
 		applyConfigFlags(config)
 		// 默认关闭颜色输出
 		globls.CL.SetColor(config.Build.ColorOutput)
@@ -99,7 +99,7 @@ func Run() {
 		os.Exit(1)
 	}
 
-	// 如果启用了测试选项，则运行单元测试
+	// 如果启用了测试选项, 则运行单元测试
 	if testFlag.Get() {
 		globls.CL.Green("开始运行单元测试")
 		if err := runTests(config.Build.TimeoutDuration); err != nil {
@@ -129,7 +129,7 @@ func Run() {
 		}
 	}
 
-	// 如果不是批量模式，强制设置为仅构建当前平台
+	// 如果不是批量模式, 强制设置为仅构建当前平台
 	if !config.Build.BatchMode {
 		config.Build.CurrentPlatformOnly = true
 	}
@@ -144,7 +144,7 @@ func Run() {
 // buildSingle 执行单个平台和架构的构建
 //
 // 参数:
-//   - ctx: 构建上下文，包含所有构建所需的参数
+//   - ctx: 构建上下文, 包含所有构建所需的参数
 //
 // 返回值:
 //   - error: 错误信息
@@ -161,7 +161,7 @@ func buildSingle(ctx *BuildContext) error {
 		switch cmd {
 		case "{{ldflags}}": // 替换链接器标志
 			if ctx.Config.Build.InjectGitInfo {
-				// 如果启用了Git信息注入，则替换链接器标志
+				// 如果启用了Git信息注入, 则替换链接器标志
 				buildCmds[i] = replaceGitPlaceholders(ctx.Config.Build.GitLdflags, ctx.VerMan)
 			} else {
 				// 否则使用默认链接器标志
@@ -181,17 +181,17 @@ func buildSingle(ctx *BuildContext) error {
 		}
 	}
 
-	// 在输出目录下检查即将生成的可执行文件是否存在，存在则删除
+	// 在输出目录下检查即将生成的可执行文件是否存在, 存在则删除
 	if _, err := os.Stat(outputPath); err == nil {
 		if err := os.Remove(outputPath); err != nil {
-			return fmt.Errorf("删除 %s 失败: %v，请手动删除该文件后重试", outputPath, err)
+			return fmt.Errorf("删除 %s 失败: %v, 请手动删除该文件后重试", outputPath, err)
 		}
 	}
 
 	// 获取环境变量
 	envs := ctx.Env
 
-	// 如果指定了环境变量，则添加环境变量
+	// 如果指定了环境变量, 则添加环境变量
 	if len(ctx.Config.Env) > 0 {
 		for k, v := range ctx.Config.Env {
 			envs = append(envs, fmt.Sprintf("%s=%s", k, v))
@@ -216,7 +216,7 @@ func buildSingle(ctx *BuildContext) error {
 		return fmt.Errorf("command: %s Error: %v Output: %s", buildCmds, buildErr, result)
 	}
 
-	// 如果启用了安装选项，则执行安装
+	// 如果启用了安装选项, 则执行安装
 	if ctx.Config.Install.Install {
 		if err := installExecutable(outputPath, ctx.Config); err != nil {
 			return fmt.Errorf("安装失败: %w", err)
@@ -279,7 +279,7 @@ func buildBatch(v *verman.VerMan, config *gobConfig) error {
 				continue
 			}
 
-			// 如果开启了仅构建当前平台，则跳过其他平台
+			// 如果开启了仅构建当前平台, 则跳过其他平台
 			if config.Build.CurrentPlatformOnly {
 				if platform != runtime.GOOS || arch != runtime.GOARCH {
 					printMutex.Lock()
@@ -360,10 +360,7 @@ func installExecutable(executablePath string, c *gobConfig) error {
 		return fmt.Errorf("可执行文件不存在: %s", executablePath)
 	}
 
-	// 打印安装信息
-	globls.CL.Green("开始安装")
-
-	// 检查安装目录是否存在，不存在则创建
+	// 检查安装目录是否存在, 不存在则创建
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		return fmt.Errorf("创建安装目录失败: %w", err)
 	}
@@ -395,12 +392,12 @@ func installExecutable(executablePath string, c *gobConfig) error {
 
 // loadAndValidateConfig 加载并验证配置文件
 // 参数:
-// - config: 指向配置结构体的指针，用于存储加载的配置
+// - config: 指向配置结构体的指针, 用于存储加载的配置
 // - configFilePath: 配置文件的路径
 //
 // 返回值:
 //
-//	error: 如果加载或验证过程中出现错误，则返回错误信息
+//	error: 如果加载或验证过程中出现错误, 则返回错误信息
 func loadAndValidateConfig(config *gobConfig, configFilePath string) error {
 	// 加载配置文件
 	loadedConfig, err := loadConfig(configFilePath)
@@ -411,7 +408,7 @@ func loadAndValidateConfig(config *gobConfig, configFilePath string) error {
 	// 将加载的配置复制到传入的config指针
 	*config = *loadedConfig
 
-	// 如果启用了安装选项，则处理安装路径
+	// 如果启用了安装选项, 则处理安装路径
 	if config.Install.Install {
 		// 如果安装路径为空或者为 $GOPATH/bin, 则使用默认安装路径
 		if config.Install.InstallPath == "" || strings.EqualFold(config.Install.InstallPath, "$GOPATH/bin") {
