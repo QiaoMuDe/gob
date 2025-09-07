@@ -74,23 +74,23 @@ func runCmd(timeout time.Duration, args []string, env []string) ([]byte, error) 
 //   - 完整模式：示例, `myapp_linux_amd64_1.0.0`
 func genOutputName(appName string, useSimpleName bool, version string, sysPlatform string, sysArch string) string {
 	if useSimpleName && batchFlag.Get() {
-		globls.CL.PrintWarn("使用批量构建时, 简单模式将失效")
+		globls.CL.Yellowf("使用批量构建时, 简单模式将失效")
 	}
 
-	// 简单模式，不添加平台和版本信息
+	// 简单模式: 不添加平台和版本信息
 	if useSimpleName && !batchFlag.Get() {
 		switch sysPlatform {
 		case "windows":
-			return fmt.Sprint(strings.TrimSuffix(appName, ".exe"), ".exe")
+			return fmt.Sprintf("%s.exe", strings.TrimSuffix(appName, filepath.Ext(appName)))
 		default:
 			return appName
 		}
 	}
 
-	// 完整模式，添加平台和版本信息
+	// 完整模式: 添加平台和版本信息
 	switch sysPlatform {
 	case "windows":
-		return fmt.Sprintf("%s_%s_%s_%s.exe", appName, sysPlatform, sysArch, version)
+		return fmt.Sprintf("%s_%s_%s_%s.exe", strings.TrimSuffix(appName, filepath.Ext(appName)), sysPlatform, sysArch, version)
 	default:
 		return fmt.Sprintf("%s_%s_%s_%s", appName, sysPlatform, sysArch, version)
 	}

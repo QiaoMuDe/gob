@@ -283,7 +283,7 @@ func buildBatch(v *verman.VerMan, config *gobConfig) error {
 			if config.Build.CurrentPlatformOnly {
 				if platform != runtime.GOOS || arch != runtime.GOARCH {
 					printMutex.Lock()
-					globls.CL.PrintOkf("跳过非当前平台: %s/%s\n", platform, arch)
+					globls.CL.Greenf("跳过非当前平台: %s/%s\n", platform, arch)
 					printMutex.Unlock()
 					continue
 				}
