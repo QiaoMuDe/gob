@@ -1,10 +1,10 @@
-# gitee.com/MM-Q/colorlib v1.3.1
+# gitee.com/MM-Q/colorlib v1.3.2
 ## explicit; go 1.25.0
 gitee.com/MM-Q/colorlib
 gitee.com/MM-Q/colorlib/internal/cache
 gitee.com/MM-Q/colorlib/internal/color
 gitee.com/MM-Q/colorlib/internal/style
-# gitee.com/MM-Q/go-kit v0.0.6
+# gitee.com/MM-Q/go-kit v0.0.7
 ## explicit; go 1.25.0
 gitee.com/MM-Q/go-kit/pool
 # gitee.com/MM-Q/qflag v0.3.0

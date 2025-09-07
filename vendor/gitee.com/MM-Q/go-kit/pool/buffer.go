@@ -138,6 +138,8 @@ func (bp *BufPool) GetCap(cap int) *bytes.Buffer {
 
 	// 如果当前容量不足，扩容到所需容量
 	if buf.Cap() < cap {
+		// 直接Grow(cap)，让Buffer内部决定如何分配足够的容量
+		// 注意：Grow(n)确保还能写入n个字节，但实际分配可能更多
 		buf.Grow(cap)
 	}
 

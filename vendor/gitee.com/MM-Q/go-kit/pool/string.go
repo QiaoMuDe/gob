@@ -142,13 +142,14 @@ func (sp *StrPool) GetCap(cap int) *strings.Builder {
 		panic("string pool: invalid builder type")
 	}
 
-	// 如果当前容量不足，扩容到所需容量
-	if builder.Cap() < cap {
+	// 先Reset确保内容完全干净(注意: Reset()会将buf设为nil，容量变为0)
+	builder.Reset()
+
+	// Reset后重新分配所需容量
+	// 由于Reset()后容量为0，直接Grow(cap)即可
+	if cap > 0 {
 		builder.Grow(cap)
 	}
-
-	// 重置构建器状态
-	builder.Reset()
 
 	return builder
 }
@@ -166,7 +167,6 @@ func (sp *StrPool) Put(buf *strings.Builder) {
 	if buf == nil || buf.Cap() > sp.maxCap {
 		return // 为nil或容量过大不处理, 交给gc回收
 	}
-	buf.Reset()
 	sp.pool.Put(buf)
 }
 
