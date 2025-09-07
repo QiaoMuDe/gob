@@ -1,7 +1,9 @@
-gitee.com/MM-Q/colorlib v1.3.0 h1:R+vEhn7rJKDJqyVIWQhCh/Pz5zeYN3Yu6CI69Z6JMxY=
-gitee.com/MM-Q/colorlib v1.3.0/go.mod h1:k7AxDD3mOIFVdGRqLqz3jYOGRC2vV7QVjnZWpt/J3Ds=
-gitee.com/MM-Q/qflag v0.2.3 h1:lST1Z6IWz+mpGQDYTlUFQ3xbljPO3kHJA3BWSlIx/Pg=
-gitee.com/MM-Q/qflag v0.2.3/go.mod h1:L0vRjPlzqNJKMvcI7mlRM+nPyYaJQIKJRMVBE87BaRs=
+gitee.com/MM-Q/colorlib v1.3.1 h1:/zup8N5DPgOlGPCzWZsgqHAinrJxqKTr652lupukSfg=
+gitee.com/MM-Q/colorlib v1.3.1/go.mod h1:HKYx8At5tDYxv+usjcBchzcG0SolDyXoWtGx+vkB5kE=
+gitee.com/MM-Q/go-kit v0.0.6 h1:AfhCGXwXhg1ZtgNR5ctzfMUfkWjLkYNmzV1cSzyY3ZE=
+gitee.com/MM-Q/go-kit v0.0.6/go.mod h1:Y9RCE0HxheUedGueWEpDiHycgCcwlX045eOIeQKptS0=
+gitee.com/MM-Q/qflag v0.3.0 h1:JEj8uDiOcMRnC0AIcaPfxk2pdui7jmR8FzoexlZzSyY=
+gitee.com/MM-Q/qflag v0.3.0/go.mod h1:L0vRjPlzqNJKMvcI7mlRM+nPyYaJQIKJRMVBE87BaRs=
 gitee.com/MM-Q/verman v0.0.16 h1:95+AT2DS4I3QuW3Qh1amV0k3rJrlsgAWnUk3EQGfjRE=
 gitee.com/MM-Q/verman v0.0.16/go.mod h1:sJaGRO3zat1r9e6qu8mcwlJDI5IvFBFBG5NqgCwa6m0=
 github.com/pelletier/go-toml/v2 v2.2.4 h1:mye9XuhQ6gvn5h28+VilKrrPoQVanw5PMw/TB0t5Ec4=

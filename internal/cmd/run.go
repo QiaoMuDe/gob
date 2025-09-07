@@ -129,27 +129,15 @@ func Run() {
 		}
 	}
 
-	// 第三阶段: 执行构建命令
-	globls.CL.Green("开始构建")
-	if config.Build.BatchMode {
-		// 批量构建
-		if err := buildBatch(v, config); err != nil {
-			globls.CL.PrintError(err.Error())
-			os.Exit(1)
-		}
-	} else {
-		// 单个构建
-		ctx := &BuildContext{
-			VerMan:      v,
-			Env:         os.Environ(),
-			SysPlatform: runtime.GOOS,
-			SysArch:     runtime.GOARCH,
-			Config:      config,
-		}
-		if err := buildSingle(ctx); err != nil {
-			globls.CL.PrintError(err.Error())
-			os.Exit(1)
-		}
+	// 如果不是批量模式，强制设置为仅构建当前平台
+	if !config.Build.BatchMode {
+		config.Build.CurrentPlatformOnly = true
+	}
+
+	// 执行构建
+	if err := buildBatch(v, config); err != nil {
+		globls.CL.PrintError(err.Error())
+		os.Exit(1)
 	}
 }
 
@@ -339,11 +327,11 @@ func buildBatch(v *verman.VerMan, config *gobConfig) error {
 				// 直接调用构建函数并处理错误
 				if buildErr := buildSingle(ctx); buildErr != nil {
 					printMutex.Lock()
-					globls.CL.PrintErrorf("  build %s/%s ✗ %v\n", platform, arch, buildErr)
+					globls.CL.Redf("build %s/%s ✗ %v\n", platform, arch, buildErr)
 					printMutex.Unlock()
 				} else {
 					printMutex.Lock()
-					globls.CL.Greenf("  build %s/%s ✓\n", platform, arch)
+					globls.CL.Greenf("build %s/%s ✓\n", platform, arch)
 					printMutex.Unlock()
 				}
 			})
@@ -373,7 +361,7 @@ func installExecutable(executablePath string, c *gobConfig) error {
 	}
 
 	// 打印安装信息
-	globls.CL.PrintOk("开始安装")
+	globls.CL.Green("开始安装")
 
 	// 检查安装目录是否存在，不存在则创建
 	if err := os.MkdirAll(binDir, 0755); err != nil {
@@ -400,7 +388,7 @@ func installExecutable(executablePath string, c *gobConfig) error {
 	}
 
 	// 打印安装成功信息
-	globls.CL.PrintOkf("已安装至: %s\n", targetPath)
+	globls.CL.Greenf("已安装至: %s\n", targetPath)
 
 	return nil
 }
