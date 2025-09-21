@@ -163,10 +163,10 @@ func buildSingle(ctx *BuildContext) error {
 		case "{{ldflags}}": // 替换链接器标志
 			if ctx.Config.Build.InjectGitInfo {
 				// 如果启用了Git信息注入, 则替换链接器标志
-				buildCmds[i] = replaceGitPlaceholders(ctx.Config.Build.GitLdflags, ctx.VerMan)
+				buildCmds[i] = fmt.Sprintf("\"%s\"", replaceGitPlaceholders(ctx.Config.Build.GitLdflags, ctx.VerMan))
 			} else {
 				// 否则使用默认链接器标志
-				buildCmds[i] = ctx.Config.Build.Ldflags
+				buildCmds[i] = fmt.Sprintf("\"%s\"", ctx.Config.Build.Ldflags)
 			}
 
 		case "{{output}}": // 替换输出路径
@@ -213,7 +213,7 @@ func buildSingle(ctx *BuildContext) error {
 	}
 
 	// 执行构建命令
-	if result, buildErr := shellx.NewCmds(buildCmds).WithTimeout(ctx.Config.Build.TimeoutDuration).WithEnvs(envs).Build().ExecOutput(); buildErr != nil {
+	if result, buildErr := shellx.NewCmds(buildCmds).WithTimeout(ctx.Config.Build.TimeoutDuration).WithEnvs(envs).WithShell(shellx.ShellPowerShell).ExecOutput(); buildErr != nil {
 		return fmt.Errorf("command: %s Error: %v Output: %s", buildCmds, buildErr, result)
 	}
 
@@ -441,13 +441,11 @@ func loadAndValidateConfig(config *gobConfig, configFilePath string) error {
 // replaceGitPlaceholders 将链接器标志中的占位符替换为实际的Git元数据
 //
 // 参数:
-//
-//	ldflags - 包含占位符的链接器标志字符串
-//	v - 包含Git元数据的结构体
+//   - ldflags: 包含占位符的链接器标志字符串
+//   - v: 包含Git元数据的结构体
 //
 // 返回值:
-//
-//	替换后的链接器标志字符串
+//   - string: 替换后的链接器标志字符串
 func replaceGitPlaceholders(ldflags string, v *verman.VerMan) string {
 	// 定义占位符映射关系
 	placeholders := map[string]string{
@@ -477,14 +475,14 @@ func replaceGitPlaceholders(ldflags string, v *verman.VerMan) string {
 func runTests(timeout time.Duration) error {
 	// 清理测试缓存
 	globls.CL.Green("清理测试缓存")
-	result, err := shellx.NewCmds(globls.GoCleanTestCacheCmd.Cmds).WithTimeout(timeout).Build().ExecOutput()
+	result, err := shellx.NewCmds(globls.GoCleanTestCacheCmd.Cmds).WithTimeout(timeout).ExecOutput()
 	if err != nil {
 		return fmt.Errorf("%s:\n%s\n%w", globls.GoCleanTestCacheCmd.Name, string(result), err)
 	}
 
 	// 执行go test命令
 	globls.CL.Green("开始执行单元测试")
-	result, err = shellx.NewCmds(globls.GoTestCmd.Cmds).WithTimeout(timeout).Build().ExecOutput()
+	result, err = shellx.NewCmds(globls.GoTestCmd.Cmds).WithTimeout(timeout).ExecOutput()
 	if err != nil {
 		return fmt.Errorf("%s:\n%s\n%w", globls.GoTestCmd.Name, string(result), err)
 	}

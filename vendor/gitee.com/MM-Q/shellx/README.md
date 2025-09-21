@@ -26,16 +26,17 @@ ShellX 是一个基于 Go 标准库 `os/exec` 包封装的高级命令执行库�
 
 | 特性 | 描述 |
 |------|------|
+| 🎯 **一体化设计** | Command集配置、构建、执行于一体，无需Build()方法，简化API使用 |
 | 🔧 **多种创建方式** | 支持 `NewCmd`(可变参数)、`NewCmds`(切片)、`NewCmdStr`(字符串解析) 三种命令创建方式 |
-| ⚡ **便捷函数** | 提供 `Exec`、`ExecStr`、`ExecOutput`、`ExecOutputStr` 等便捷函数，无需手动构建对象 |
+| ⚡ **丰富便捷函数** | 提供 `Exec`、`ExecStr`、`ExecOut`、`ExecOutStr` 及其带超时版本，开箱即用 |
 | ⛓️ **链式调用 API** | 流畅的方法链，支持工作目录、环境变量、超时等配置 |
+| ⏱️ **精确超时控制** | 延迟构建exec.Cmd，确保超时计时精确，避免配置时间损耗 |
 | 🛡️ **类型安全** | 完整的错误处理和类型安全保证 |
 | 🐚 **多 Shell 支持** | 支持 sh、bash、cmd、powershell、pwsh 等多种 shell 类型 |
 | ⚡ **同步/异步执行** | 灵活的执行模式，支持阻塞和非阻塞操作 |
 | 🎛️ **进程控制** | 完整的进程生命周期管理，支持信号发送、进程终止等 |
 | 📊 **执行状态管理** | 智能的执行状态跟踪，防止重复执行 |
 | 🔄 **输入输出重定向** | 灵活的标准输入输出配置 |
-| ⏱️ **超时控制** | 支持命令执行超时和上下文取消 |
 | 🔒 **并发安全** | 线程安全的设计，支持多 goroutine 环境 |
 | 🌍 **跨平台兼容** | 支持 Windows、Linux、macOS 等主流操作系统 |
 | 🧠 **智能解析** | 强大的命令字符串解析，支持复杂引号处理 |
@@ -69,19 +70,16 @@ import (
 )
 
 func main() {
-    // 方式1：使用可变参数创建命令
-    cmd := shellx.NewCmd("echo", "Hello, World!").
+    // 使用可变参数创建命令
+    err := shellx.NewCmd("echo", "Hello, World!").
         WithTimeout(10 * time.Second).
-        Build()
-    
-    // 同步执行
-    err := cmd.Exec()
+        Exec()
     if err != nil {
         log.Fatal(err)
     }
     
     // 获取输出
-    output, err := shellx.NewCmd("ls", "-la").Build().ExecOutput()
+    output, err := shellx.NewCmd("ls", "-la").ExecOutput()
     if err != nil {
         log.Fatal(err)
     }
@@ -97,49 +95,45 @@ package main
 import (
     "fmt"
     "log"
+    "time"
     
     "gitee.com/MM-Q/shellx"
 )
 
 func main() {
-    // 直接执行命令（可变参数方式）
-    err := shellx.Exec("echo", "Hello, World!")
-    if err != nil {
-        log.Fatal(err)
-    }
+    // 基础执行函数
+    err := shellx.Exec("echo", "Hello, World!")        // 执行命令，输出到控制台
+    err = shellx.ExecStr("ls -la")                      // 字符串方式执行
     
-    // 直接执行命令（字符串方式）
-    err = shellx.ExecStr("ls -la")
-    if err != nil {
-        log.Fatal(err)
-    }
-    
-    // 执行命令并获取输出（可变参数方式）
-    output, err := shellx.ExecOutput("pwd")
+    // 获取输出的函数
+    output, err := shellx.ExecOut("pwd")                // 执行并返回输出
     if err != nil {
         log.Fatal(err)
     }
     fmt.Printf("Current directory: %s", output)
     
-    // 执行命令并获取输出（字符串方式）
-    output, err = shellx.ExecOutputStr("git status --porcelain")
+    output, err = shellx.ExecOutStr("git status --porcelain") // 字符串方式执行并返回输出
     if err != nil {
         log.Fatal(err)
     }
     fmt.Printf("Git status: %s", output)
+    
+    // 带超时的执行函数
+    err = shellx.ExecT(5*time.Second, "sleep", "10")                    // 5秒超时
+    err = shellx.ExecStrT(3*time.Second, "ping google.com")             // 字符串方式，3秒超时
+    output, err = shellx.ExecOutT(2*time.Second, "curl", "example.com") // 返回输出，2秒超时
+    output, err = shellx.ExecOutStrT(1*time.Second, "date")             // 字符串方式，返回输出，1秒超时
 }
 ```
 
 ### 字符串解析
 
 ```go
-// 方式2：使用字符串创建命令（支持复杂引号处理）
-cmd := shellx.NewCmdStr(`git commit -m "feat: add new feature with 'quotes'"`).
+// 使用字符串创建命令（支持复杂引号处理）
+result, err := shellx.NewCmdStr(`git commit -m "feat: add new feature with 'quotes'"`).
     WithWorkDir("/path/to/repo").
     WithEnv("GIT_AUTHOR_NAME", "John Doe").
-    Build()
-
-result, err := cmd.ExecResult()
+    ExecResult()
 if err != nil {
     log.Fatal(err)
 }
@@ -173,16 +167,14 @@ func advancedExample() {
         WithStderr(&stderr).
         WithWorkDir("/tmp").
         WithEnv("MY_VAR", "custom_value").
-        WithShell(shellx.ShellBash).
-        Build()
+        WithShell(shellx.ShellBash)
     
     // 使用上下文控制
     ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
     defer cancel()
     
     cmdWithContext := shellx.NewCmd("long-running-command").
-        WithContext(ctx).
-        Build()
+        WithContext(ctx)
     
     // 异步执行
     err := cmdWithContext.ExecAsync()
@@ -224,8 +216,7 @@ examples := map[string]shellx.ShellType{
 
 for name, shellType := range examples {
     cmd := shellx.NewCmdStr("echo 'Hello from " + name + "'").
-        WithShell(shellType).
-        Build()
+        WithShell(shellType)
     
     output, err := cmd.ExecOutput()
     if err != nil {
@@ -274,8 +265,7 @@ cmd := shellx.NewCmd("command").
     WithWorkDir("/custom/path").           // 设置工作目录
     WithEnv("KEY", "value").              // 添加环境变量
     WithTimeout(30 * time.Second).        // 设置超时时间
-    WithContext(ctx).                     // 设置上下文
-    Build()
+    WithContext(ctx)                      // 设置上下文
 ```
 
 ### 输入输出配置
@@ -287,16 +277,14 @@ stdin := strings.NewReader("input")
 cmd := shellx.NewCmd("command").
     WithStdin(stdin).                     // 设置标准输入
     WithStdout(&stdout).                  // 设置标准输出
-    WithStderr(&stderr).                  // 设置标准错误
-    Build()
+    WithStderr(&stderr)                   // 设置标准错误
 ```
 
 ### Shell 配置
 
 ```go
 cmd := shellx.NewCmd("command").
-    WithShell(shellx.ShellBash).          // 指定 shell 类型
-    Build()
+    WithShell(shellx.ShellBash)           // 指定 shell 类型
 ```
 
 ## 📁 项目结构
@@ -307,14 +295,13 @@ shellx/
 ├── LICENSE                   # MIT 许可证
 ├── go.mod                    # Go 模块文件
 ├── shellx.go                 # 主包文档
-├── builder.go                # 命令构建器实现
 ├── command.go                # 命令执行对象实现
+|── errors.go                 # 错误处理
 ├── types.go                  # 类型定义
-├── utils.go                  # 工具函数
-├── builder_test.go           # Builder 测试
+├── utils.go                  # 工具函数和便捷函数
+├── internal.go               # 内部共享函数
 ├── command_test.go           # Command 测试
 ├── utils_test.go             # 工具函数测试
-├── builder_bench_test.go     # Builder 基准测试
 ├── command_bench_test.go     # Command 基准测试
 └── TEST_README.md            # 测试说明文档
 ```

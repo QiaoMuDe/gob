@@ -10,8 +10,7 @@ import "gitee.com/MM-Q/shellx"
 
 | 类型 | 描述 |
 |------|------|
-| `Builder` | 命令构建器，提供链式调用 API |
-| `Command` | 命令执行对象，封装 exec.Cmd 并提供额外功能 |
+| `Command` | 命令对象，集配置、构建、执行于一体 |
 | `Result` | 命令执行结果，包含输出、错误、时间等信息 |
 | `ShellType` | Shell 类型枚举，支持多种 shell |
 
@@ -21,40 +20,49 @@ import "gitee.com/MM-Q/shellx"
 
 ```go
 // 可变参数方式
-func NewCmd(name string, args ...string) *Builder
+func NewCmd(name string, args ...string) *Command
 
 // 切片方式
-func NewCmds(cmdArgs []string) *Builder
+func NewCmds(cmdArgs []string) *Command
 
 // 字符串解析方式
-func NewCmdStr(cmdStr string) *Builder
+func NewCmdStr(cmdStr string) *Command
 ```
 
 #### 链式配置
 
 ```go
-func (b *Builder) WithWorkDir(dir string) *Builder
-func (b *Builder) WithEnv(key, value string) *Builder
-func (b *Builder) WithEnvs(envs []string) *Builder
-func (b *Builder) WithTimeout(timeout time.Duration) *Builder
-func (b *Builder) WithContext(ctx context.Context) *Builder
-func (b *Builder) WithStdin(stdin io.Reader) *Builder
-func (b *Builder) WithStdout(stdout io.Writer) *Builder
-func (b *Builder) WithStderr(stderr io.Writer) *Builder
-func (b *Builder) WithShell(shell ShellType) *Builder
-func (b *Builder) Build() *Command
+func (c *Command) WithWorkDir(dir string) *Command
+func (c *Command) WithEnv(key, value string) *Command
+func (c *Command) WithEnvs(envs []string) *Command
+func (c *Command) WithTimeout(timeout time.Duration) *Command
+func (c *Command) WithContext(ctx context.Context) *Command
+func (c *Command) WithStdin(stdin io.Reader) *Command
+func (c *Command) WithStdout(stdout io.Writer) *Command
+func (c *Command) WithStderr(stderr io.Writer) *Command
+func (c *Command) WithShell(shell ShellType) *Command
+```
+
+#### 信息获取
+
+```go
+func (c *Command) CmdStr() string  // 获取命令字符串
 ```
 
 #### 便捷函数
 
 ```go
-// 直接执行命令
+// 基础执行函数
 func Exec(name string, args ...string) error
 func ExecStr(cmdStr string) error
+func ExecOut(name string, args ...string) ([]byte, error)
+func ExecOutStr(cmdStr string) ([]byte, error)
 
-// 执行命令并获取输出
-func ExecOutput(name string, args ...string) ([]byte, error)
-func ExecOutputStr(cmdStr string) ([]byte, error)
+// 带超时的执行函数
+func ExecT(timeout time.Duration, name string, args ...string) error
+func ExecStrT(timeout time.Duration, cmdStr string) error
+func ExecOutT(timeout time.Duration, name string, args ...string) ([]byte, error)
+func ExecOutStrT(timeout time.Duration, cmdStr string) ([]byte, error)
 ```
 
 #### 命令执行
@@ -76,6 +84,9 @@ func (c *Command) Signal(sig os.Signal) error
 func (c *Command) IsRunning() bool
 func (c *Command) GetPID() int
 func (c *Command) IsExecuted() bool
+
+// 信息获取
+func (c *Command) CmdStr() string
 ```
 
 ### Shell 类型支持
@@ -94,27 +105,20 @@ func (c *Command) IsExecuted() bool
 
 ## 📖 详细文档
 
-Package shellx 定义了shell命令执行库的核心数据类型。 本文件定义了Builder结构体和相关构造函数，提供链式调用API来构建命令对象。
+Package shellx 定义了shell命令执行库的核心数据类型。本文件定义了Command结构体，集配置、构建、执行于一体的一体化设计。
 
-Builder是命令构建器的核心实现，支持：
-- 三种命令创建方式：NewCmd、NewCmds、NewCmdStr
-- 链式调用设置：工作目录、环境变量、超时、上下文、标准输入输出、Shell类型
-- 并发安全的读写操作
-- 灵活的命令配置和构建
-
-Package shellx 定义了shell命令执行库的核心数据类型。 本文件定义了Command结构体，封装了exec.Cmd并提供了丰富的命令执行功能。
-
-Command是命令执行对象的核心实现，支持：
+Command是命令对象的核心实现，支持：
+- 配置方法：WithWorkDir、WithEnv、WithTimeout、WithContext等链式调用
 - 同步执行：Exec、ExecOutput、ExecStdout、ExecResult
 - 异步执行：ExecAsync、Wait
 - 进程控制：Kill、Signal、IsRunning、GetPID
 - 执行状态管理：IsExecuted（确保命令只执行一次）
 - 完整的执行结果：Result对象包含输出、错误、时间、退出码等信息
+- 延迟构建：真正的exec.Cmd对象在执行时才创建，确保超时控制精确
 
 Package shellx 提供了一个功能完善、易于使用的Go语言shell命令执行库。
 
-本库基于Go标准库的os/exec包进行封装，提供了更加友好的API和丰富的功能， 支持同步和异步命令执行、输入输出重定向、超时控制、上下文管理、
-多种shell类型支持等功能，并提供类型安全的API和友好的链式调用接口。
+本库基于Go标准库的os/exec包进行封装，提供了更加友好的API和丰富的功能，支持同步和异步命令执行、输入输出重定向、超时控制、上下文管理、多种shell类型支持等功能，并提供类型安全的API和友好的链式调用接口。
 
 ## 主要特性
 
@@ -125,14 +129,14 @@ Package shellx 提供了一个功能完善、易于使用的Go语言shell命令�
 - 同步和异步执行支持
 - 命令执行状态管理和进程控制
 - 输入输出重定向和环境变量设置
-- 超时控制和上下文取消
+- 精确的超时控制和上下文取消
 - 并发安全的设计
 - 跨平台兼容（Windows、Linux、macOS）
+- 一体化设计：无需Build()方法，直接执行
 
 ## 核心组件
 
-- Builder: 命令构建器，提供链式调用API
-- Command: 命令执行对象，封装exec.Cmd并提供额外功能
+- Command: 命令对象，集配置、构建、执行于一体
 - Result: 命令执行结果，包含输出、错误、时间等信息
 - ShellType: Shell类型枚举，支持多种shell
 
@@ -141,45 +145,47 @@ Package shellx 提供了一个功能完善、易于使用的Go语言shell命令�
 ```go
 import "gitee.com/MM-Q/shellx"
 
-// 方式1：使用可变参数创建命令
-cmd := shellx.NewCmd("ls", "-la").
+// 方式1：使用可变参数创建命令（无需Build）
+err := shellx.NewCmd("ls", "-la").
 	WithWorkDir("/tmp").
 	WithTimeout(30 * time.Second).
 	WithShell(shellx.ShellBash).
-	Build()
+	Exec()
 
 // 方式2：使用字符串创建命令
-cmd := shellx.NewCmdStr(`echo "hello world"`).
+output, err := shellx.NewCmdStr(`echo "hello world"`).
 	WithEnv("MY_VAR", "value").
-	Build()
+	ExecOutput()
 
-// 同步执行
-err := cmd.Exec()
+// 方式3：使用切片创建命令
+result, err := shellx.NewCmds([]string{"git", "status"}).
+	WithTimeout(10 * time.Second).
+	ExecResult()
+
 if err != nil {
 	log.Fatal(err)
 }
 
-// 获取输出
-output, err := cmd.ExecOutput()
-if err != nil {
-	log.Fatal(err)
-}
-fmt.Println(string(output))
-
-// 获取完整结果
-result := cmd.ExecResult()
 fmt.Printf("Exit Code: %d\n", result.Code())
 fmt.Printf("Success: %t\n", result.Success())
 fmt.Printf("Duration: %v\n", result.Duration())
 fmt.Printf("Output: %s\n", result.Output())
+```
 
-// 异步执行
-err = cmd.ExecAsync()
-if err != nil {
-	log.Fatal(err)
-}
-// 等待完成
-err = cmd.Wait()
+## 便捷函数用法
+
+```go
+// 基础执行函数
+err := shellx.Exec("ls", "-la")                    // 执行命令，输出到控制台
+err := shellx.ExecStr("echo hello")                // 字符串方式执行
+output, err := shellx.ExecOut("ls", "-la")         // 执行并返回输出
+output, err := shellx.ExecOutStr("echo hello")     // 字符串方式执行并返回输出
+
+// 带超时的执行函数
+err := shellx.ExecT(5*time.Second, "sleep", "10")                    // 5秒超时
+err := shellx.ExecStrT(3*time.Second, "ping google.com")       // 字符串方式，3秒超时
+output, err := shellx.ExecOutT(2*time.Second, "curl", "example.com") // 返回输出，2秒超时
+output, err := shellx.ExecOutStrT(1*time.Second, "date")             // 字符串方式，返回输出，1秒超时
 ```
 
 ## 高级用法
@@ -189,25 +195,47 @@ err = cmd.Wait()
 var stdout, stderr bytes.Buffer
 stdin := strings.NewReader("input data")
 
-cmd := shellx.NewCmd("cat").
+err := shellx.NewCmd("cat").
 	WithStdin(stdin).
 	WithStdout(&stdout).
 	WithStderr(&stderr).
-	Build()
+	Exec()
 
 // 使用上下文控制
 ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 defer cancel()
 
-cmd := shellx.NewCmd("long-running-command").
+err := shellx.NewCmd("long-running-command").
 	WithContext(ctx).
-	Build()
+	Exec()
 
 // 进程控制
+cmd := shellx.NewCmd("sleep", "100")
 cmd.ExecAsync()
 pid := cmd.GetPID()
 isRunning := cmd.IsRunning()
 cmd.Kill() // 或 cmd.Signal(syscall.SIGTERM)
+```
+
+## 超时控制
+
+```go
+// 方式1：使用WithTimeout方法
+err := shellx.NewCmd("sleep", "10").
+	WithTimeout(3*time.Second).  // 3秒后超时
+	Exec()
+
+// 方式2：使用便捷函数
+err := shellx.ExecT(3*time.Second, "sleep", "10")
+
+// 方式3：用户上下文优先（会忽略WithTimeout）
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+
+err := shellx.NewCmd("sleep", "10").
+	WithContext(ctx).
+	WithTimeout(3*time.Second).  // 这个会被忽略
+	Exec()
 ```
 
 ## 命令解析
@@ -234,52 +262,13 @@ shellx.ShellDefault    // 根据操作系统自动选择
 ## 注意事项
 
 - 每个Command对象只能执行一次，重复执行会返回错误
-- Builder是并发安全的，可以在多个goroutine中安全使用
+- Command是并发安全的，可以在多个goroutine中安全使用
 - 命令执行会继承父进程的环境变量，可通过WithEnv添加额外变量
-- 超时设置仅在支持的Go版本中有效
+- 超时控制精确：exec.Cmd在执行时才创建，避免配置到执行之间的时间损耗
+- 用户上下文优先级高于WithTimeout设置的超时时间
 - 异步执行需要调用Wait()等待完成或使用Kill()终止
 
-Package shellx 定义了shell命令执行库的核心数据类型。
-本文件定义了ShellType枚举和Result结构体，提供了shell类型管理和执行结果封装。
-
-## 主要类型
-
-- ShellType: Shell类型枚举，支持sh、bash、cmd、powershell等多种shell
-- Result: 命令执行结果结构体，包含退出码、输出、时间、错误等完整信息
-
-## ShellType支持的shell类型
-
-- ShellSh: Unix/Linux sh shell
-- ShellBash: Bash shell
-- ShellCmd: Windows Command Prompt
-- ShellPowerShell: Windows PowerShell
-- ShellPwsh: PowerShell Core (跨平台)
-- ShellNone: 直接执行命令，不使用shell
-- ShellDefault: 根据操作系统自动选择默认shell
-
-Package shellx 定义了shell命令执行库的核心数据类型。 本文件定义了工具函数，提供命令字符串处理和解析功能。
-
-## 主要功能
-
-- getCmdStr: 从Builder对象获取完整的命令字符串
-- ParseCmd: 智能解析命令字符串，支持复杂的引号处理
-- FindCmd: 查找系统中的命令路径
-
-## ParseCmd函数特性
-
-- 支持单引号、双引号、反引号三种引号类型
-- 正确处理引号内的空格和特殊字符
-- 支持引号嵌套（不同类型的引号可以嵌套）
-- 自动检测未闭合的引号并返回空结果
-- 处理多个连续空格和制表符
-- 支持复杂的命令行参数解析
-
-## 解析示例
-
-- `ls -la` → ["ls", "-la"]
-- `echo "hello world"` → ["echo", "hello world"]
-- `git commit -m "fix: update 'config' file"` → ["git", "commit", "-m", "fix: update 'config' file"]
-- `find . -name "*.go" -exec grep "pattern" {} \;` → ["find", ".", "-name", "*.go", "-exec", "grep", "pattern", "{}", "\\;"]
+---
 
 ## FUNCTIONS
 
@@ -313,37 +302,6 @@ Exec 执行命令(阻塞)
 **返回:**
 - error: 错误信息
 
-### func ExecOutput
-
-```go
-func ExecOutput(name string, args ...string) ([]byte, error)
-```
-
-ExecOutput 执行命令并返回合并后的输出(阻塞)
-
-**参数:**
-- name: 命令名
-- args: 命令参数
-
-**返回:**
-- []byte: 输出
-- error: 错误信息
-
-### func ExecOutputStr
-
-```go
-func ExecOutputStr(cmdStr string) ([]byte, error)
-```
-
-ExecOutputStr 执行命令并返回合并后的输出(阻塞)
-
-**参数:**
-- cmdStr: 命令字符串
-
-**返回:**
-- []byte: 输出
-- error: 错误信息
-
 ### func ExecStr
 
 ```go
@@ -358,19 +316,99 @@ ExecStr 执行命令(阻塞)
 **返回:**
 - error: 错误信息
 
-### func FindCmd
+### func ExecOut
 
 ```go
-func FindCmd(name string) (string, error)
+func ExecOut(name string, args ...string) ([]byte, error)
 ```
 
-FindCmd 查找命令
+ExecOut 执行命令并返回合并后的输出(阻塞)
 
 **参数:**
-- name: 命令名称
+- name: 命令名
+- args: 命令参数
 
 **返回:**
-- string: 命令路径
+- []byte: 输出
+- error: 错误信息
+
+### func ExecOutStr
+
+```go
+func ExecOutStr(cmdStr string) ([]byte, error)
+```
+
+ExecOutStr 执行命令并返回合并后的输出(阻塞)
+
+**参数:**
+- cmdStr: 命令字符串
+
+**返回:**
+- []byte: 输出
+- error: 错误信息
+
+### func ExecT
+
+```go
+func ExecT(timeout time.Duration, name string, args ...string) error
+```
+
+ExecT 执行命令(阻塞，带超时)
+
+**参数:**
+- timeout: 超时时间，如果为0则不设置超时
+- name: 命令名
+- args: 命令参数
+
+**返回:**
+- error: 错误信息
+
+### func ExecStrT
+
+```go
+func ExecStrT(timeout time.Duration, cmdStr string) error
+```
+
+ExecStrT 执行命令(阻塞，带超时)
+
+**参数:**
+- timeout: 超时时间，如果为0则不设置超时
+- cmdStr: 命令字符串
+
+**返回:**
+- error: 错误信息
+
+### func ExecOutT
+
+```go
+func ExecOutT(timeout time.Duration, name string, args ...string) ([]byte, error)
+```
+
+ExecOutT 执行命令并返回合并后的输出(阻塞，带超时)
+
+**参数:**
+- timeout: 超时时间，如果为0则不设置超时
+- name: 命令名
+- args: 命令参数
+
+**返回:**
+- []byte: 合并后的输出
+- error: 错误信息
+
+### func ExecOutStrT
+
+```go
+func ExecOutStrT(timeout time.Duration, cmdStr string) ([]byte, error)
+```
+
+ExecOutStrT 执行命令并返回合并后的输出(阻塞，带超时)
+
+**参数:**
+- timeout: 超时时间，如果为0则不设置超时
+- cmdStr: 命令字符串
+
+**返回:**
+- []byte: 合并后的输出
 - error: 错误信息
 
 ### func ParseCmd
@@ -396,63 +434,63 @@ ParseCmd 将命令字符串解析为命令切片，支持引号处理(单引号�
 
 ## TYPES
 
-### type Builder
+### type Command
 
 ```go
-type Builder struct {
+type Command struct {
 	// Has unexported fields.
 }
 ```
 
-Builder 命令构建器，提供链式调用
+Command 命令对象 - 集配置、构建、执行于一体
 
 #### func NewCmd
 
 ```go
-func NewCmd(name string, args ...string) *Builder
+func NewCmd(name string, args ...string) *Command
 ```
 
-NewCmd 创建新的命令构建器 (数组方式 - 可变参数)
+NewCmd 创建新的命令对象 (数组方式 - 可变参数)
 
 **参数：**
 - name: 命令名
 - args: 命令参数列表
 
 **返回：**
-- *Builder: 命令构建器对象
+- *Command: 命令对象
 
 #### func NewCmdStr
 
 ```go
-func NewCmdStr(cmdStr string) *Builder
+func NewCmdStr(cmdStr string) *Command
 ```
 
-NewCmdStr 创建新的命令构建器 (字符串方式)
+NewCmdStr 创建新的命令对象 (字符串方式)
 
 **参数：**
 - cmdStr: 命令字符串
 
 **返回：**
-- *Builder: 命令构建器对象
+- *Command: 命令对象
 
 #### func NewCmds
 
 ```go
-func NewCmds(cmdArgs []string) *Builder
+func NewCmds(cmdArgs []string) *Command
 ```
 
-NewCmds 创建新的命令构建器 (数组方式 - 切片参数，第一个元素为命令名)
+NewCmds 创建新的命令对象 (数组方式 - 切片参数)
 
 **参数：**
 - cmdArgs: 命令参数列表，第一个元素为命令名，后续元素为参数
 
 **返回：**
-- *Builder: 命令构建器对象
+- *Command: 命令对象
 
-#### func (*Builder) Args
+#### func (*Command) Args
 
 ```go
-func (b *Builder) Args() []string
+func (c *Command) Args() []string
 ```
 
 Args 获取命令参数列表
@@ -460,21 +498,26 @@ Args 获取命令参数列表
 **返回:**
 - []string: 命令参数列表
 
-#### func (*Builder) Build
+#### func (*Command) CmdStr
 
 ```go
-func (b *Builder) Build() *Command
+func (c *Command) CmdStr() string
 ```
 
-Build 构建并返回命令对象
+CmdStr 获取命令字符串
 
 **返回:**
-- *Command: 构建的命令对象
+- string: 命令字符串
 
-#### func (*Builder) Env
+**说明:**
+- 如果 exec.Cmd 对象已构建，返回其 String() 方法的结果
+- 如果 exec.Cmd 对象未构建，返回原始命令字符串
+- 该方法可用于调试和日志记录
+
+#### func (*Command) Env
 
 ```go
-func (b *Builder) Env() []string
+func (c *Command) Env() []string
 ```
 
 Env 获取命令环境变量列表
@@ -482,10 +525,10 @@ Env 获取命令环境变量列表
 **返回:**
 - []string: 命令环境变量列表
 
-#### func (*Builder) Name
+#### func (*Command) Name
 
 ```go
-func (b *Builder) Name() string
+func (c *Command) Name() string
 ```
 
 Name 获取命令名称
@@ -493,10 +536,10 @@ Name 获取命令名称
 **返回:**
 - string: 命令名称
 
-#### func (*Builder) Raw
+#### func (*Command) Raw
 
 ```go
-func (b *Builder) Raw() string
+func (c *Command) Raw() string
 ```
 
 Raw 获取原始命令字符串
@@ -504,10 +547,10 @@ Raw 获取原始命令字符串
 **返回:**
 - string: 原始命令字符串
 
-#### func (*Builder) ShellType
+#### func (*Command) ShellType
 
 ```go
-func (b *Builder) ShellType() ShellType
+func (c *Command) ShellType() ShellType
 ```
 
 ShellType 获取shell类型
@@ -515,10 +558,10 @@ ShellType 获取shell类型
 **返回:**
 - ShellType: shell类型
 
-#### func (*Builder) Timeout
+#### func (*Command) Timeout
 
 ```go
-func (b *Builder) Timeout() time.Duration
+func (c *Command) Timeout() time.Duration
 ```
 
 Timeout 获取命令执行超时时间
@@ -526,10 +569,21 @@ Timeout 获取命令执行超时时间
 **返回:**
 - time.Duration: 命令执行超时时间
 
-#### func (*Builder) WithContext
+#### func (*Command) WorkDir
 
 ```go
-func (b *Builder) WithContext(ctx context.Context) *Builder
+func (c *Command) WorkDir() string
+```
+
+WorkDir 获取命令执行的工作目录
+
+**返回:**
+- string: 命令执行目录
+
+#### func (*Command) WithContext
+
+```go
+func (c *Command) WithContext(ctx context.Context) *Command
 ```
 
 WithContext 设置命令的上下文
@@ -538,12 +592,16 @@ WithContext 设置命令的上下文
 - ctx: context.Context类型，用于取消命令执行和超时控制
 
 **返回：**
-- *Builder: 命令构建器对象
+- *Command: 命令对象
 
-#### func (*Builder) WithEnv
+**注意:**
+- 该方法会验证上下文是否为空，如果为空则panic.
+- 该上下文会覆盖之前设置的超时时间.
+
+#### func (*Command) WithEnv
 
 ```go
-func (b *Builder) WithEnv(key, value string) *Builder
+func (c *Command) WithEnv(key, value string) *Command
 ```
 
 WithEnv 设置命令的环境变量
@@ -553,16 +611,16 @@ WithEnv 设置命令的环境变量
 - value: 环境变量的值
 
 **返回：**
-- *Builder: 命令构建器对象
+- *Command: 命令对象
 
 **注意:**
 - 该方法会验证key是否为空, 如果为空则忽略。
 - 无需添加系统环境变量os.Environ(), 系统环境变量会自动继承.
 
-#### func (*Builder) WithEnvs
+#### func (*Command) WithEnvs
 
 ```go
-func (b *Builder) WithEnvs(envs []string) *Builder
+func (c *Command) WithEnvs(envs []string) *Command
 ```
 
 WithEnvs 批量设置命令的环境变量
@@ -571,16 +629,16 @@ WithEnvs 批量设置命令的环境变量
 - envs: []string类型，环境变量列表，每个元素为"key=value"格式
 
 **返回：**
-- *Builder: 命令构建器对象
+- *Command: 命令对象
 
 **注意:**
 - 该方法会验证环境变量格式，只添加验证通过的环境变量。
 - 无需添加系统环境变量os.Environ(), 系统环境变量会自动继承.
 
-#### func (*Builder) WithShell
+#### func (*Command) WithShell
 
 ```go
-func (b *Builder) WithShell(shell ShellType) *Builder
+func (c *Command) WithShell(shell ShellType) *Command
 ```
 
 WithShell 设置命令的shell类型
@@ -589,12 +647,12 @@ WithShell 设置命令的shell类型
 - shell: ShellType类型，表示要使用的shell类型
 
 **返回：**
-- *Builder: 命令构建器对象
+- *Command: 命令对象
 
-#### func (*Builder) WithStderr
+#### func (*Command) WithStderr
 
 ```go
-func (b *Builder) WithStderr(stderr io.Writer) *Builder
+func (c *Command) WithStderr(stderr io.Writer) *Command
 ```
 
 WithStderr 设置命令的标准错误输出
@@ -603,12 +661,12 @@ WithStderr 设置命令的标准错误输出
 - stderr: io.Writer类型，用于接收命令的标准错误输出
 
 **返回：**
-- *Builder: 命令构建器对象
+- *Command: 命令对象
 
-#### func (*Builder) WithStdin
+#### func (*Command) WithStdin
 
 ```go
-func (b *Builder) WithStdin(stdin io.Reader) *Builder
+func (c *Command) WithStdin(stdin io.Reader) *Command
 ```
 
 WithStdin 设置命令的标准输入
@@ -617,12 +675,12 @@ WithStdin 设置命令的标准输入
 - stdin: io.Reader类型，用于提供命令的标准输入
 
 **返回：**
-- *Builder: 命令构建器对象
+- *Command: 命令对象
 
-#### func (*Builder) WithStdout
+#### func (*Command) WithStdout
 
 ```go
-func (b *Builder) WithStdout(stdout io.Writer) *Builder
+func (c *Command) WithStdout(stdout io.Writer) *Command
 ```
 
 WithStdout 设置命令的标准输出
@@ -631,26 +689,30 @@ WithStdout 设置命令的标准输出
 - stdout: io.Writer类型，用于接收命令的标准输出
 
 **返回：**
-- *Builder: 命令构建器对象
+- *Command: 命令对象
 
-#### func (*Builder) WithTimeout
+#### func (*Command) WithTimeout
 
 ```go
-func (b *Builder) WithTimeout(timeout time.Duration) *Builder
+func (c *Command) WithTimeout(timeout time.Duration) *Command
 ```
 
-WithTimeout 设置命令的超时时间
+WithTimeout 设置命令的超时时间(便捷方式)
 
 **参数：**
 - timeout: time.Duration类型，命令执行的超时时间
 
 **返回：**
-- *Builder: 命令构建器对象
+- *Command: 命令对象
 
-#### func (*Builder) WithWorkDir
+**注意:**
+- 该方法会验证超时时间是否小于等于0, 如果小于等于0则忽略。
+- 该超时时间优先级低于上下文设置的超时时间.
+
+#### func (*Command) WithWorkDir
 
 ```go
-func (b *Builder) WithWorkDir(dir string) *Builder
+func (c *Command) WithWorkDir(dir string) *Command
 ```
 
 WithWorkDir 设置命令的工作目录
@@ -659,28 +721,7 @@ WithWorkDir 设置命令的工作目录
 - dir: 命令的工作目录
 
 **返回：**
-- *Builder: 命令构建器对象
-
-#### func (*Builder) WorkDir
-
-```go
-func (b *Builder) WorkDir() string
-```
-
-WorkDir 获取命令执行的工作目录
-
-**返回:**
-- string: 命令执行目录
-
-### type Command
-
-```go
-type Command struct {
-	// Has unexported fields.
-}
-```
-
-Command 命令对象
+- *Command: 命令对象
 
 #### func (*Command) Cmd
 
@@ -849,7 +890,7 @@ Result 表示命令执行的结果
 func (r *Result) Code() int
 ```
 
-提供公共访问方法
+Code 获取命令退出码
 
 #### func (*Result) Duration
 
@@ -857,11 +898,15 @@ func (r *Result) Code() int
 func (r *Result) Duration() time.Duration
 ```
 
+Duration 获取命令执行时长
+
 #### func (*Result) End
 
 ```go
 func (r *Result) End() time.Time
 ```
+
+End 获取命令结束时间
 
 #### func (*Result) Output
 
@@ -869,17 +914,23 @@ func (r *Result) End() time.Time
 func (r *Result) Output() []byte
 ```
 
+Output 获取命令输出
+
 #### func (*Result) Start
 
 ```go
 func (r *Result) Start() time.Time
 ```
 
+Start 获取命令开始时间
+
 #### func (*Result) Success
 
 ```go
 func (r *Result) Success() bool
 ```
+
+Success 获取命令是否执行成功
 
 ### type ShellType
 
@@ -897,7 +948,7 @@ const (
 	ShellPowerShell                  // powershell (Windows PowerShell)
 	ShellCmd                         // cmd (Windows Command Prompt)
 	ShellNone                        // 无shell, 直接原生的执行命令
-	ShellDefault                     // 默认shell, 根据操作系统自动选择(Windows系统默认为cmd, 其他系统默认为sh)
+	ShellDefault                     // 默认shell, 根据操作系统自动选择(Windows系统默认为powershell, 其他系统默认为sh)
 )
 ```
 
@@ -908,4 +959,3 @@ func (s ShellType) String() string
 ```
 
 String 返回shell类型的字符串表示
-

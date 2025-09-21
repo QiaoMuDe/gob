@@ -23,27 +23,148 @@ package shellx
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
-// getCmdStr 获取命令字符串
+// ########################################
+// 便捷函数
+// ########################################
+
+// ExecStr 执行命令(阻塞)
 //
-// 参数：
-//   - b: 命令构建器对象
+// 参数:
+//   - cmdStr: 命令字符串
 //
-// 返回：
-//   - string: 命令字符串
-func getCmdStr(b *Builder) string {
-	if b == nil {
-		return ""
+// 返回:
+//   - error: 错误信息
+func ExecStr(cmdStr string) error {
+	return NewCmdStr(cmdStr).WithStdout(os.Stdout).WithStderr(os.Stderr).Exec()
+}
+
+// Exec 执行命令(阻塞)
+//
+// 函数:
+//   - name: 命令名
+//   - args: 命令参数
+//
+// 返回:
+//   - error: 错误信息
+func Exec(name string, args ...string) error {
+	return NewCmd(name, args...).WithStdout(os.Stdout).WithStderr(os.Stderr).Exec()
+}
+
+// ExecOutStr 执行命令并返回合并后的输出(阻塞)
+//
+// 参数:
+//   - cmdStr: 命令字符串
+//
+// 返回:
+//   - []byte: 输出
+//   - error: 错误信息
+//
+// 注意:
+//   - 由于需要捕获默认的stdout和stderr合并输出, 内部已经设置了WithStdout(os.Stdout)和WithStderr(os.Stderr)
+func ExecOutStr(cmdStr string) ([]byte, error) {
+	return NewCmdStr(cmdStr).ExecOutput()
+}
+
+// ExecOut 执行命令并返回合并后的输出(阻塞)
+//
+// 函数:
+//   - name: 命令名
+//   - args: 命令参数
+//
+// 返回:
+//   - []byte: 输出
+//   - error: 错误信息
+//
+// 注意:
+//   - 由于需要捕获默认的stdout和stderr合并输出, 内部已经设置了WithStdout(os.Stdout)和WithStderr(os.Stderr)
+func ExecOut(name string, args ...string) ([]byte, error) {
+	return NewCmd(name, args...).ExecOutput()
+}
+
+// ExecStrT 执行命令(阻塞，带超时)
+//
+// 参数:
+//   - timeout: 超时时间，如果为0则不设置超时
+//   - cmdStr: 命令字符串
+//
+// 返回:
+//   - error: 错误信息
+func ExecStrT(timeout time.Duration, cmdStr string) error {
+	cmd := NewCmdStr(cmdStr).WithStdout(os.Stdout).WithStderr(os.Stderr)
+
+	// 设置超时
+	if timeout > 0 {
+		cmd = cmd.WithTimeout(timeout)
 	}
 
-	if b.raw != "" {
-		return b.raw
+	return cmd.Exec()
+}
+
+// ExecT 执行命令(阻塞，带超时)
+//
+// 参数:
+//   - timeout: 超时时间，如果为0则不设置超时
+//   - name: 命令名
+//   - args: 命令参数
+//
+// 返回:
+//   - error: 错误信息
+func ExecT(timeout time.Duration, name string, args ...string) error {
+	cmd := NewCmd(name, args...).WithStdout(os.Stdout).WithStderr(os.Stderr)
+
+	// 设置超时
+	if timeout > 0 {
+		cmd = cmd.WithTimeout(timeout)
 	}
 
-	return fmt.Sprintf("%s %s", b.name, strings.Join(b.args, " "))
+	return cmd.Exec()
+}
+
+// ExecOutStrT 执行命令并返回合并后的输出(阻塞，带超时)
+//
+// 参数:
+//   - timeout: 超时时间，如果为0则不设置超时
+//   - cmdStr: 命令字符串
+//
+// 返回:
+//   - []byte: 合并后的输出
+//   - error: 错误信息
+func ExecOutStrT(timeout time.Duration, cmdStr string) ([]byte, error) {
+	cmd := NewCmdStr(cmdStr)
+
+	// 设置超时
+	if timeout > 0 {
+		cmd = cmd.WithTimeout(timeout)
+	}
+
+	return cmd.ExecOutput()
+}
+
+// ExecOutT 执行命令并返回合并后的输出(阻塞，带超时)
+//
+// 参数:
+//   - timeout: 超时时间，如果为0则不设置超时
+//   - name: 命令名
+//   - args: 命令参数
+//
+// 返回:
+//   - []byte: 合并后的输出
+//   - error: 错误信息
+func ExecOutT(timeout time.Duration, name string, args ...string) ([]byte, error) {
+	cmd := NewCmd(name, args...)
+
+	// 设置超时
+	if timeout > 0 {
+		cmd = cmd.WithTimeout(timeout)
+	}
+
+	return cmd.ExecOutput()
 }
 
 // ParseCmd 将命令字符串解析为命令切片，支持引号处理(单引号、双引号、反引号)，出错时返回空切片

@@ -60,8 +60,8 @@ func genOutputName(appName string, useSimpleName bool, version string, sysPlatfo
 //   - error: 错误信息
 func checkBaseEnv(config *gobConfig) error {
 	// 检查go环境
-	if err := shellx.NewCmds([]string{"go", "env"}).WithTimeout(config.Build.TimeoutDuration).Build().Exec(); err != nil {
-		return fmt.Errorf("未找到go环境, 请先安装go环境: %w", err)
+	if err := shellx.NewCmds([]string{"go", "env"}).WithTimeout(config.Build.TimeoutDuration).Exec(); err != nil {
+		return err
 	}
 
 	// 检查当前目录下是否存在go.mod
@@ -85,7 +85,7 @@ func checkBaseEnv(config *gobConfig) error {
 	var checkMode bool
 
 	// 检查系统中是否存在golangci-lint否则执行默认的处理命令
-	if err := shellx.NewCmds([]string{"golangci-lint", "version"}).WithTimeout(config.Build.TimeoutDuration).Build().Exec(); err != nil {
+	if err := shellx.NewCmds([]string{"golangci-lint", "version"}).WithTimeout(config.Build.TimeoutDuration).Exec(); err != nil {
 		checkMode = true
 	}
 
@@ -105,10 +105,10 @@ func checkBaseEnv(config *gobConfig) error {
 
 	// 遍历处理命令组
 	for _, cmdGroup := range cmds {
-		if result, runErr := shellx.NewCmds(cmdGroup.Cmds).WithTimeout(config.Build.TimeoutDuration).WithEnvs(envs).Build().ExecOutput(); runErr != nil {
+		if result, runErr := shellx.NewCmds(cmdGroup.Cmds).WithTimeout(config.Build.TimeoutDuration).WithEnvs(envs).ExecOutput(); runErr != nil {
 			// 如果存在输出，则打印
 			if len(result) > 0 {
-				return fmt.Errorf("执行 %s 失败: %s", cmdGroup.Cmds, string(result))
+				return fmt.Errorf("执行 %s 失败: %s%s", cmdGroup.Cmds, string(result), runErr)
 			}
 
 			// 如果没有输出，则打印错误
@@ -135,12 +135,12 @@ func checkBaseEnv(config *gobConfig) error {
 //   - error: 错误信息，如果获取成功则返回nil
 func getGitMetaData(timeout time.Duration, v *verman.VerMan, c *gobConfig) error {
 	// 检查Git是否安装
-	if err := shellx.NewCmds([]string{"git", "--version"}).WithTimeout(timeout).Build().Exec(); err != nil {
+	if err := shellx.NewCmds([]string{"git", "--version"}).WithTimeout(timeout).Exec(); err != nil {
 		return fmt.Errorf("未检测到Git, 请先安装Git并确保其在PATH中: %w", err)
 	}
 
 	// 检查当前目录是否为git仓库
-	if result, err := shellx.NewCmds(globls.GitIsInsideWorkTreeCmd.Cmds).WithTimeout(timeout).Build().ExecOutput(); err != nil {
+	if result, err := shellx.NewCmds(globls.GitIsInsideWorkTreeCmd.Cmds).WithTimeout(timeout).ExecOutput(); err != nil {
 		if strings.Contains(string(result), "not a git repository") {
 			return fmt.Errorf("当前目录不是Git仓库, 请先执行`git init`初始化仓库: %w", err)
 		}
@@ -159,7 +159,7 @@ func getGitMetaData(timeout time.Duration, v *verman.VerMan, c *gobConfig) error
 
 	// 处理常规git信息
 	for _, item := range commands {
-		cmdResult, runErr := shellx.NewCmds(item.cmd.Cmds).WithTimeout(timeout).Build().ExecOutput()
+		cmdResult, runErr := shellx.NewCmds(item.cmd.Cmds).WithTimeout(timeout).ExecOutput()
 		if runErr != nil {
 			return fmt.Errorf("%s: \n\t%s \n%w", item.cmd.Name, string(cmdResult), runErr)
 		}
@@ -168,7 +168,7 @@ func getGitMetaData(timeout time.Duration, v *verman.VerMan, c *gobConfig) error
 	}
 
 	// 特殊处理git树状态
-	result, err := shellx.NewCmds(globls.GitTreeStatusCmd.Cmds).WithTimeout(timeout).Build().ExecOutput()
+	result, err := shellx.NewCmds(globls.GitTreeStatusCmd.Cmds).WithTimeout(timeout).ExecOutput()
 	if err != nil {
 		return fmt.Errorf("%s: \n\t%s \n%w", globls.GitTreeStatusCmd.Name, string(result), err)
 	}
