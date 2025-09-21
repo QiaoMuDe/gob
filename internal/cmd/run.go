@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"gitee.com/MM-Q/comprx"
 	"gitee.com/MM-Q/gob/internal/globls"
 	"gitee.com/MM-Q/qflag"
 	"gitee.com/MM-Q/verman"
@@ -234,16 +235,19 @@ func buildSingle(ctx *BuildContext) error {
 		baseName := strings.TrimSuffix(outputPath, ".exe") // 去除.exe后缀
 		zipPath := fmt.Sprint(baseName, ".zip")            // 添加.zip后缀
 
-		// 调用CreateZip函数创建zip文件
-		if err := createZip(zipPath, outputPath); err != nil {
-			return fmt.Errorf("创建zip文件失败: %w", err)
+		// 删除目标zip文件, 避免重复打包
+		if err := os.RemoveAll(zipPath); err != nil {
+			return fmt.Errorf("删除历史zip文件失败: %w", err)
+		}
+
+		// 打包zip文件
+		if err := comprx.Pack(zipPath, outputPath); err != nil {
+			return fmt.Errorf("压缩zip文件失败: %w", err)
 		}
 
 		// 删除原始文件
-		if _, err := os.Stat(outputPath); err == nil {
-			if err := os.Remove(outputPath); err != nil {
-				return fmt.Errorf("删除编译生成的文件 %s 失败: %w", outputPath, err)
-			}
+		if err := os.RemoveAll(outputPath); err != nil {
+			return fmt.Errorf("删除编译生成的文件 %s 失败: %w", outputPath, err)
 		}
 	}
 	return nil
