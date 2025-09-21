@@ -14,6 +14,7 @@ import (
 	"gitee.com/MM-Q/comprx"
 	"gitee.com/MM-Q/gob/internal/globls"
 	"gitee.com/MM-Q/qflag"
+	"gitee.com/MM-Q/shellx"
 	"gitee.com/MM-Q/verman"
 )
 
@@ -212,7 +213,7 @@ func buildSingle(ctx *BuildContext) error {
 	}
 
 	// 执行构建命令
-	if result, buildErr := runCmd(ctx.Config.Build.TimeoutDuration, buildCmds, envs); buildErr != nil {
+	if result, buildErr := shellx.NewCmds(buildCmds).WithTimeout(ctx.Config.Build.TimeoutDuration).WithEnvs(envs).Build().ExecOutput(); buildErr != nil {
 		return fmt.Errorf("command: %s Error: %v Output: %s", buildCmds, buildErr, result)
 	}
 
@@ -476,14 +477,14 @@ func replaceGitPlaceholders(ldflags string, v *verman.VerMan) string {
 func runTests(timeout time.Duration) error {
 	// 清理测试缓存
 	globls.CL.Green("清理测试缓存")
-	result, err := runCmd(timeout, globls.GoCleanTestCacheCmd.Cmds, os.Environ())
+	result, err := shellx.NewCmds(globls.GoCleanTestCacheCmd.Cmds).WithTimeout(timeout).Build().ExecOutput()
 	if err != nil {
 		return fmt.Errorf("%s:\n%s\n%w", globls.GoCleanTestCacheCmd.Name, string(result), err)
 	}
 
 	// 执行go test命令
 	globls.CL.Green("开始执行单元测试")
-	result, err = runCmd(timeout, globls.GoTestCmd.Cmds, os.Environ())
+	result, err = shellx.NewCmds(globls.GoTestCmd.Cmds).WithTimeout(timeout).Build().ExecOutput()
 	if err != nil {
 		return fmt.Errorf("%s:\n%s\n%w", globls.GoTestCmd.Name, string(result), err)
 	}
