@@ -31,7 +31,7 @@ type BuildContext struct {
 func Run() {
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Printf("panic: %v\nstack: %s\n", err, debug.Stack())
+			fmt.Printf("%s panic: %v\nstack: %s\n", globls.PrintPrefix, err, debug.Stack())
 			os.Exit(1)
 		}
 	}()
@@ -42,7 +42,7 @@ func Run() {
 		// 获取构建耗时
 		duration := time.Since(startTime)
 		// 格式化耗时为秒并保留两位小数
-		globls.CL.Greenf("本次构建耗时 %.2fs\n", duration.Seconds())
+		globls.CL.Greenf("%s 本次构建耗时 %.2fs\n", globls.PrintPrefix, duration.Seconds())
 	}()
 
 	// 处理--generate-config参数: 生成默认配置文件
@@ -55,7 +55,7 @@ func Run() {
 			globls.CL.PrintErrorf("%v\n", err)
 			os.Exit(1)
 		}
-		globls.CL.Greenf("已生成默认配置文件: %s\n", globls.GobBuildFile)
+		globls.CL.Greenf("%s 已生成构建文件: %s\n", globls.PrintPrefix, globls.GobBuildFile)
 		os.Exit(0)
 	}
 
@@ -80,18 +80,18 @@ func Run() {
 		// 默认关闭颜色输出
 		globls.CL.SetColor(config.Build.ColorOutput)
 		// 输出加载模式
-		globls.CL.Greenf("Config: %s\n", configFilePath)
+		globls.CL.Greenf("%s Config: %s\n", globls.PrintPrefix, configFilePath)
 	} else {
 		// 如果不存在, 则将命令行标志的值设置到配置结构体
 		applyConfigFlags(config)
 		// 默认关闭颜色输出
 		globls.CL.SetColor(config.Build.ColorOutput)
 		// 输出加载模式
-		globls.CL.Green("Config: CLI flags")
+		globls.CL.Greenf("%s Config: CLI flags\n", globls.PrintPrefix)
 	}
 
 	// 第一阶段：执行检查和准备阶段
-	globls.CL.Green("开始构建准备")
+	globls.CL.Greenf("%s 开始构建准备\n", globls.PrintPrefix)
 	if err := checkBaseEnv(config); err != nil {
 		globls.CL.PrintErrorf("%v\n", err)
 		os.Exit(1)
@@ -99,7 +99,7 @@ func Run() {
 
 	// 如果启用了测试选项, 则运行单元测试
 	if testFlag.Get() {
-		globls.CL.Green("开始运行单元测试")
+		globls.CL.Greenf("%s 开始运行单元测试\n", globls.PrintPrefix)
 		if err := runTests(config.Build.TimeoutDuration); err != nil {
 			globls.CL.PrintErrorf("%v\n", err)
 			os.Exit(1)
@@ -108,19 +108,19 @@ func Run() {
 
 	// 检查批量构建和安装选项是否同时启用
 	if config.Build.BatchMode && config.Install.Install {
-		globls.CL.PrintError("不能同时使用批量构建和安装选项")
+		globls.CL.PrintErrorf("不能同时使用批量构建和安装选项")
 		os.Exit(1)
 	}
 
 	// 检查安装和zip选项是否同时启用
 	if config.Install.Install && config.Build.ZipOutput {
-		globls.CL.PrintError("不能同时使用安装和zip选项")
+		globls.CL.PrintErrorf("不能同时使用安装和zip选项")
 		os.Exit(1)
 	}
 
 	// 第二阶段: 根据参数获取git信息
 	if config.Build.InjectGitInfo {
-		globls.CL.Green("获取Git元数据")
+		globls.CL.Greenf("%s 获取Git元数据\n", globls.PrintPrefix)
 		if err := getGitMetaData(config.Build.TimeoutDuration, verman.V, config); err != nil {
 			globls.CL.PrintErrorf("Git信息获取失败: %v\n", err)
 			os.Exit(1)
@@ -286,7 +286,7 @@ func buildBatch(v *verman.Info, config *gobConfig) error {
 					printMutex.Lock()
 					// 仅在批量模式下打印跳过信息
 					if config.Build.BatchMode {
-						globls.CL.Greenf("跳过非当前平台: %s/%s\n", platform, arch)
+						globls.CL.Greenf("%s 跳过非当前平台: %s/%s\n", globls.PrintPrefix, platform, arch)
 					}
 					printMutex.Unlock()
 					continue
@@ -304,7 +304,7 @@ func buildBatch(v *verman.Info, config *gobConfig) error {
 
 				defer func() {
 					if err := recover(); err != nil {
-						fmt.Printf("panic: %v\nstack: %s\n", err, debug.Stack())
+						fmt.Printf("%s panic: %v\nstack: %s\n", globls.PrintPrefix, err, debug.Stack())
 					}
 				}()
 
@@ -331,11 +331,11 @@ func buildBatch(v *verman.Info, config *gobConfig) error {
 				// 直接调用构建函数并处理错误
 				if buildErr := buildSingle(ctx); buildErr != nil {
 					printMutex.Lock()
-					globls.CL.Redf("build %s/%s ✗ %v\n", platform, arch, buildErr)
+					globls.CL.Redf("%s build %s/%s ✗ %v\n", globls.PrintPrefix, platform, arch, buildErr)
 					printMutex.Unlock()
 				} else {
 					printMutex.Lock()
-					globls.CL.Greenf("build %s/%s ✓\n", platform, arch)
+					globls.CL.Greenf("%s build %s/%s ✓\n", globls.PrintPrefix, platform, arch)
 					printMutex.Unlock()
 				}
 			})
@@ -389,7 +389,7 @@ func installExecutable(executablePath string, c *gobConfig) error {
 	}
 
 	// 打印安装成功信息
-	globls.CL.Greenf("已安装至: %s\n", targetPath)
+	globls.CL.Greenf("%s 已安装至: %s\n", globls.PrintPrefix, targetPath)
 
 	return nil
 }
@@ -471,14 +471,14 @@ func replaceGitPlaceholders(ldflags string, v *verman.Info) string {
 //   - error: 错误信息
 func runTests(timeout time.Duration) error {
 	// 清理测试缓存
-	globls.CL.Green("清理测试缓存")
+	globls.CL.Greenf("%s 清理测试缓存\n", globls.PrintPrefix)
 	result, err := shellx.NewCmds(globls.GoCleanTestCacheCmd.Cmds).WithTimeout(timeout).ExecOutput()
 	if err != nil {
 		return fmt.Errorf("%s:\n%s\n%w", globls.GoCleanTestCacheCmd.Name, string(result), err)
 	}
 
 	// 执行go test命令
-	globls.CL.Green("开始执行单元测试")
+	globls.CL.Greenf("%s 开始执行单元测试\n", globls.PrintPrefix)
 	result, err = shellx.NewCmds(globls.GoTestCmd.Cmds).WithTimeout(timeout).ExecOutput()
 	if err != nil {
 		return fmt.Errorf("%s:\n%s\n%w", globls.GoTestCmd.Name, string(result), err)

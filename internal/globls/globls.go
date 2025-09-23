@@ -4,7 +4,7 @@ import "gitee.com/MM-Q/colorlib"
 
 // 用于打印信息的前缀
 const (
-	PrintPrefix = "gob: "
+	PrintPrefix = "gob:"
 )
 
 // GitMetaData 用于存储Git相关元数据
