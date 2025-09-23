@@ -88,8 +88,7 @@ func init() {
 	qflag.AddNote("[build-file] 可选参数, 指定gob配置文件路径, 默认为gob.toml")
 
 	// 设置版本信息
-	v := verman.Get()
-	qflag.SetVersion(fmt.Sprintf("%s %s", v.AppName, v.GitVersion))
+	qflag.SetVersion(verman.V.Version())
 
 	// 解析命令行参数 - 仅在非测试模式下执行
 	if !isTestMode() {

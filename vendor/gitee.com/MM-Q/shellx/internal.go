@@ -78,23 +78,22 @@ func (c *Command) cleanup() {
 
 // getCmdStr 获取命令字符串
 //
-// 参数：
+// 参数:
 //   - c: 命令对象
 //
-// 返回：
+// 返回:
 //   - string: 命令字符串
 func (c *Command) getCmdStr() string {
 	if c == nil {
 		return ""
 	}
 
+	// 构建命令字符串
 	if c.raw != "" {
 		return c.raw
-	}
-
-	if len(c.args) == 0 {
+	} else if len(c.args) == 0 {
 		return c.name
+	} else {
+		return fmt.Sprintf("%s %s", c.name, strings.Join(c.args, " "))
 	}
-
-	return fmt.Sprintf("%s %s", c.name, strings.Join(c.args, " "))
 }

@@ -50,6 +50,10 @@ type Command struct {
 	mu      sync.RWMutex       // 保护配置字段的并发安全
 }
 
+// ############################################
+// 构造函数
+// ############################################
+
 // NewCmd 创建新的命令对象 (数组方式 - 可变参数)
 //
 // 参数：
@@ -107,6 +111,10 @@ func NewCmdStr(cmdStr string) *Command {
 	return cmd
 }
 
+// ############################################
+// 配置方法
+// ############################################
+
 // WithWorkDir 设置命令的工作目录
 //
 // 参数：
@@ -118,9 +126,23 @@ func (c *Command) WithWorkDir(dir string) *Command {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if dir != "" {
-		c.dir = dir
+	if dir == "" {
+		return c
 	}
+
+	info, statErr := os.Lstat(dir)
+	if statErr != nil {
+		if os.IsNotExist(statErr) {
+			panic(fmt.Sprintf("dir %s does not exist", dir))
+		}
+
+		panic(fmt.Sprintf("stat %s failed: %v", dir, statErr))
+	}
+	if !info.IsDir() {
+		panic(fmt.Sprintf("dir %s is not a directory", dir))
+	}
+
+	c.dir = dir
 	return c
 }
 
@@ -298,6 +320,10 @@ func (c *Command) WithShell(shell ShellType) *Command {
 	return c
 }
 
+// ############################################
+// 属性获取方法
+// ############################################
+
 // ShellType 获取shell类型
 //
 // 返回:
@@ -383,6 +409,10 @@ func (c *Command) Timeout() time.Duration {
 	defer c.mu.RUnlock()
 	return c.timeout
 }
+
+// ############################################
+// 执行方法
+// ############################################
 
 // Exec 执行命令(阻塞)
 //

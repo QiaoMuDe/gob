@@ -20,11 +20,11 @@ import (
 
 // BuildContext 构建上下文, 封装构建所需的所有参数
 type BuildContext struct {
-	VerMan      *verman.VerMan // verman对象
-	Env         []string       // 环境变量
-	SysPlatform string         // 系统平台
-	SysArch     string         // 系统架构
-	Config      *gobConfig     // 配置对象
+	VerMan      *verman.Info // verman对象
+	Env         []string     // 环境变量
+	SysPlatform string       // 系统平台
+	SysArch     string       // 系统架构
+	Config      *gobConfig   // 配置对象
 }
 
 // Run 运行 gob 构建工具
@@ -90,9 +90,6 @@ func Run() {
 		globls.CL.Green("Config: CLI flags")
 	}
 
-	// 获取verman对象
-	v := verman.Get()
-
 	// 第一阶段：执行检查和准备阶段
 	globls.CL.Green("开始构建准备")
 	if err := checkBaseEnv(config); err != nil {
@@ -124,7 +121,7 @@ func Run() {
 	// 第二阶段: 根据参数获取git信息
 	if config.Build.InjectGitInfo {
 		globls.CL.Green("获取Git元数据")
-		if err := getGitMetaData(config.Build.TimeoutDuration, v, config); err != nil {
+		if err := getGitMetaData(config.Build.TimeoutDuration, verman.V, config); err != nil {
 			globls.CL.PrintErrorf("Git信息获取失败: %v\n", err)
 			os.Exit(1)
 		}
@@ -136,7 +133,7 @@ func Run() {
 	}
 
 	// 执行构建
-	if err := buildBatch(v, config); err != nil {
+	if err := buildBatch(verman.V, config); err != nil {
 		globls.CL.PrintError(err.Error())
 		os.Exit(1)
 	}
@@ -262,7 +259,7 @@ func buildSingle(ctx *BuildContext) error {
 //
 // 返回值:
 //   - error: 错误信息
-func buildBatch(v *verman.VerMan, config *gobConfig) error {
+func buildBatch(v *verman.Info, config *gobConfig) error {
 	var wg sync.WaitGroup                                  // 用于同步goroutine
 	var printMutex sync.Mutex                              // 用于同步打印输出
 	maxConcurrency := runtime.NumCPU()                     // 使用CPU核心数作为默认并发数
@@ -446,7 +443,7 @@ func loadAndValidateConfig(config *gobConfig, configFilePath string) error {
 //
 // 返回值:
 //   - string: 替换后的链接器标志字符串
-func replaceGitPlaceholders(ldflags string, v *verman.VerMan) string {
+func replaceGitPlaceholders(ldflags string, v *verman.Info) string {
 	// 定义占位符映射关系
 	placeholders := map[string]string{
 		"{{AppName}}":       v.AppName,

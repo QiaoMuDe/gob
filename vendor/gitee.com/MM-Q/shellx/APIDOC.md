@@ -948,7 +948,7 @@ const (
 	ShellPowerShell                  // powershell (Windows PowerShell)
 	ShellCmd                         // cmd (Windows Command Prompt)
 	ShellNone                        // 无shell, 直接原生的执行命令
-	ShellDefault                     // 默认shell, 根据操作系统自动选择(Windows系统默认为powershell, 其他系统默认为sh)
+	ShellDefault                     // 默认shell, 根据操作系统自动选择(Windows系统默认为cmd, 其他系统默认为sh)
 )
 ```
 

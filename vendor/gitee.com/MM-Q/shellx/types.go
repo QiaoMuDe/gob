@@ -30,7 +30,7 @@ const (
 	ShellPowerShell                  // powershell (Windows PowerShell)
 	ShellCmd                         // cmd (Windows Command Prompt)
 	ShellNone                        // 无shell, 直接原生的执行命令
-	ShellDefault                     // 默认shell, 根据操作系统自动选择(Windows系统默认为powershell, 其他系统默认为sh)
+	ShellDefault                     // 默认shell, 根据操作系统自动选择(Windows系统默认为cmd, 其他系统默认为sh)
 )
 
 // String 返回shell类型的字符串表示
@@ -56,7 +56,7 @@ func (s ShellType) String() string {
 
 	case ShellDefault:
 		if runtime.GOOS == "windows" {
-			return "powershell"
+			return "cmd"
 		}
 		return "sh"
 
@@ -88,7 +88,7 @@ func (s ShellType) shellFlags() string {
 
 	case ShellDefault:
 		if runtime.GOOS == "windows" {
-			return "-Command"
+			return "/c"
 		}
 		return "-c"
 

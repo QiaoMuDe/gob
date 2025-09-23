@@ -33,10 +33,10 @@ gitee.com/MM-Q/qflag/internal/types
 gitee.com/MM-Q/qflag/internal/validator
 gitee.com/MM-Q/qflag/qerr
 gitee.com/MM-Q/qflag/validator
-# gitee.com/MM-Q/shellx v1.0.6
+# gitee.com/MM-Q/shellx v1.0.10
 ## explicit; go 1.25.0
 gitee.com/MM-Q/shellx
-# gitee.com/MM-Q/verman v0.0.16
+# gitee.com/MM-Q/verman v0.0.18
 ## explicit; go 1.24.2
 gitee.com/MM-Q/verman
 # github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db
