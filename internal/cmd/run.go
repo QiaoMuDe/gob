@@ -210,8 +210,8 @@ func buildSingle(ctx *BuildContext) error {
 	}
 
 	// 执行构建命令
-	if result, buildErr := shellx.NewCmds(buildCmds).WithTimeout(ctx.Config.Build.TimeoutDuration).WithEnvs(envs).WithShell(shellx.ShellPowerShell).ExecOutput(); buildErr != nil {
-		return fmt.Errorf("command: %s Error: %v Output: %s", buildCmds, buildErr, result)
+	if buildErr := shellx.NewCmds(buildCmds).WithTimeout(ctx.Config.Build.TimeoutDuration).WithEnvs(envs).Exec(); buildErr != nil {
+		return buildErr
 	}
 
 	// 如果启用了安装选项, 则执行安装
