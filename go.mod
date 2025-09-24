@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	gitee.com/MM-Q/colorlib v1.3.2
 	gitee.com/MM-Q/comprx v0.1.5
-	gitee.com/MM-Q/qflag v0.3.1
+	gitee.com/MM-Q/qflag v0.3.2
 	gitee.com/MM-Q/shellx v1.0.10
 	gitee.com/MM-Q/verman v0.0.18
 	github.com/pelletier/go-toml/v2 v2.2.4

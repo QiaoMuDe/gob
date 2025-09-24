@@ -72,19 +72,19 @@ func init() {
 	timeoutFlag = qflag.Duration("timeout", "", 30*time.Second, "构建超时时间(秒)")
 
 	// 设置命令行工具的描述
-	qflag.SetDescription("gob 构建工具 - 支持自定义安装路径和跨平台构建的Go项目构建工具")
+	qflag.SetDesc("gob 构建工具 - 支持自定义安装路径和跨平台构建的Go项目构建工具")
 
 	// 设置命令行工具的提示
 	qflag.AddNote("默认在当前目录下寻找gob.toml构建文件, 如果不存在, 则使用命令行参数进行构建")
 
 	// 启用自动补全
-	qflag.SetEnableCompletion(true)
+	qflag.SetCompletion(true)
 
 	// 启用中文
-	qflag.SetUseChinese(true)
+	qflag.SetChinese(true)
 
 	// 设置用法语法
-	qflag.SetUsageSyntax(fmt.Sprintf("%s [options] [build-file]", filepath.Base(os.Args[0])))
+	qflag.SetUsage(fmt.Sprintf("%s [options] [build-file]", filepath.Base(os.Args[0])))
 	qflag.AddNote("[build-file] 可选参数, 指定gob配置文件路径, 默认为gob.toml")
 
 	// 设置版本信息
