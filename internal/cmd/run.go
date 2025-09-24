@@ -210,8 +210,14 @@ func buildSingle(ctx *BuildContext) error {
 	}
 
 	// 执行构建命令
-	if buildErr := shellx.NewCmds(buildCmds).WithTimeout(ctx.Config.Build.TimeoutDuration).WithEnvs(envs).Exec(); buildErr != nil {
-		return buildErr
+	if runtime.GOOS == "windows" {
+		if buildErr := shellx.NewCmds(buildCmds).WithTimeout(ctx.Config.Build.TimeoutDuration).WithEnvs(envs).WithShell(shellx.ShellPowerShell).Exec(); buildErr != nil {
+			return buildErr
+		}
+	} else {
+		if buildErr := shellx.NewCmds(buildCmds).WithTimeout(ctx.Config.Build.TimeoutDuration).WithEnvs(envs).WithShell(shellx.ShellSh).Exec(); buildErr != nil {
+			return buildErr
+		}
 	}
 
 	// 如果启用了安装选项, 则执行安装
