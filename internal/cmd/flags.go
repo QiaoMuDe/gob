@@ -51,44 +51,44 @@ func isTestMode() bool {
 
 // init 初始化命令行参数
 func init() {
-	envFlag = qflag.Map("env", "e", map[string]string{}, "指定环境变量,格式为: key=value")
-	outputFlag = qflag.String("output", "o", globls.DefaultOutputDir, "指定输出目录")
-	nameFlag = qflag.String("name", "n", globls.DefaultAppName, "指定输出文件名")
-	mainFlag = qflag.String("main", "m", globls.DefaultMainFile, "指定main文件")
-	vendorFlag = qflag.Bool("use-vendor", "uv", false, "在编译时使用 vendor 目录")
-	gitFlag = qflag.Bool("git", "g", false, "在编译时注入 git 信息")
-	simpleNameFlag = qflag.Bool("simple-name", "sn", false, "简单名称")
-	proxyFlag = qflag.String("proxy", "p", globls.DefaultGoProxy, "设置go代理")
-	cgoFlag = qflag.Bool("cgo", "", false, "启用cgo")
-	colorFlag = qflag.Bool("color", "c", false, "启用颜色输出")
-	batchFlag = qflag.Bool("batch", "b", false, "批量编译")
-	zipFlag = qflag.Bool("zip", "z", false, "在编译时打包输出文件为 zip 文件")
-	installFlag = qflag.Bool("install", "i", false, "安装编译后的二进制文件")
-	forceFlag = qflag.Bool("force", "f", false, "执行强制操作")
-	currentPlatformOnlyFlag = qflag.Bool("current-platform-only", "cpo", false, "仅编译当前平台")
-	installPathFlag = qflag.String("install-path", "ip", getDefaultInstallPath(), "指定安装路径, 优先于GOPATH环境变量")
-	generateConfigFlag = qflag.Bool("generate-config", "gcf", false, "生成默认配置文件")
-	testFlag = qflag.Bool("test", "t", false, "在构建前运行单元测试")
-	timeoutFlag = qflag.Duration("timeout", "", 30*time.Second, "构建超时时间(秒)")
+	envFlag = qflag.Root.Map("env", "e", map[string]string{}, "指定环境变量,格式为: key=value")
+	outputFlag = qflag.Root.String("output", "o", globls.DefaultOutputDir, "指定输出目录")
+	nameFlag = qflag.Root.String("name", "n", globls.DefaultAppName, "指定输出文件名")
+	mainFlag = qflag.Root.String("main", "m", globls.DefaultMainFile, "指定main文件")
+	vendorFlag = qflag.Root.Bool("use-vendor", "uv", false, "在编译时使用 vendor 目录")
+	gitFlag = qflag.Root.Bool("git", "g", false, "在编译时注入 git 信息")
+	simpleNameFlag = qflag.Root.Bool("simple-name", "sn", false, "简单名称")
+	proxyFlag = qflag.Root.String("proxy", "p", globls.DefaultGoProxy, "设置go代理")
+	cgoFlag = qflag.Root.Bool("cgo", "", false, "启用cgo")
+	colorFlag = qflag.Root.Bool("color", "c", false, "启用颜色输出")
+	batchFlag = qflag.Root.Bool("batch", "b", false, "批量编译")
+	zipFlag = qflag.Root.Bool("zip", "z", false, "在编译时打包输出文件为 zip 文件")
+	installFlag = qflag.Root.Bool("install", "i", false, "安装编译后的二进制文件")
+	forceFlag = qflag.Root.Bool("force", "f", false, "执行强制操作")
+	currentPlatformOnlyFlag = qflag.Root.Bool("current-platform-only", "cpo", false, "仅编译当前平台")
+	installPathFlag = qflag.Root.String("install-path", "ip", getDefaultInstallPath(), "指定安装路径, 优先于GOPATH环境变量")
+	generateConfigFlag = qflag.Root.Bool("generate-config", "gcf", false, "生成默认配置文件")
+	testFlag = qflag.Root.Bool("test", "t", false, "在构建前运行单元测试")
+	timeoutFlag = qflag.Root.Duration("timeout", "", 30*time.Second, "构建超时时间(秒)")
 
 	// 设置命令行工具的描述
-	qflag.SetDesc("gob 构建工具 - 支持自定义安装路径和跨平台构建的Go项目构建工具")
+	qflag.Root.SetDesc("gob 构建工具 - 支持自定义安装路径和跨平台构建的Go项目构建工具")
 
 	// 设置命令行工具的提示
-	qflag.AddNote("默认在当前目录下寻找gob.toml构建文件, 如果不存在, 则使用命令行参数进行构建")
+	qflag.Root.AddNote("默认在当前目录下寻找gob.toml构建文件, 如果不存在, 则使用命令行参数进行构建")
 
 	// 启用自动补全
-	qflag.SetCompletion(true)
+	qflag.Root.SetCompletion(true)
 
 	// 启用中文
-	qflag.SetChinese(true)
+	qflag.Root.SetChinese(true)
 
 	// 设置用法语法
-	qflag.SetUsage(fmt.Sprintf("%s [options] [build-file]", filepath.Base(os.Args[0])))
-	qflag.AddNote("[build-file] 可选参数, 指定gob配置文件路径, 默认为gob.toml")
+	qflag.Root.SetUsage(fmt.Sprintf("%s [options] [build-file]", filepath.Base(os.Args[0])))
+	qflag.Root.AddNote("[build-file] 可选参数, 指定gob配置文件路径, 默认为gob.toml")
 
 	// 设置版本信息
-	qflag.SetVersion(verman.V.Version())
+	qflag.Root.SetVersion(verman.V.Version())
 
 	// 解析命令行参数 - 仅在非测试模式下执行
 	if !isTestMode() {

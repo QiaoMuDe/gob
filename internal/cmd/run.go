@@ -60,7 +60,7 @@ func Run() {
 	}
 
 	// 获取非标志参数0作为gob.toml的文件路径
-	configFilePath := filepath.Clean(qflag.Arg(0))
+	configFilePath := filepath.Clean(qflag.Root.Arg(0))
 
 	// 创建配置结构体
 	config := &gobConfig{}
