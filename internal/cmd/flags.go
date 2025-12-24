@@ -71,24 +71,16 @@ func init() {
 	testFlag = qflag.Root.Bool("test", "t", false, "在构建前运行单元测试")
 	timeoutFlag = qflag.Root.Duration("timeout", "", 30*time.Second, "构建超时时间(秒)")
 
-	// 设置命令行工具的描述
-	qflag.Root.SetDesc("gob 构建工具 - 支持自定义安装路径和跨平台构建的Go项目构建工具")
-
-	// 设置命令行工具的提示
-	qflag.Root.AddNote("默认在当前目录下寻找gob.toml构建文件, 如果不存在, 则使用命令行参数进行构建")
-
-	// 启用自动补全
-	qflag.Root.SetCompletion(true)
-
-	// 启用中文
-	qflag.Root.SetChinese(true)
-
-	// 设置用法语法
-	qflag.Root.SetUsage(fmt.Sprintf("%s [options] [build-file]", filepath.Base(os.Args[0])))
-	qflag.Root.AddNote("[build-file] 可选参数, 指定gob配置文件路径, 默认为gob.toml")
-
-	// 设置版本信息
-	qflag.Root.SetVersion(verman.V.Version())
+	// 设置命令行工具的配置
+	rootCmdCfg := qflag.CmdConfig{
+		UsageSyntax: fmt.Sprintf("%s [options] [build-file]", filepath.Base(os.Args[0])),
+		UseChinese:  true,
+		Completion:  true,
+		Desc:        "gob 构建工具 - 支持自定义安装路径和跨平台构建的Go项目构建工具",
+		Version:     verman.V.Version(),
+		Notes:       []string{"[build-file] 可选参数, 指定gob配置文件路径, 默认为gob.toml", "默认在当前目录下寻找gob.toml构建文件, 如果不存在, 则使用命令行参数进行构建"},
+	}
+	qflag.ApplyConfig(rootCmdCfg)
 
 	// 解析命令行参数 - 仅在非测试模式下执行
 	if !isTestMode() {
