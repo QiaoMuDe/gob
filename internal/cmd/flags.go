@@ -81,6 +81,12 @@ func init() {
 		Desc:        "gob 构建工具 - 支持自定义安装路径和跨平台构建的Go项目构建工具",
 		Version:     verman.V.Version(),
 		Notes:       []string{"[build-file] 可选参数, 指定gob配置文件路径, 默认为gob.toml", "默认在当前目录下寻找gob.toml构建文件, 如果不存在, 则使用命令行参数进行构建"},
+		Examples: []qflag.ExampleInfo{
+			{
+				Desc:  "生成默认配置文件",
+				Usage: fmt.Sprintf("%s -gcf", os.Args[0]),
+			},
+		},
 	}
 	qflag.ApplyConfig(rootCmdCfg)
 
