@@ -1,3 +1,4 @@
+# 开发环境配置 - 用于日常开发构建
 # gob 构建工具配置文件 - 此文件包含所有可用的构建配置选项，与命令行参数对应
 # 项目地址: https://gitee.com/MM-Q/gob.git
 
@@ -12,7 +13,7 @@ name = '<|.ProjectName|>'
 # --simple-name, -sn: 使用简单名称（不包含平台和架构信息）
 simple = false
 # --zip, -z: 将输出文件打包为zip
-zip = true
+zip = false
 
 # ==================== 源码配置 ====================
 [build.source]
@@ -24,7 +25,7 @@ use_vendor = true
 # ==================== Git 配置 ====================
 [build.git]
 # --git, -g: 在编译时注入git信息
-inject = true
+inject = false
 # 指定包含Git信息的链接器标志, 支持占位符: {{AppName}} (应用名称)、{{GitVersion}} (Git版本)、{{GitCommit}} (提交哈希)、{{GitCommitTime}} (提交时间)、{{BuildTime}} (构建时间)、{{GitTreeState}} (树状态)
 ldflags = "-X 'gitee.com/MM-Q/verman.appName={{AppName}}' -X 'gitee.com/MM-Q/verman.gitVersion={{GitVersion}}' -X 'gitee.com/MM-Q/verman.gitCommit={{GitCommit}}' -X 'gitee.com/MM-Q/verman.gitCommitTime={{GitCommitTime}}' -X 'gitee.com/MM-Q/verman.buildTime={{BuildTime}}' -X 'gitee.com/MM-Q/verman.gitTreeState={{GitTreeState}}' -s -w"
 
@@ -37,20 +38,20 @@ proxy = 'https://goproxy.cn,https://goproxy.io,direct'
 # --skip-check, -sc: 跳过构建前检查
 skip_check = false
 # --timeout: 构建超时时间(支持单位: ns/us/ms/s/m/h)
-timeout = '30s'
+timeout = '60s'
 # 指定链接器标志
 ldflags = '-s -w'
 
 # ==================== 目标平台配置 ====================
 [build.target]
 # --batch, -b: 批量编译模式
-batch = true
+batch = false
 # --current-platform-only, -cpo: 仅编译当前平台
 current_platform_only = false
 # 支持的目标平台列表，多个平台用逗号分隔
 platforms = ['linux', 'windows']
 # 支持的目标架构列表，多个架构用逗号分隔
-architectures = ['amd64', 'arm64']
+architectures = ['amd64']
 
 # ==================== 命令配置 ====================
 [build.command]

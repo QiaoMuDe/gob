@@ -137,60 +137,14 @@ func loadConfig(filePath string) (*gobConfig, error) {
 	return config, nil
 }
 
-// applyConfigFlags 将命令行标志的值应用到配置结构体
+// applyConfigFlags 已移除
+// 原因：不再支持命令行参数覆盖配置文件，所有构建配置必须通过配置文件指定
 //
-// 参数值:
-//   - config: 要应用标志的配置结构体指针
-func applyConfigFlags(config *gobConfig) {
-	// 将命令行标志的值设置到配置结构体
-	// UI配置
-	config.Build.UI.Color = colorFlag.Get() // 是否启用颜色输出
-
-	// 输出配置
-	config.Build.Output.Zip = zipFlag.Get()           // 是否启用zip打包
-	config.Build.Output.Simple = simpleNameFlag.Get() // 是否启用简单名称
-	config.Build.Output.Dir = outputFlag.Get()        // 输出目录
-	config.Build.Output.Name = nameFlag.Get()         // 输出文件名
-
-	// 源码配置
-	config.Build.Source.UseVendor = vendorFlag.Get() // 是否启用vendor模式
-	config.Build.Source.MainFile = mainFlag.Get()    // 主入口文件
-
-	// Git配置
-	config.Build.Git.Inject = gitFlag.Get() // 是否启用Git信息注入
-
-	// 编译器配置
-	config.Build.Compiler.EnableCgo = cgoFlag.Get()            // 是否启用cgo
-	config.Build.Compiler.Proxy = proxyFlag.Get()              // 代理
-	config.Build.Compiler.SkipCheck = skipCheckFlag.Get()      // 是否跳过构建前检查
-	config.Build.Compiler.Timeout = timeoutFlag.Get().String() // 设置超时时间
-
-	// 目标平台配置
-	config.Build.Target.Batch = batchFlag.Get()                             // 是否启用批量构建
-	config.Build.Target.CurrentPlatformOnly = currentPlatformOnlyFlag.Get() // 是否仅编译当前平台
-
-	// 安装配置
-	config.Install.Install = installFlag.Get()         // 是否启用安装
-	config.Install.InstallPath = installPathFlag.Get() // 安装路径
-	config.Install.Force = forceFlag.Get()             // 是否启用强制操作
-
-	// 环境变量
-	config.Env = envFlag.Get() // 环境变量
-
-	// 设置默认值
-	config.Build.Target.Platforms = globls.DefaultPlatforms // 设置默认支持的平台
-	config.Build.Target.Architectures = globls.DefaultArchs // 设置默认支持的架构
-	config.Build.Command.Build = globls.GoBuildCmd.Cmds     // 设置默认的编译命令
-	config.Build.Compiler.Ldflags = globls.DefaultLDFlags   // 链接器标志
-	config.Build.Git.Ldflags = globls.DefaultGitLDFlags     // Git链接器标志
-
-	config.Build.TimeoutDuration = timeoutFlag.Get() // 设置内部使用的Duration类型
-
-	// 处理添加环境变量
-	for k, v := range envFlag.Get() {
-		config.Env[k] = v
-	}
-}
+// 旧函数功能：将命令行标志的值应用到配置结构体
+//
+// 新使用方式：
+//   使用配置文件（gob.toml 或 gobf/*.toml）指定所有构建参数
+//   通过命令行参数指定配置文件路径：gob gobf/dev.toml
 
 // getDefaultConfig 获取配置的默认值
 //
@@ -201,38 +155,38 @@ func getDefaultConfig() *gobConfig {
 	defaultConfig := &gobConfig{}
 
 	// UI配置
-	defaultConfig.Build.UI.Color = colorFlag.GetDefault() // 是否启用颜色输出
+	defaultConfig.Build.UI.Color = false
 
 	// 输出配置
-	defaultConfig.Build.Output.Zip = zipFlag.GetDefault()           // 是否启用zip打包
-	defaultConfig.Build.Output.Simple = simpleNameFlag.GetDefault() // 是否启用简单名称
-	defaultConfig.Build.Output.Dir = outputFlag.GetDefault()        // 输出目录
-	defaultConfig.Build.Output.Name = nameFlag.GetDefault()         // 输出文件名
+	defaultConfig.Build.Output.Zip = false
+	defaultConfig.Build.Output.Simple = false
+	defaultConfig.Build.Output.Dir = globls.DefaultOutputDir
+	defaultConfig.Build.Output.Name = globls.DefaultAppName
 
 	// 源码配置
-	defaultConfig.Build.Source.UseVendor = vendorFlag.GetDefault() // 是否启用vendor模式
-	defaultConfig.Build.Source.MainFile = mainFlag.GetDefault()    // 主入口文件
+	defaultConfig.Build.Source.UseVendor = false
+	defaultConfig.Build.Source.MainFile = globls.DefaultMainFile
 
 	// Git配置
-	defaultConfig.Build.Git.Inject = gitFlag.GetDefault() // 是否启用Git信息注入
+	defaultConfig.Build.Git.Inject = false
 
 	// 编译器配置
-	defaultConfig.Build.Compiler.EnableCgo = cgoFlag.GetDefault()            // 是否启用cgo
-	defaultConfig.Build.Compiler.Proxy = proxyFlag.GetDefault()              // 代理
-	defaultConfig.Build.Compiler.SkipCheck = skipCheckFlag.GetDefault()      // 是否跳过构建前检查
-	defaultConfig.Build.Compiler.Timeout = timeoutFlag.GetDefault().String() // 设置超时时间
+	defaultConfig.Build.Compiler.EnableCgo = false
+	defaultConfig.Build.Compiler.Proxy = globls.DefaultGoProxy
+	defaultConfig.Build.Compiler.SkipCheck = false
+	defaultConfig.Build.Compiler.Timeout = "60s"
 
 	// 目标平台配置
-	defaultConfig.Build.Target.Batch = batchFlag.GetDefault()                             // 是否启用批量构建
-	defaultConfig.Build.Target.CurrentPlatformOnly = currentPlatformOnlyFlag.GetDefault() // 是否仅编译当前平台
+	defaultConfig.Build.Target.Batch = false
+	defaultConfig.Build.Target.CurrentPlatformOnly = false
 
 	// 安装配置
-	defaultConfig.Install.Install = installFlag.GetDefault()         // 是否启用安装
-	defaultConfig.Install.InstallPath = installPathFlag.GetDefault() // 安装路径
-	defaultConfig.Install.Force = forceFlag.GetDefault()             // 是否启用强制操作
+	defaultConfig.Install.Install = false
+	defaultConfig.Install.InstallPath = "$GOPATH/bin"
+	defaultConfig.Install.Force = false
 
 	// 环境变量
-	defaultConfig.Env = envFlag.GetDefault() // 环境变量
+	defaultConfig.Env = make(map[string]string)
 
 	// 设置默认值
 	defaultConfig.Build.Target.Platforms = globls.DefaultPlatforms // 设置默认支持的平台
@@ -241,11 +195,11 @@ func getDefaultConfig() *gobConfig {
 	defaultConfig.Build.Compiler.Ldflags = globls.DefaultLDFlags   // 链接器标志
 	defaultConfig.Build.Git.Ldflags = globls.DefaultGitLDFlags     // Git链接器标志
 
-	defaultConfig.Build.TimeoutDuration = timeoutFlag.GetDefault() // 设置内部使用的Duration类型
-
-	// 处理添加环境变量
-	for k, v := range envFlag.GetDefault() {
-		defaultConfig.Env[k] = v
+	// 解析timeout
+	var err error
+	defaultConfig.Build.TimeoutDuration, err = time.ParseDuration(defaultConfig.Build.Compiler.Timeout)
+	if err != nil {
+		defaultConfig.Build.TimeoutDuration = 60 * time.Second
 	}
 
 	// 返回配置结构体

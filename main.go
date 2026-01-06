@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gitee.com/MM-Q/gob/internal/cmd"
+	"gitee.com/MM-Q/gob/cmd"
 )
 
 func main() {

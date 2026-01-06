@@ -218,40 +218,6 @@ CGO_ENABLED = "1"
 	}
 }
 
-// TestApplyConfigFlags 测试命令行标志是否正确应用到配置
-func TestApplyConfigFlags(t *testing.T) {
-	// 保存原始标志值以便恢复
-	oldName := nameFlag.Get()
-	oldForce := forceFlag.Get()
-	defer func() {
-		if err := nameFlag.Set(oldName); err != nil {
-			t.Errorf("重置nameFlag失败: %v", err)
-		}
-		if err := forceFlag.Set(fmt.Sprintf("%v", oldForce)); err != nil {
-			t.Errorf("重置forceFlag失败: %v", err)
-		}
-	}()
-
-	// 设置测试标志
-	if err := nameFlag.Set("test_app"); err != nil {
-		t.Fatalf("设置nameFlag失败: %v", err)
-	}
-	if err := forceFlag.Set(fmt.Sprintf("%v", true)); err != nil {
-		t.Fatalf("设置forceFlag失败: %v", err)
-	}
-
-	config := &gobConfig{}
-	applyConfigFlags(config)
-
-	// 验证配置是否正确应用
-	if config.Build.Output.Name != "test_app" {
-		t.Errorf("Output.Name 未正确应用，预期 'test_app'，实际 %s", config.Build.Output.Name)
-	}
-	if !config.Install.Force {
-		t.Error("Force 标志未正确应用")
-	}
-}
-
 // TestGenerateDefaultConfig 测试生成默认配置文件
 func TestGenerateDefaultConfig(t *testing.T) {
 	// 创建临时目录

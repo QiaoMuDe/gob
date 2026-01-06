@@ -20,6 +20,7 @@ import (
 //   - version: 版本号
 //   - sysPlatform: 系统平台
 //   - sysArch: 系统架构
+//   - isBatch: 是否为批量构建模式
 //
 // 返回：
 //   - 生成的输出文件名
@@ -27,13 +28,13 @@ import (
 // 注意：
 //   - 简单模式：示例, `myapp`
 //   - 完整模式：示例, `myapp_linux_amd64_1.0.0`
-func genOutputName(appName string, useSimpleName bool, version string, sysPlatform string, sysArch string) string {
-	if useSimpleName && batchFlag.Get() {
+func genOutputName(appName string, useSimpleName bool, version string, sysPlatform string, sysArch string, isBatch bool) string {
+	if useSimpleName && isBatch {
 		globls.CL.Yellowf("使用批量构建时, 简单模式将失效")
 	}
 
 	// 简单模式: 不添加平台和版本信息
-	if useSimpleName && !batchFlag.Get() {
+	if useSimpleName && !isBatch {
 		switch sysPlatform {
 		case "windows":
 			return fmt.Sprintf("%s.exe", strings.TrimSuffix(appName, filepath.Ext(appName)))

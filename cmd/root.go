@@ -2,6 +2,7 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,7 +13,7 @@ import (
 	"time"
 
 	"gitee.com/MM-Q/comprx"
-	"gitee.com/MM-Q/gob/internal/cmd/initcmd"
+	"gitee.com/MM-Q/gob/cmd/initcmd"
 	"gitee.com/MM-Q/gob/internal/globls"
 	"gitee.com/MM-Q/qflag"
 	"gitee.com/MM-Q/shellx"
@@ -45,26 +46,11 @@ func isTestMode() bool {
 
 // InitAndRun 初始化并运行命令行参数
 func InitAndRun() {
-	envFlag = qflag.Root.Map("env", "e", map[string]string{}, "指定环境变量,格式为: key=value")
-	outputFlag = qflag.Root.String("output", "o", globls.DefaultOutputDir, "指定输出目录")
-	nameFlag = qflag.Root.String("name", "n", globls.DefaultAppName, "指定输出文件名")
-	mainFlag = qflag.Root.String("main", "m", globls.DefaultMainFile, "指定main文件")
-	vendorFlag = qflag.Root.Bool("use-vendor", "uv", false, "在编译时使用 vendor 目录")
-	gitFlag = qflag.Root.Bool("git", "g", false, "在编译时注入 git 信息")
-	simpleNameFlag = qflag.Root.Bool("simple-name", "sn", false, "简单名称")
-	proxyFlag = qflag.Root.String("proxy", "p", globls.DefaultGoProxy, "设置go代理")
-	cgoFlag = qflag.Root.Bool("cgo", "", false, "启用cgo")
-	colorFlag = qflag.Root.Bool("color", "c", false, "启用颜色输出")
-	batchFlag = qflag.Root.Bool("batch", "b", false, "批量编译")
-	zipFlag = qflag.Root.Bool("zip", "z", false, "在编译时打包输出文件为 zip 文件")
-	installFlag = qflag.Root.Bool("install", "i", false, "安装编译后的二进制文件")
-	forceFlag = qflag.Root.Bool("force", "f", false, "执行强制操作")
-	currentPlatformOnlyFlag = qflag.Root.Bool("current-platform-only", "cpo", false, "仅编译当前平台")
-	installPathFlag = qflag.Root.String("install-path", "ip", getDefaultInstallPath(), "指定安装路径, 优先于GOPATH环境变量")
+	// 注册全局标志
 	generateConfigFlag = qflag.Root.Bool("generate-config", "gcf", false, "生成默认配置文件")
-	testFlag = qflag.Root.Bool("test", "t", false, "在构建前运行单元测试")
-	skipCheckFlag = qflag.Root.Bool("skip-check", "sc", false, "跳过构建前检查")
-	timeoutFlag = qflag.Root.Duration("timeout", "", 30*time.Second, "构建超时时间(秒)")
+	forceFlag = qflag.Root.Bool("force", "f", false, "强制操作（覆盖已存在文件）")
+	listFlag = qflag.Root.Bool("list", "l", false, "列出可用的构建任务")
+	runFlag = qflag.Root.String("run", "", "", "运行指定的构建任务（自动在 gobf/ 目录下查找）")
 
 	// 设置命令行工具的配置
 	rootCmdCfg := qflag.CmdConfig{
@@ -73,15 +59,34 @@ func InitAndRun() {
 		Completion:  true,
 		Desc:        "gob 构建工具 - 支持自定义安装路径和跨平台构建的Go项目构建工具",
 		Version:     verman.V.Version(),
-		Notes:       []string{"[build-file] 可选参数, 指定gob配置文件路径, 默认为gob.toml", "默认在当前目录下寻找gob.toml构建文件, 如果不存在, 则使用命令行参数进行构建"},
+		Notes: []string{
+			"[build-file] 指定gob配置文件路径, 默认为gob.toml",
+			"所有构建参数必须通过配置文件指定，不再支持命令行参数",
+		},
 		Examples: []qflag.ExampleInfo{
 			{
-				Desc:  "生成默认配置文件",
-				Usage: fmt.Sprintf("%s -gcf", os.Args[0]),
+				Desc:  "初始化gob构建文件 (生成 gobf/ 目录)",
+				Usage: fmt.Sprintf("%s init", os.Args[0]),
 			},
 			{
-				Desc:  "初始化gob构建文件",
-				Usage: fmt.Sprintf("%s init", os.Args[0]),
+				Desc:  "生成默认配置文件 (gob.toml)",
+				Usage: fmt.Sprintf("%s --generate-config", os.Args[0]),
+			},
+			{
+				Desc:  "列出可用的构建任务",
+				Usage: fmt.Sprintf("%s --list", os.Args[0]),
+			},
+			{
+				Desc:  "运行指定的构建任务（快捷方式）",
+				Usage: fmt.Sprintf("%s --run dev", os.Args[0]),
+			},
+			{
+				Desc:  "使用指定配置文件构建",
+				Usage: fmt.Sprintf("%s gobf/dev.toml", os.Args[0]),
+			},
+			{
+				Desc:  "使用默认配置文件构建",
+				Usage: os.Args[0],
 			},
 		},
 	}
@@ -136,51 +141,63 @@ func run(cmd *qflag.Cmd) error {
 		os.Exit(0)
 	}
 
-	// 获取非标志参数0作为gob.toml的文件路径
-	configFilePath := filepath.Clean(qflag.Root.Arg(0))
+	// 处理--list参数: 列出可用的构建任务
+	if listFlag.Get() {
+		if err := listBuildTasks(); err != nil {
+			globls.CL.PrintErrorf("%v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	// 声明配置文件路径变量
+	var configFilePath string
+
+	// 处理--run参数: 运行指定的构建任务（快捷方式）
+	runTask := runFlag.Get()
+	if runTask != "" {
+		// 自动构建配置文件路径：gobf/<task-name>.toml
+		configFilePath = filepath.Join("gobf", fmt.Sprintf("%s.toml", runTask))
+	} else {
+		// 获取非标志参数0作为配置文件路径
+		configFilePath = filepath.Clean(qflag.Root.Arg(0))
+
+		// 如果命令行参数0为空, 则使用默认配置文件路径
+		if configFilePath == "" || configFilePath == "." {
+			configFilePath = globls.GobBuildFile
+		}
+	}
+
+	// 检查配置文件是否存在
+	if _, statErr := os.Stat(configFilePath); statErr != nil {
+		globls.CL.PrintErrorf("配置文件 %s 不存在\n", configFilePath)
+		globls.CL.Yellow("提示：")
+		globls.CL.Yellow("  1. 运行 'gob init' 初始化构建配置 (生成 gobf/ 目录)")
+		globls.CL.Yellow("  2. 运行 'gob --generate-config' 生成默认配置文件 (gob.toml)")
+		globls.CL.Yellow("  3. 使用 'gob <配置文件路径>' 指定配置文件")
+		globls.CL.Yellow("  4. 运行 'gob --list' 列出可用任务")
+		globls.CL.Yellow("  5. 运行 'gob --run <任务名称>' 运行指定的构建任务")
+		os.Exit(1)
+	}
 
 	// 创建配置结构体
 	config := &gobConfig{}
 
-	// 如果命令行参数0为空, 则使用默认配置文件路径
-	if configFilePath == "" || configFilePath == "." {
-		configFilePath = globls.GobBuildFile
+	// 加载配置文件
+	if err := loadAndValidateConfig(config, configFilePath); err != nil {
+		globls.CL.PrintErrorf("%v\n", err)
+		os.Exit(1)
 	}
 
-	// 执行主逻辑: 检查gob.toml文件是否存在, 如果存在就读取配置,不存在则通过命令行参数获取配置
-	if _, statErr := os.Stat(configFilePath); statErr == nil {
-		// 如果存在, 则通过loadAndValidateConfig函数读取配置
-		if err := loadAndValidateConfig(config, configFilePath); err != nil {
-			globls.CL.PrintErrorf("%v\n", err)
-			os.Exit(1)
-		}
-		// 默认关闭颜色输出
-		globls.CL.SetColor(config.Build.UI.Color)
-		// 输出加载模式
-		globls.CL.Greenf("%s Config: %s\n", globls.PrintPrefix, configFilePath)
-	} else {
-		// 如果不存在, 则将命令行标志的值设置到配置结构体
-		applyConfigFlags(config)
-		// 默认关闭颜色输出
-		globls.CL.SetColor(config.Build.UI.Color)
-		// 输出加载模式
-		globls.CL.Greenf("%s Config: CLI flags\n", globls.PrintPrefix)
-	}
+	// 设置颜色输出
+	globls.CL.SetColor(config.Build.UI.Color)
+	globls.CL.Greenf("%s 配置文件: %s\n", globls.PrintPrefix, configFilePath)
 
 	// 第一阶段：执行检查和准备阶段
 	globls.CL.Greenf("%s 开始构建准备\n", globls.PrintPrefix)
 	if err := checkBaseEnv(config); err != nil {
 		globls.CL.PrintErrorf("%v\n", err)
 		os.Exit(1)
-	}
-
-	// 如果启用了测试选项, 则运行单元测试
-	if testFlag.Get() {
-		globls.CL.Greenf("%s 开始运行单元测试\n", globls.PrintPrefix)
-		if err := runTests(config.Build.TimeoutDuration); err != nil {
-			globls.CL.PrintErrorf("%v\n", err)
-			os.Exit(1)
-		}
 	}
 
 	// 检查批量构建和安装选项是否同时启用
@@ -231,7 +248,7 @@ func buildSingle(ctx *BuildContext) error {
 	copy(buildCmds, ctx.Config.Build.Command.Build)
 
 	// 生成输出路径
-	outputPath := filepath.Join(ctx.Config.Build.Output.Dir, genOutputName(ctx.Config.Build.Output.Name, ctx.Config.Build.Output.Simple, ctx.VerMan.GitVersion, ctx.SysPlatform, ctx.SysArch))
+	outputPath := filepath.Join(ctx.Config.Build.Output.Dir, genOutputName(ctx.Config.Build.Output.Name, ctx.Config.Build.Output.Simple, ctx.VerMan.GitVersion, ctx.SysPlatform, ctx.SysArch, ctx.Config.Build.Target.Batch))
 
 	// 动态替换命令中的占位符
 	for i, cmd := range buildCmds {
@@ -460,7 +477,7 @@ func installExecutable(executablePath string, c *gobConfig) error {
 	// 检查目标文件是否已存在
 	if _, err := os.Stat(targetPath); err == nil {
 		if !c.Install.Force {
-			return fmt.Errorf("文件已存在: %s, 使用--%s/-%s强制覆盖", targetPath, forceFlag.LongName(), forceFlag.ShortName())
+			return fmt.Errorf("文件已存在: %s, 请在配置文件中设置 [install] force = true 以强制覆盖", targetPath)
 		}
 		// 强制删除现有文件
 		if err := os.Remove(targetPath); err != nil {
@@ -547,26 +564,88 @@ func replaceGitPlaceholders(ldflags string, v *verman.Info) string {
 	return ldflags
 }
 
-// runTests 运行单元测试
-//
-// 参数:
-//   - timeout: 每个命令的超时时间
+// listBuildTasks 列出可用的构建任务
 //
 // 返回值:
 //   - error: 错误信息
-func runTests(timeout time.Duration) error {
-	// 清理测试缓存
-	globls.CL.Greenf("%s 清理测试缓存\n", globls.PrintPrefix)
-	result, err := shellx.NewCmds(globls.GoCleanTestCacheCmd.Cmds).WithTimeout(timeout).ExecOutput()
-	if err != nil {
-		return fmt.Errorf("%s:\n%s\n%w", globls.GoCleanTestCacheCmd.Name, string(result), err)
+func listBuildTasks() error {
+	// 检查 gobf 目录是否存在
+	gobfDir := "gobf"
+	if _, err := os.Stat(gobfDir); os.IsNotExist(err) {
+		return fmt.Errorf("gobf 目录不存在，请先运行 'gob init' 初始化构建配置")
 	}
 
-	// 执行go test命令
-	globls.CL.Greenf("%s 开始执行单元测试\n", globls.PrintPrefix)
-	result, err = shellx.NewCmds(globls.GoTestCmd.Cmds).WithTimeout(timeout).ExecOutput()
+	// 读取 gobf 目录下的所有文件
+	entries, err := os.ReadDir(gobfDir)
 	if err != nil {
-		return fmt.Errorf("%s:\n%s\n%w", globls.GoTestCmd.Name, string(result), err)
+		return fmt.Errorf("读取 gobf 目录失败: %w", err)
 	}
+
+	// 收集所有 .toml 文件及其描述
+	type taskInfo struct {
+		name        string
+		description string
+	}
+	var tasks []taskInfo
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if taskName, ok := strings.CutSuffix(name, ".toml"); ok {
+			// 尝试从配置文件中提取描述
+			description := extractTaskDescription(filepath.Join(gobfDir, name))
+			tasks = append(tasks, taskInfo{
+				name:        taskName,
+				description: description,
+			})
+		}
+	}
+
+	// 如果没有找到任何任务
+	if len(tasks) == 0 {
+		globls.CL.Yellowf("%s gobf 目录中没有找到 .toml 配置文件\n", globls.PrintPrefix)
+		return nil
+	}
+
+	// 输出任务列表（使用 task 风格：星号开头）
+	globls.CL.Greenf("%s 可用的构建任务：\n", globls.PrintPrefix)
+	for _, task := range tasks {
+		fmt.Printf("* %-20s %s\n", task.name, task.description)
+	}
+
+	// 输出使用提示
+	globls.CL.Yellow("\nUsage: gob gobf/<task-name>.toml")
+	globls.CL.Yellow("Usage: gob -run <task-name>")
+
 	return nil
+}
+
+// extractTaskDescription 从配置文件中提取描述信息
+//
+// 参数:
+//   - configPath: 配置文件路径
+//
+// 返回值:
+//   - string: 描述信息
+func extractTaskDescription(configPath string) string {
+	// 读取配置文件的第一行
+	file, err := os.Open(configPath)
+	if err != nil {
+		return "Build task"
+	}
+	defer func() { _ = file.Close() }()
+
+	scanner := bufio.NewScanner(file)
+	if scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// 如果第一行以 # 开头，去除 # 符号
+		if strings.HasPrefix(line, "#") {
+			description := strings.TrimPrefix(line, "#")
+			return strings.TrimSpace(description)
+		}
+	}
+
+	return "Build task"
 }
