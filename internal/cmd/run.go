@@ -28,7 +28,7 @@ type BuildContext struct {
 }
 
 // Run 运行 gob 构建工具
-func Run() {
+func Run(cmd *qflag.Cmd) error {
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Printf("%s panic: %v\nstack: %s\n", globls.PrintPrefix, err, debug.Stack())
@@ -137,6 +137,8 @@ func Run() {
 		globls.CL.PrintError(err.Error())
 		os.Exit(1)
 	}
+
+	return nil
 }
 
 // buildSingle 执行单个平台和架构的构建

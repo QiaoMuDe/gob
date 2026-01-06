@@ -8,9 +8,9 @@
 # --output, -o: 指定输出目录
 dir = 'output'
 # --name, -n: 指定输出文件名
-name = 'gob'
+name = '<|.ProjectName|>'
 # --simple-name, -sn: 使用简单名称（不包含平台和架构信息）
-simple = false
+simple = true
 # --zip, -z: 将输出文件打包为zip
 zip = false
 
@@ -24,7 +24,7 @@ use_vendor = true
 # ==================== Git 配置 ====================
 [build.git]
 # --git, -g: 在编译时注入git信息
-inject = false
+inject = true
 # 指定包含Git信息的链接器标志, 支持占位符: {{AppName}} (应用名称)、{{GitVersion}} (Git版本)、{{GitCommit}} (提交哈希)、{{GitCommitTime}} (提交时间)、{{BuildTime}} (构建时间)、{{GitTreeState}} (树状态)
 ldflags = "-X 'gitee.com/MM-Q/verman.appName={{AppName}}' -X 'gitee.com/MM-Q/verman.gitVersion={{GitVersion}}' -X 'gitee.com/MM-Q/verman.gitCommit={{GitCommit}}' -X 'gitee.com/MM-Q/verman.gitCommitTime={{GitCommitTime}}' -X 'gitee.com/MM-Q/verman.buildTime={{BuildTime}}' -X 'gitee.com/MM-Q/verman.gitTreeState={{GitTreeState}}' -s -w"
 
@@ -46,7 +46,7 @@ ldflags = '-s -w'
 # --batch, -b: 批量编译模式
 batch = false
 # --current-platform-only, -cpo: 仅编译当前平台
-current_platform_only = false
+current_platform_only = true
 # 支持的目标平台列表，多个平台用逗号分隔
 platforms = ['linux', 'windows']
 # 支持的目标架构列表，多个架构用逗号分隔
@@ -65,11 +65,11 @@ color = true
 # ==================== 安装配置 ====================
 [install]
 # --install, -i: 安装编译后的二进制文件
-install = false
+install = true
 # --install-path, -ip: 指定安装路径
 install_path = '$GOPATH/bin'
 # --force, -f: 强制安装（覆盖已存在文件）
-force = false
+force = true
 
 # ==================== 环境变量配置 ====================
 # --env, -e: 环境变量配置

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"gitee.com/MM-Q/gob/internal/cmd/initcmd"
 	"gitee.com/MM-Q/gob/internal/globls"
 	"gitee.com/MM-Q/qflag"
 	"gitee.com/MM-Q/verman"
@@ -50,8 +51,8 @@ func isTestMode() bool {
 	return strings.HasSuffix(exePath, ".test.exe")
 }
 
-// init 初始化命令行参数
-func init() {
+// InitAndRun 初始化并运行命令行参数
+func InitAndRun() {
 	envFlag = qflag.Root.Map("env", "e", map[string]string{}, "指定环境变量,格式为: key=value")
 	outputFlag = qflag.Root.String("output", "o", globls.DefaultOutputDir, "指定输出目录")
 	nameFlag = qflag.Root.String("name", "n", globls.DefaultAppName, "指定输出文件名")
@@ -86,13 +87,25 @@ func init() {
 				Desc:  "生成默认配置文件",
 				Usage: fmt.Sprintf("%s -gcf", os.Args[0]),
 			},
+			{
+				Desc:  "初始化gob构建文件",
+				Usage: fmt.Sprintf("%s init", os.Args[0]),
+			},
 		},
 	}
 	qflag.ApplyConfig(rootCmdCfg)
 
+	qflag.Root.SetRun(Run)
+
+	// 注册子命令
+	if err := qflag.Root.AddSubCmd(initcmd.InitCmd); err != nil {
+		fmt.Printf("err: %v\n", err)
+		os.Exit(1)
+	}
+
 	// 解析命令行参数 - 仅在非测试模式下执行
 	if !isTestMode() {
-		if err := qflag.Parse(); err != nil {
+		if err := qflag.ParseAndRoute(); err != nil {
 			fmt.Printf("err: %v\n", err)
 			os.Exit(1)
 		}
