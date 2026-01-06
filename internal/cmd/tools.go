@@ -70,54 +70,59 @@ func checkBaseEnv(config *gobConfig) error {
 	}
 
 	// 检查指定的入口文件是否存在
-	if _, statErr := os.Stat(config.Build.MainFile); os.IsNotExist(statErr) {
+	if _, statErr := os.Stat(config.Build.Source.MainFile); os.IsNotExist(statErr) {
 		return fmt.Errorf("入口文件不存在: %w", statErr)
 	}
 
 	// 如果启用vendor模式，检查vendor目录是否存在
-	if config.Build.UseVendor {
+	if config.Build.Source.UseVendor {
 		if _, statErr := os.Stat("vendor"); os.IsNotExist(statErr) {
 			return fmt.Errorf("当前路径下不存在vendor目录, 请先执行 go mod vendor 命令生成vendor目录: %w", statErr)
 		}
 	}
 
-	// 定义用于判断选择检查模式的变量
-	var checkMode bool
-
-	// 检查系统中是否存在golangci-lint否则执行默认的处理命令
-	if err := shellx.NewCmds([]string{"golangci-lint", "version"}).WithTimeout(config.Build.TimeoutDuration).Exec(); err != nil {
-		checkMode = true
-	}
-
-	// 根据checkMode的值执行不同的处理命令
-	var cmds []globls.CommandGroup
-	if checkMode {
-		cmds = append(cmds, globls.DefaultCheckCmds...)
+	// 如果启用了跳过检查选项，则跳过代码检查
+	if config.Build.Compiler.SkipCheck {
+		globls.CL.Yellowf("%s 已启用 --skip-check 选项，跳过代码检查\n", globls.PrintPrefix)
 	} else {
-		cmds = append(cmds, globls.GolangciLintCheckCmds...)
-	}
+		// 定义用于判断选择检查模式的变量
+		var checkMode bool
 
-	// 设置Go代理(如果配置了代理)
-	var envs []string
-	if config.Build.Proxy != "" {
-		envs = append(envs, fmt.Sprintf("GOPROXY=%s", config.Build.Proxy))
-	}
+		// 检查系统中是否存在golangci-lint否则执行默认的处理命令
+		if err := shellx.NewCmds([]string{"golangci-lint", "version"}).WithTimeout(config.Build.TimeoutDuration).Exec(); err != nil {
+			checkMode = true
+		}
 
-	// 遍历处理命令组
-	for _, cmdGroup := range cmds {
-		if result, runErr := shellx.NewCmds(cmdGroup.Cmds).WithTimeout(config.Build.TimeoutDuration).WithEnvs(envs).ExecOutput(); runErr != nil {
-			// 如果存在输出，则打印
-			if len(result) > 0 {
-				return fmt.Errorf("执行 %s 失败: %s%s", cmdGroup.Cmds, string(result), runErr)
+		// 根据checkMode的值执行不同的处理命令
+		var cmds []globls.CommandGroup
+		if checkMode {
+			cmds = append(cmds, globls.DefaultCheckCmds...)
+		} else {
+			cmds = append(cmds, globls.GolangciLintCheckCmds...)
+		}
+
+		// 设置Go代理(如果配置了代理)
+		var envs []string
+		if config.Build.Compiler.Proxy != "" {
+			envs = append(envs, fmt.Sprintf("GOPROXY=%s", config.Build.Compiler.Proxy))
+		}
+
+		// 遍历处理命令组
+		for _, cmdGroup := range cmds {
+			if result, runErr := shellx.NewCmds(cmdGroup.Cmds).WithTimeout(config.Build.TimeoutDuration).WithEnvs(envs).ExecOutput(); runErr != nil {
+				// 如果存在输出，则打印
+				if len(result) > 0 {
+					return fmt.Errorf("执行 %s 失败: %s%s", cmdGroup.Cmds, string(result), runErr)
+				}
+
+				// 如果没有输出，则打印错误
+				return fmt.Errorf("执行 %s 失败: %w", cmdGroup.Cmds, runErr)
 			}
-
-			// 如果没有输出，则打印错误
-			return fmt.Errorf("执行 %s 失败: %w", cmdGroup.Cmds, runErr)
 		}
 	}
 
 	// 创建输出目录(如果不存在)
-	if err := os.MkdirAll(config.Build.OutputDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(config.Build.Output.Dir, os.ModePerm); err != nil {
 		return fmt.Errorf("创建输出目录失败: %w", err)
 	}
 
@@ -181,7 +186,7 @@ func getGitMetaData(timeout time.Duration, v *verman.Info, c *gobConfig) error {
 	}
 
 	// 设置appName字段
-	v.AppName = c.Build.OutputName
+	v.AppName = c.Build.Output.Name
 
 	return nil
 }

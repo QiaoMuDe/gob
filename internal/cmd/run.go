@@ -78,14 +78,14 @@ func Run() {
 			os.Exit(1)
 		}
 		// 默认关闭颜色输出
-		globls.CL.SetColor(config.Build.ColorOutput)
+		globls.CL.SetColor(config.Build.UI.Color)
 		// 输出加载模式
 		globls.CL.Greenf("%s Config: %s\n", globls.PrintPrefix, configFilePath)
 	} else {
 		// 如果不存在, 则将命令行标志的值设置到配置结构体
 		applyConfigFlags(config)
 		// 默认关闭颜色输出
-		globls.CL.SetColor(config.Build.ColorOutput)
+		globls.CL.SetColor(config.Build.UI.Color)
 		// 输出加载模式
 		globls.CL.Greenf("%s Config: CLI flags\n", globls.PrintPrefix)
 	}
@@ -107,19 +107,19 @@ func Run() {
 	}
 
 	// 检查批量构建和安装选项是否同时启用
-	if config.Build.BatchMode && config.Install.Install {
+	if config.Build.Target.Batch && config.Install.Install {
 		globls.CL.PrintErrorf("不能同时使用批量构建和安装选项")
 		os.Exit(1)
 	}
 
 	// 检查安装和zip选项是否同时启用
-	if config.Install.Install && config.Build.ZipOutput {
+	if config.Install.Install && config.Build.Output.Zip {
 		globls.CL.PrintErrorf("不能同时使用安装和zip选项")
 		os.Exit(1)
 	}
 
 	// 第二阶段: 根据参数获取git信息
-	if config.Build.InjectGitInfo {
+	if config.Build.Git.Inject {
 		globls.CL.Greenf("%s 获取Git元数据\n", globls.PrintPrefix)
 		if err := getGitMetaData(config.Build.TimeoutDuration, verman.V, config); err != nil {
 			globls.CL.PrintErrorf("Git信息获取失败: %v\n", err)
@@ -128,8 +128,8 @@ func Run() {
 	}
 
 	// 如果不是批量模式, 强制设置为仅构建当前平台
-	if !config.Build.BatchMode {
-		config.Build.CurrentPlatformOnly = true
+	if !config.Build.Target.Batch {
+		config.Build.Target.CurrentPlatformOnly = true
 	}
 
 	// 执行构建
@@ -148,34 +148,34 @@ func Run() {
 //   - error: 错误信息
 func buildSingle(ctx *BuildContext) error {
 	// 获取构建命令 - 创建副本避免修改全局模板
-	buildCmds := make([]string, len(ctx.Config.Build.BuildCommand))
-	copy(buildCmds, ctx.Config.Build.BuildCommand)
+	buildCmds := make([]string, len(ctx.Config.Build.Command.Build))
+	copy(buildCmds, ctx.Config.Build.Command.Build)
 
 	// 生成输出路径
-	outputPath := filepath.Join(ctx.Config.Build.OutputDir, genOutputName(ctx.Config.Build.OutputName, ctx.Config.Build.SimpleName, ctx.VerMan.GitVersion, ctx.SysPlatform, ctx.SysArch))
+	outputPath := filepath.Join(ctx.Config.Build.Output.Dir, genOutputName(ctx.Config.Build.Output.Name, ctx.Config.Build.Output.Simple, ctx.VerMan.GitVersion, ctx.SysPlatform, ctx.SysArch))
 
 	// 动态替换命令中的占位符
 	for i, cmd := range buildCmds {
 		switch cmd {
 		case "{{ldflags}}": // 替换链接器标志
-			if ctx.Config.Build.InjectGitInfo {
+			if ctx.Config.Build.Git.Inject {
 				// 如果启用了Git信息注入, 则替换链接器标志
-				buildCmds[i] = fmt.Sprintf("\"%s\"", replaceGitPlaceholders(ctx.Config.Build.GitLdflags, ctx.VerMan))
+				buildCmds[i] = fmt.Sprintf("\"%s\"", replaceGitPlaceholders(ctx.Config.Build.Git.Ldflags, ctx.VerMan))
 			} else {
 				// 否则使用默认链接器标志
-				buildCmds[i] = fmt.Sprintf("\"%s\"", ctx.Config.Build.Ldflags)
+				buildCmds[i] = fmt.Sprintf("\"%s\"", ctx.Config.Build.Compiler.Ldflags)
 			}
 
 		case "{{output}}": // 替换输出路径
 			buildCmds[i] = outputPath
 		case "{{if UseVendor}}-mod=vendor{{end}}": // 条件添加vendor标志
-			if ctx.Config.Build.UseVendor {
+			if ctx.Config.Build.Source.UseVendor {
 				buildCmds[i] = "-mod=vendor" // 添加vendor标志
 			} else {
 				buildCmds[i] = "-mod=readonly" // 添加readonly标志
 			}
 		case "{{mainFile}}": // 替换入口文件
-			buildCmds[i] = ctx.Config.Build.MainFile
+			buildCmds[i] = ctx.Config.Build.Source.MainFile
 		}
 	}
 
@@ -197,13 +197,13 @@ func buildSingle(ctx *BuildContext) error {
 	}
 
 	// 获取Go代理
-	GOPROXY := fmt.Sprintf("GOPROXY=%s", ctx.Config.Build.Proxy)
+	GOPROXY := fmt.Sprintf("GOPROXY=%s", ctx.Config.Build.Compiler.Proxy)
 
 	// 添加Go代理
 	envs = append(envs, GOPROXY)
 
 	// 检查是否启用CGO
-	if ctx.Config.Build.EnableCgo {
+	if ctx.Config.Build.Compiler.EnableCgo {
 		envs = append(envs, "CGO_ENABLED=1")
 	} else {
 		envs = append(envs, "CGO_ENABLED=0")
@@ -229,7 +229,7 @@ func buildSingle(ctx *BuildContext) error {
 	}
 
 	// 在buildSingle函数中添加zip打包逻辑
-	if ctx.Config.Build.ZipOutput {
+	if ctx.Config.Build.Output.Zip {
 		// 检查输出路径是否存在, 不存在则跳过
 		if _, err := os.Stat(outputPath); os.IsNotExist(err) {
 			return fmt.Errorf("编译后的可执行文件不存在: %w", err)
@@ -278,20 +278,20 @@ func buildBatch(v *verman.Info, config *gobConfig) error {
 	rootEnvLen := len(rootEnvs)
 
 	// 遍历平台
-	for _, platform := range config.Build.Platforms {
+	for _, platform := range config.Build.Target.Platforms {
 		// 遍历架构
-		for _, arch := range config.Build.Architectures {
+		for _, arch := range config.Build.Target.Architectures {
 			// 跳过不支持的darwin/386和darwin/arm组合
 			if platform == "darwin" && (arch == "386" || arch == "arm") {
 				continue
 			}
 
 			// 如果开启了仅构建当前平台, 则跳过其他平台
-			if config.Build.CurrentPlatformOnly {
+			if config.Build.Target.CurrentPlatformOnly {
 				if platform != runtime.GOOS || arch != runtime.GOARCH {
 					printMutex.Lock()
 					// 仅在批量模式下打印跳过信息
-					if config.Build.BatchMode {
+					if config.Build.Target.Batch {
 						globls.CL.Greenf("%s 跳过非当前平台: %s/%s\n", globls.PrintPrefix, platform, arch)
 					}
 					printMutex.Unlock()

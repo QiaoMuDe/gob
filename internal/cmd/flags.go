@@ -31,6 +31,7 @@ var (
 	installPathFlag         *qflag.StringFlag   // --install-path, -ip 指定安装路径
 	generateConfigFlag      *qflag.BoolFlag     // --generate-config 生成默认配置文件
 	testFlag                *qflag.BoolFlag     // --test 在构建前运行单元测试
+	skipCheckFlag           *qflag.BoolFlag     // --skip-check, -sc 跳过构建前检查
 	timeoutFlag             *qflag.DurationFlag // --timeout 构建超时时间
 )
 
@@ -69,6 +70,7 @@ func init() {
 	installPathFlag = qflag.Root.String("install-path", "ip", getDefaultInstallPath(), "指定安装路径, 优先于GOPATH环境变量")
 	generateConfigFlag = qflag.Root.Bool("generate-config", "gcf", false, "生成默认配置文件")
 	testFlag = qflag.Root.Bool("test", "t", false, "在构建前运行单元测试")
+	skipCheckFlag = qflag.Root.Bool("skip-check", "sc", false, "跳过构建前检查")
 	timeoutFlag = qflag.Root.Duration("timeout", "", 30*time.Second, "构建超时时间(秒)")
 
 	// 设置命令行工具的配置

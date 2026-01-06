@@ -20,8 +20,8 @@ func TestLoadConfig_FileNotFound(t *testing.T) {
 
 	// 验证默认配置值
 	defaultInstallPath := getDefaultInstallPath()
-	if config.Build.OutputName != globls.DefaultAppName {
-		t.Errorf("Build.OutputName 默认值错误，预期 %s, 实际 %s", globls.DefaultAppName, config.Build.OutputName)
+	if config.Build.Output.Name != globls.DefaultAppName {
+		t.Errorf("Build.Output.Name 默认值错误，预期 %s, 实际 %s", globls.DefaultAppName, config.Build.Output.Name)
 	}
 	if config.Install.InstallPath != defaultInstallPath {
 		t.Errorf("Install.InstallPath 默认值错误，预期 %s, 实际 %s", defaultInstallPath, config.Install.InstallPath)
@@ -36,19 +36,30 @@ func TestLoadConfig_ValidFullConfig(t *testing.T) {
 	// 创建临时TOML文件
 	content := `
 [build]
-output_dir = "test_dist"
-output_name = "test_app"
+[build.output]
+dir = "test_dist"
+name = "test_app"
+simple = true
+zip = true
+
+[build.source]
 main_file = "test_main.go"
-ldflags = "-X main.version=1.0.0"
 use_vendor = true
-inject_git_info = true
-simple_name = true
+
+[build.git]
+inject = true
+
+[build.compiler]
+ldflags = "-X main.version=1.0.0"
 proxy = "https://test.proxy"
 enable_cgo = true
-color_output = true
-batch_mode = true
+
+[build.target]
+batch = true
 current_platform_only = true
-zip_output = true
+
+[build.ui]
+color = true
 
 [install]
 install = true
@@ -85,44 +96,44 @@ GOARCH = "amd64"
 	}
 
 	// 验证Build配置
-	if config.Build.OutputDir != "test_dist" {
-		t.Error("Build.OutputDir 解析错误")
+	if config.Build.Output.Dir != "test_dist" {
+		t.Error("Build.Output.Dir 解析错误")
 	}
-	if config.Build.OutputName != "test_app" {
-		t.Error("Build.OutputName 解析错误")
+	if config.Build.Output.Name != "test_app" {
+		t.Error("Build.Output.Name 解析错误")
 	}
-	if config.Build.MainFile != "test_main.go" {
-		t.Error("Build.MainFile 解析错误")
+	if config.Build.Source.MainFile != "test_main.go" {
+		t.Error("Build.Source.MainFile 解析错误")
 	}
-	if config.Build.Ldflags != "-X main.version=1.0.0" {
-		t.Error("Build.Ldflags 解析错误")
+	if config.Build.Compiler.Ldflags != "-X main.version=1.0.0" {
+		t.Error("Build.Compiler.Ldflags 解析错误")
 	}
-	if !config.Build.UseVendor {
-		t.Error("Build.UseVendor 解析错误，预期true")
+	if !config.Build.Source.UseVendor {
+		t.Error("Build.Source.UseVendor 解析错误，预期true")
 	}
-	if !config.Build.InjectGitInfo {
-		t.Error("Build.InjectGitInfo 解析错误，预期true")
+	if !config.Build.Git.Inject {
+		t.Error("Build.Git.Inject 解析错误，预期true")
 	}
-	if !config.Build.SimpleName {
-		t.Error("Build.SimpleName 解析错误，预期true")
+	if !config.Build.Output.Simple {
+		t.Error("Build.Output.Simple 解析错误，预期true")
 	}
-	if config.Build.Proxy != "https://test.proxy" {
-		t.Error("Build.Proxy 解析错误")
+	if config.Build.Compiler.Proxy != "https://test.proxy" {
+		t.Error("Build.Compiler.Proxy 解析错误")
 	}
-	if !config.Build.EnableCgo {
-		t.Error("Build.EnableCgo 解析错误，预期true")
+	if !config.Build.Compiler.EnableCgo {
+		t.Error("Build.Compiler.EnableCgo 解析错误，预期true")
 	}
-	if !config.Build.ColorOutput {
-		t.Error("Build.ColorOutput 解析错误，预期true")
+	if !config.Build.UI.Color {
+		t.Error("Build.UI.Color 解析错误，预期true")
 	}
-	if !config.Build.BatchMode {
-		t.Error("Build.BatchMode 解析错误，预期true")
+	if !config.Build.Target.Batch {
+		t.Error("Build.Target.Batch 解析错误，预期true")
 	}
-	if !config.Build.CurrentPlatformOnly {
-		t.Error("Build.CurrentPlatformOnly 解析错误，预期true")
+	if !config.Build.Target.CurrentPlatformOnly {
+		t.Error("Build.Target.CurrentPlatformOnly 解析错误，预期true")
 	}
-	if !config.Build.ZipOutput {
-		t.Error("Build.ZipOutput 解析错误，预期true")
+	if !config.Build.Output.Zip {
+		t.Error("Build.Output.Zip 解析错误，预期true")
 	}
 
 	// 验证Install配置
@@ -149,7 +160,10 @@ GOARCH = "amd64"
 func TestLoadConfig_PartialConfig(t *testing.T) {
 	content := `
 [build]
-output_dir = "partial_dist"
+[build.output]
+dir = "partial_dist"
+
+[build.source]
 use_vendor = true
 
 [install]
@@ -182,11 +196,11 @@ CGO_ENABLED = "1"
 	}
 
 	// 验证已设置的配置
-	if config.Build.OutputDir != "partial_dist" {
-		t.Error("Build.OutputDir 解析错误")
+	if config.Build.Output.Dir != "partial_dist" {
+		t.Error("Build.Output.Dir 解析错误")
 	}
-	if !config.Build.UseVendor {
-		t.Error("Build.UseVendor 解析错误，预期true")
+	if !config.Build.Source.UseVendor {
+		t.Error("Build.Source.UseVendor 解析错误，预期true")
 	}
 	if !config.Install.Force {
 		t.Error("Install.Force 解析错误，预期true")
@@ -196,8 +210,8 @@ CGO_ENABLED = "1"
 	}
 
 	// 验证未设置的配置使用默认值
-	if config.Build.OutputName != globls.DefaultAppName {
-		t.Errorf("Build.OutputName 应使用默认值 %s, 实际 %s", globls.DefaultAppName, config.Build.OutputName)
+	if config.Build.Output.Name != globls.DefaultAppName {
+		t.Errorf("Build.Output.Name 应使用默认值 %s, 实际 %s", globls.DefaultAppName, config.Build.Output.Name)
 	}
 	if config.Install.InstallPath != getDefaultInstallPath() {
 		t.Errorf("Install.InstallPath 应使用默认值 %s, 实际 %s", getDefaultInstallPath(), config.Install.InstallPath)
@@ -230,8 +244,8 @@ func TestApplyConfigFlags(t *testing.T) {
 	applyConfigFlags(config)
 
 	// 验证配置是否正确应用
-	if config.Build.OutputName != "test_app" {
-		t.Errorf("OutputName 未正确应用，预期 'test_app'，实际 %s", config.Build.OutputName)
+	if config.Build.Output.Name != "test_app" {
+		t.Errorf("Output.Name 未正确应用，预期 'test_app'，实际 %s", config.Build.Output.Name)
 	}
 	if !config.Install.Force {
 		t.Error("Force 标志未正确应用")
@@ -275,7 +289,7 @@ func TestGenerateDefaultConfig(t *testing.T) {
 	if !strings.Contains(string(content), globls.ConfigFileHeaderComment) {
 		t.Error("配置文件缺少头部注释")
 	}
-	if !strings.Contains(string(content), config.Build.OutputDir) {
+	if !strings.Contains(string(content), config.Build.Output.Dir) {
 		t.Error("配置文件未包含默认输出目录")
 	}
 
@@ -352,30 +366,65 @@ output_dir = "second"
 
 // TestConfigStruct_TagMatching 验证结构体字段的TOML标签是否正确定义
 func TestConfigStruct_TagMatching(t *testing.T) {
-	// 验证BuildConfig结构体标签
-	buildFields := map[string]string{
-		"OutputDir":           "output_dir",
-		"OutputName":          "output_name",
-		"MainFile":            "main_file",
-		"Ldflags":             "ldflags",
-		"GitLdflags":          "git_ldflags",
-		"UseVendor":           "use_vendor",
-		"InjectGitInfo":       "inject_git_info",
-		"SimpleName":          "simple_name",
-		"Proxy":               "proxy",
-		"EnableCgo":           "enable_cgo",
-		"ColorOutput":         "color_output",
-		"BatchMode":           "batch_mode",
-		"CurrentPlatformOnly": "current_platform_only",
-		"ZipOutput":           "zip_output",
-		"Platforms":           "platforms",
-		"Architectures":       "architectures",
-		"BuildCommand":        "build_command",
-		"Timeout":             "timeout",
-		"TimeoutDuration":     "-",
+	// 验证OutputConfig结构体标签
+	outputFields := map[string]string{
+		"Dir":    "dir",
+		"Name":   "name",
+		"Simple": "simple",
+		"Zip":    "zip",
 	}
 
-	verifyStructTags(t, BuildConfig{}, buildFields)
+	verifyStructTags(t, OutputConfig{}, outputFields)
+
+	// 验证SourceConfig结构体标签
+	sourceFields := map[string]string{
+		"MainFile":  "main_file",
+		"UseVendor": "use_vendor",
+	}
+
+	verifyStructTags(t, SourceConfig{}, sourceFields)
+
+	// 验证GitConfig结构体标签
+	gitFields := map[string]string{
+		"Inject":  "inject",
+		"Ldflags": "ldflags",
+	}
+
+	verifyStructTags(t, GitConfig{}, gitFields)
+
+	// 验证CompilerConfig结构体标签
+	compilerFields := map[string]string{
+		"EnableCgo": "enable_cgo",
+		"Ldflags":   "ldflags",
+		"Proxy":     "proxy",
+		"Timeout":   "timeout",
+	}
+
+	verifyStructTags(t, CompilerConfig{}, compilerFields)
+
+	// 验证TargetConfig结构体标签
+	targetFields := map[string]string{
+		"Batch":               "batch",
+		"CurrentPlatformOnly": "current_platform_only",
+		"Platforms":           "platforms",
+		"Architectures":       "architectures",
+	}
+
+	verifyStructTags(t, TargetConfig{}, targetFields)
+
+	// 验证CommandConfig结构体标签
+	commandFields := map[string]string{
+		"Build": "build",
+	}
+
+	verifyStructTags(t, CommandConfig{}, commandFields)
+
+	// 验证UIConfig结构体标签
+	uiFields := map[string]string{
+		"Color": "color",
+	}
+
+	verifyStructTags(t, UIConfig{}, uiFields)
 
 	// 验证InstallConfig结构体标签
 	installFields := map[string]string{
