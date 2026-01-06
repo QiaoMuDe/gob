@@ -611,7 +611,7 @@ func listBuildTasks() error {
 	// 输出任务列表（使用 task 风格：星号开头）
 	globls.CL.Greenf("%s 可用的构建任务：\n", globls.PrintPrefix)
 	for _, task := range tasks {
-		fmt.Printf("* %-20s %s\n", task.name, task.description)
+		fmt.Printf("%s %-20s %s\n", globls.CL.Syellow("*"), globls.CL.Scyan(task.name), task.description)
 	}
 
 	// 输出使用提示
