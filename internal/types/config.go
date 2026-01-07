@@ -1,17 +1,16 @@
-package cmd
+package types
 
 import (
 	"fmt"
 	"os"
 	"time"
 
-	"gitee.com/MM-Q/gob/internal/globls"
 	"github.com/pelletier/go-toml/v2"
 )
 
-// gobConfig 表示gob构建工具的完整配置结构
+// GobConfig 表示gob构建工具的完整配置结构
 // 对应gob.toml配置文件的结构
-type gobConfig struct {
+type GobConfig struct {
 	Build   BuildConfig       `toml:"build" comment:"构建配置"`
 	Install InstallConfig     `toml:"install" comment:"安装配置"`
 	Env     map[string]string `toml:"env" comment:"--env, -e: 环境变量配置"` // 默认值为空映射
@@ -51,7 +50,7 @@ type SourceConfig struct {
 // 对应gob.toml中的[build.git]部分
 type GitConfig struct {
 	Inject  bool   `toml:"inject" comment:"--git, -g: 在编译时注入git信息"`                                                                                                                                       // 默认值为false
-	Ldflags string `toml:"ldflags" comment:"指定包含Git信息的链接器标志, 支持占位符: {{AppName}} (应用名称)、{{GitVersion}} (Git版本)、{{GitCommit}} (提交哈希)、{{GitCommitTime}} (提交时间)、{{BuildTime}} (构建时间)、{{GitTreeState}} (树状态)"` // 默认值为globls.DefaultGitLDFlags
+	Ldflags string `toml:"ldflags" comment:"指定包含Git信息的链接器标志, 支持占位符: {{AppName}} (应用名称)、{{GitVersion}} (Git版本)、{{GitCommit}} (提交哈希)、{{GitCommitTime}} (提交时间)、{{BuildTime}} (构建时间)、{{GitTreeState}} (树状态)"` // 默认值为DefaultGitLDFlags
 }
 
 // CompilerConfig 表示编译器相关的配置项
@@ -76,7 +75,7 @@ type TargetConfig struct {
 // CommandConfig 表示命令相关的配置项
 // 对应gob.toml中的[build.command]部分
 type CommandConfig struct {
-	Build []string `toml:"build" comment:"编译命令模板，支持占位符: {{ldflags}} (链接器标志)、{{output}} (输出路径)、{{if UseVendor}}-mod=vendor{{end}} (条件包含vendor)、{{mainFile}} (入口文件), 多个命令用逗号分隔"` // 默认值为globls.GoBuildCmd.Cmds
+	Build []string `toml:"build" comment:"编译命令模板，支持占位符: {{ldflags}} (链接器标志)、{{output}} (输出路径)、{{if UseVendor}}-mod=vendor{{end}} (条件包含vendor)、{{mainFile}} (入口文件), 多个命令用逗号分隔"` // 默认值为GoBuildCmd.Cmds
 }
 
 // UIConfig 表示UI相关的配置项
@@ -93,16 +92,16 @@ type InstallConfig struct {
 	Force       bool   `toml:"force" comment:"--force, -f: 强制安装（覆盖已存在文件）"`         // 默认值为false
 }
 
-// loadConfig 从指定路径加载TOML配置文件并解析为Config结构体
+// LoadConfig 从指定路径加载TOML配置文件并解析为Config结构体
 //
 // 参数:
 //   - filePath: TOML配置文件的路径
 //
 // 返回:
 //   - 解析后的Config结构体指针和可能的错误
-func loadConfig(filePath string) (*gobConfig, error) {
+func LoadConfig(filePath string) (*GobConfig, error) {
 	// 创建默认配置结构体
-	config := getDefaultConfig()
+	config := GetDefaultConfig()
 
 	// 如果文件不存在, 则返回默认配置
 	if info, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -137,22 +136,13 @@ func loadConfig(filePath string) (*gobConfig, error) {
 	return config, nil
 }
 
-// applyConfigFlags 已移除
-// 原因：不再支持命令行参数覆盖配置文件，所有构建配置必须通过配置文件指定
-//
-// 旧函数功能：将命令行标志的值应用到配置结构体
-//
-// 新使用方式：
-//   使用配置文件（gob.toml 或 gobf/*.toml）指定所有构建参数
-//   通过命令行参数指定配置文件路径：gob gobf/dev.toml
-
-// getDefaultConfig 获取配置的默认值
+// GetDefaultConfig 获取配置的默认值
 //
 // 返回值:
 //   - *gobConfig: 包含所有默认配置值的结构体指针
-func getDefaultConfig() *gobConfig {
+func GetDefaultConfig() *GobConfig {
 	// 创建配置结构体
-	defaultConfig := &gobConfig{}
+	defaultConfig := &GobConfig{}
 
 	// UI配置
 	defaultConfig.Build.UI.Color = false
@@ -160,19 +150,19 @@ func getDefaultConfig() *gobConfig {
 	// 输出配置
 	defaultConfig.Build.Output.Zip = false
 	defaultConfig.Build.Output.Simple = false
-	defaultConfig.Build.Output.Dir = globls.DefaultOutputDir
-	defaultConfig.Build.Output.Name = globls.DefaultAppName
+	defaultConfig.Build.Output.Dir = DefaultOutputDir
+	defaultConfig.Build.Output.Name = DefaultAppName
 
 	// 源码配置
 	defaultConfig.Build.Source.UseVendor = false
-	defaultConfig.Build.Source.MainFile = globls.DefaultMainFile
+	defaultConfig.Build.Source.MainFile = DefaultMainFile
 
 	// Git配置
 	defaultConfig.Build.Git.Inject = false
 
 	// 编译器配置
 	defaultConfig.Build.Compiler.EnableCgo = false
-	defaultConfig.Build.Compiler.Proxy = globls.DefaultGoProxy
+	defaultConfig.Build.Compiler.Proxy = DefaultGoProxy
 	defaultConfig.Build.Compiler.SkipCheck = false
 	defaultConfig.Build.Compiler.Timeout = "60s"
 
@@ -189,11 +179,11 @@ func getDefaultConfig() *gobConfig {
 	defaultConfig.Env = make(map[string]string)
 
 	// 设置默认值
-	defaultConfig.Build.Target.Platforms = globls.DefaultPlatforms // 设置默认支持的平台
-	defaultConfig.Build.Target.Architectures = globls.DefaultArchs // 设置默认支持的架构
-	defaultConfig.Build.Command.Build = globls.GoBuildCmd.Cmds     // 设置默认的编译命令
-	defaultConfig.Build.Compiler.Ldflags = globls.DefaultLDFlags   // 链接器标志
-	defaultConfig.Build.Git.Ldflags = globls.DefaultGitLDFlags     // Git链接器标志
+	defaultConfig.Build.Target.Platforms = DefaultPlatforms // 设置默认支持的平台
+	defaultConfig.Build.Target.Architectures = DefaultArchs // 设置默认支持的架构
+	defaultConfig.Build.Command.Build = GoBuildCmd.Cmds     // 设置默认的编译命令
+	defaultConfig.Build.Compiler.Ldflags = DefaultLDFlags   // 链接器标志
+	defaultConfig.Build.Git.Ldflags = DefaultGitLDFlags     // Git链接器标志
 
 	// 解析timeout
 	var err error
@@ -206,16 +196,20 @@ func getDefaultConfig() *gobConfig {
 	return defaultConfig
 }
 
-// generateDefaultConfig 生成默认的gob.toml配置文件
+// GenerateDefaultConfig 生成默认的gob.toml配置文件
 //
 // 参数值:
 //   - config: 默认配置结构体指针
-func generateDefaultConfig(config *gobConfig) error {
+//   - f: 是否强制覆盖已存在的配置文件
+//
+// 返回值:
+//   - error: 错误信息，如果生成成功则返回nil
+func GenerateDefaultConfig(config *GobConfig, f bool) error {
 	// 检查gob.toml文件是否已存在
-	if _, err := os.Stat(globls.GobBuildFile); err == nil {
-		// 如果没启用--force, 则返回错误
-		if !forceFlag.Get() {
-			return fmt.Errorf("配置文件 %s 已存在，使用 --%s/-%s 强制覆盖", globls.GobBuildFile, forceFlag.LongName(), forceFlag.ShortName())
+	if _, err := os.Stat(GobBuildFile); err == nil {
+		// 如果没有启用f, 则返回错误
+		if !f {
+			return fmt.Errorf("配置文件 %s 已存在，使用 --force/-f 强制覆盖", GobBuildFile)
 		}
 	}
 
@@ -223,13 +217,13 @@ func generateDefaultConfig(config *gobConfig) error {
 	config.Install.InstallPath = "$GOPATH/bin"
 
 	// 设置默认的输出路径
-	config.Build.Output.Dir = globls.DefaultOutputDir
+	config.Build.Output.Dir = DefaultOutputDir
 
 	// 设置默认的入口文件
-	config.Build.Source.MainFile = globls.DefaultMainFile
+	config.Build.Source.MainFile = DefaultMainFile
 
 	// 创建文件
-	file, err := os.Create(globls.GobBuildFile)
+	file, err := os.Create(GobBuildFile)
 	if err != nil {
 		return fmt.Errorf("创建gob.toml失败: %v", err)
 	}
@@ -243,7 +237,7 @@ func generateDefaultConfig(config *gobConfig) error {
 
 	// 写入文件
 	// 先写入配置文件注释
-	comment := []byte(globls.ConfigFileHeaderComment)
+	comment := []byte(ConfigFileHeaderComment)
 	if _, err := file.Write(comment); err != nil {
 		return fmt.Errorf("写入注释失败: %v", err)
 	}
@@ -254,7 +248,7 @@ func generateDefaultConfig(config *gobConfig) error {
 	}
 
 	// 写入示例的ENV配置
-	if _, err := file.Write([]byte(globls.EnvExample)); err != nil {
+	if _, err := file.Write([]byte(EnvExample)); err != nil {
 		return fmt.Errorf("写入示例配置失败: %v", err)
 	}
 

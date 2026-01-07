@@ -1,4 +1,4 @@
-package cmd
+package utils
 
 import (
 	"fmt"
@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"gitee.com/MM-Q/gob/internal/globls"
+	"gitee.com/MM-Q/gob/internal/types"
 	"gitee.com/MM-Q/shellx"
 	"gitee.com/MM-Q/verman"
 )
 
-// genOutputName 生成输出文件名
+// GenOutputName 生成输出文件名
 //
 // 参数：
 //   - appName: 应用名
@@ -28,9 +28,9 @@ import (
 // 注意：
 //   - 简单模式：示例, `myapp`
 //   - 完整模式：示例, `myapp_linux_amd64_1.0.0`
-func genOutputName(appName string, useSimpleName bool, version string, sysPlatform string, sysArch string, isBatch bool) string {
+func GenOutputName(appName string, useSimpleName bool, version string, sysPlatform string, sysArch string, isBatch bool) string {
 	if useSimpleName && isBatch {
-		globls.CL.Yellowf("使用批量构建时, 简单模式将失效")
+		CL.Yellowf("使用批量构建时, 简单模式将失效")
 	}
 
 	// 简单模式: 不添加平台和版本信息
@@ -52,14 +52,14 @@ func genOutputName(appName string, useSimpleName bool, version string, sysPlatfo
 	}
 }
 
-// checkBaseEnv 检查基础环境以及格式化和静态检查
+// CheckBaseEnv 检查基础环境以及格式化和静态检查
 //
 // 参数:
 //   - config: 配置结构体
 //
 // 返回值:
 //   - error: 错误信息
-func checkBaseEnv(config *gobConfig) error {
+func CheckBaseEnv(config *types.GobConfig) error {
 	// 检查go环境
 	if err := shellx.NewCmds([]string{"go", "env"}).WithTimeout(config.Build.TimeoutDuration).Exec(); err != nil {
 		return err
@@ -84,7 +84,7 @@ func checkBaseEnv(config *gobConfig) error {
 
 	// 如果启用了跳过检查选项，则跳过代码检查
 	if config.Build.Compiler.SkipCheck {
-		globls.CL.Yellowf("%s 已启用 --skip-check 选项，跳过代码检查\n", globls.PrintPrefix)
+		CL.Yellowf("%s 已启用 --skip-check 选项，跳过代码检查\n", types.PrintPrefix)
 	} else {
 		// 定义用于判断选择检查模式的变量
 		var checkMode bool
@@ -95,11 +95,11 @@ func checkBaseEnv(config *gobConfig) error {
 		}
 
 		// 根据checkMode的值执行不同的处理命令
-		var cmds []globls.CommandGroup
+		var cmds []types.CommandGroup
 		if checkMode {
-			cmds = append(cmds, globls.DefaultCheckCmds...)
+			cmds = append(cmds, types.DefaultCheckCmds...)
 		} else {
-			cmds = append(cmds, globls.GolangciLintCheckCmds...)
+			cmds = append(cmds, types.GolangciLintCheckCmds...)
 		}
 
 		// 设置Go代理(如果配置了代理)
@@ -130,7 +130,7 @@ func checkBaseEnv(config *gobConfig) error {
 	return nil
 }
 
-// getGitMetaData 获取git元数据
+// GetGitMetaData 获取git元数据
 //
 // 参数：
 //   - timeout: 每个命令的超时时间
@@ -139,14 +139,14 @@ func checkBaseEnv(config *gobConfig) error {
 //
 // 返回值：
 //   - error: 错误信息，如果获取成功则返回nil
-func getGitMetaData(timeout time.Duration, v *verman.Info, c *gobConfig) error {
+func GetGitMetaData(timeout time.Duration, v *verman.Info, c *types.GobConfig) error {
 	// 检查Git是否安装
 	if err := shellx.NewCmds([]string{"git", "--version"}).WithTimeout(timeout).Exec(); err != nil {
 		return fmt.Errorf("未检测到Git, 请先安装Git并确保其在PATH中: %w", err)
 	}
 
 	// 检查当前目录是否为git仓库
-	if result, err := shellx.NewCmds(globls.GitIsInsideWorkTreeCmd.Cmds).WithTimeout(timeout).ExecOutput(); err != nil {
+	if result, err := shellx.NewCmds(types.GitIsInsideWorkTreeCmd.Cmds).WithTimeout(timeout).ExecOutput(); err != nil {
 		if strings.Contains(string(result), "not a git repository") {
 			return fmt.Errorf("当前目录不是Git仓库, 请先执行`git init`初始化仓库: %w", err)
 		}
@@ -155,12 +155,12 @@ func getGitMetaData(timeout time.Duration, v *verman.Info, c *gobConfig) error {
 
 	// 定义命令和对应字段的映射
 	commands := []struct {
-		cmd   globls.CommandGroup
+		cmd   types.CommandGroup
 		field *string
 	}{
-		{globls.GitVersionCmd, &v.GitVersion},
-		{globls.GitCommitHashCmd, &v.GitCommit},
-		{globls.GitCommitTimeCmd, &v.GitCommitTime},
+		{types.GitVersionCmd, &v.GitVersion},
+		{types.GitCommitHashCmd, &v.GitCommit},
+		{types.GitCommitTimeCmd, &v.GitCommitTime},
 	}
 
 	// 处理常规git信息
@@ -174,9 +174,9 @@ func getGitMetaData(timeout time.Duration, v *verman.Info, c *gobConfig) error {
 	}
 
 	// 特殊处理git树状态
-	result, err := shellx.NewCmds(globls.GitTreeStatusCmd.Cmds).WithTimeout(timeout).ExecOutput()
+	result, err := shellx.NewCmds(types.GitTreeStatusCmd.Cmds).WithTimeout(timeout).ExecOutput()
 	if err != nil {
-		return fmt.Errorf("%s: \n\t%s \n%w", globls.GitTreeStatusCmd.Name, string(result), err)
+		return fmt.Errorf("%s: \n\t%s \n%w", types.GitTreeStatusCmd.Name, string(result), err)
 	}
 
 	// 根据git树状态设置GitTreeState字段
@@ -192,12 +192,12 @@ func getGitMetaData(timeout time.Duration, v *verman.Info, c *gobConfig) error {
 	return nil
 }
 
-// getDefaultInstallPath 返回默认安装路径（多级回退策略）
+// GetDefaultInstallPath 返回默认安装路径（多级回退策略）
 // 优先级: GOPATH/bin > 用户主目录/go/bin > 当前工作目录/bin
 //
 // 返回值:
 //   - string: 计算得到的默认安装路径（确保返回非空字符串）
-func getDefaultInstallPath() string {
+func GetDefaultInstallPath() string {
 	// 1. 优先使用GOPATH/bin
 	if gopath := os.Getenv("GOPATH"); gopath != "" {
 		return filepath.Join(gopath, "bin")

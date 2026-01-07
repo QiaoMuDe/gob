@@ -1,6 +1,4 @@
-package globls
-
-import "gitee.com/MM-Q/colorlib"
+package types
 
 // 用于打印信息的前缀
 const (
@@ -22,11 +20,6 @@ var DefaultPlatforms = []string{"darwin", "linux", "windows"}
 
 // DefaultArchs 默认支持的架构
 var DefaultArchs = []string{"amd64", "arm64"}
-
-var (
-	// CL 颜色实例
-	CL = colorlib.GetCL()
-)
 
 // 默认配置
 const (

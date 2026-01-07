@@ -9,7 +9,8 @@ import (
 	"strings"
 	"text/template"
 
-	"gitee.com/MM-Q/gob/internal/globls"
+	"gitee.com/MM-Q/gob/internal/types"
+	"gitee.com/MM-Q/gob/internal/utils"
 	"gitee.com/MM-Q/qflag"
 )
 
@@ -54,7 +55,7 @@ func run(cmd *qflag.Cmd) error {
 		return fmt.Errorf("无法获取项目名称，请通过 --name 指定或确保当前目录存在 go.mod 文件")
 	}
 
-	globls.CL.Greenf("%s 项目名称: %s\n", globls.PrintPrefix, projectName)
+	utils.CL.Greenf("%s 项目名称: %s\n", types.PrintPrefix, projectName)
 
 	// 创建 gobf 目录
 	gobfDir := "gobf"
@@ -75,7 +76,7 @@ func run(cmd *qflag.Cmd) error {
 		}
 	}
 
-	globls.CL.Greenf("%s 初始化完成！已生成 gobf/ 目录及配置文件\n", globls.PrintPrefix)
+	utils.CL.Greenf("%s 初始化完成！已生成 gobf/ 目录及配置文件\n", types.PrintPrefix)
 	return nil
 }
 
@@ -116,10 +117,10 @@ func ensureDirectory(dir string) error {
 	// 检查目录是否已存在
 	if _, err := os.Stat(dir); err == nil {
 		if !forceFlag.Get() {
-			globls.CL.Yellowf("%s gobf 目录已存在，如需覆盖请使用 --force/-f 参数\n", globls.PrintPrefix)
+			utils.CL.Yellowf("%s gobf 目录已存在，如需覆盖请使用 --force/-f 参数\n", types.PrintPrefix)
 			return fmt.Errorf("目录已存在: %s", dir)
 		}
-		globls.CL.Yellowf("%s gobf 目录已存在，使用 --force/-f 参数覆盖\n", globls.PrintPrefix)
+		utils.CL.Yellowf("%s gobf 目录已存在，使用 --force/-f 参数覆盖\n", types.PrintPrefix)
 	}
 
 	// 创建目录
@@ -148,7 +149,7 @@ func renderAndWriteConfig(data InitData, dir, name string) error {
 
 	// 检查文件是否已存在
 	if _, err := os.Stat(outputPath); err == nil && !forceFlag.Get() {
-		globls.CL.Yellowf("%s 配置文件已存在: %s\n", globls.PrintPrefix, outputPath)
+		utils.CL.Yellowf("%s 配置文件已存在: %s\n", types.PrintPrefix, outputPath)
 		return fmt.Errorf("文件已存在: %s", outputPath)
 	}
 
@@ -164,6 +165,6 @@ func renderAndWriteConfig(data InitData, dir, name string) error {
 		return fmt.Errorf("渲染模板 %s 失败: %w", name, err)
 	}
 
-	globls.CL.Greenf("%s 已生成: %s\n", globls.PrintPrefix, outputPath)
+	utils.CL.Greenf("%s 已生成: %s\n", types.PrintPrefix, outputPath)
 	return nil
 }
