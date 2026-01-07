@@ -17,15 +17,6 @@ import (
 	"gitee.com/MM-Q/verman"
 )
 
-// BuildContext 构建上下文, 封装构建所需的所有参数
-type BuildContext struct {
-	VerMan      *verman.Info     // verman对象
-	Env         []string         // 环境变量
-	SysPlatform string           // 系统平台
-	SysArch     string           // 系统架构
-	Config      *types.GobConfig // 配置对象
-}
-
 // buildSingle 执行单个平台和架构的构建
 //
 // 参数:
@@ -33,7 +24,7 @@ type BuildContext struct {
 //
 // 返回值:
 //   - error: 错误信息
-func buildSingle(ctx *BuildContext) error {
+func buildSingle(ctx *types.BuildContext) error {
 	// 获取构建命令 - 创建副本避免修改全局模板
 	buildCmds := make([]string, len(ctx.Config.Build.Command.Build))
 	copy(buildCmds, ctx.Config.Build.Command.Build)
@@ -213,7 +204,7 @@ func buildBatch(v *verman.Info, config *types.GobConfig) error {
 				envs = append(envs, GOOS, GOARCH)
 
 				// 构建上下文
-				ctx := &BuildContext{
+				ctx := &types.BuildContext{
 					VerMan:      v,        // VerMan对象
 					Env:         envs,     // 环境变量
 					SysPlatform: platform, // 平台

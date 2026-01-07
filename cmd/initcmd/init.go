@@ -33,6 +33,12 @@ func init() {
 	initCmdCfg := qflag.CmdConfig{
 		Desc:       "初始化gob构建文件",
 		UseChinese: true,
+		Examples: []qflag.ExampleInfo{
+			{
+				Desc:  "初始化gob构建文件 (生成 gobf/ 目录)",
+				Usage: fmt.Sprintf("%s init", os.Args[0]),
+			},
+		},
 	}
 	InitCmd.ApplyConfig(initCmdCfg)
 

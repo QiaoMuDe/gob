@@ -35,10 +35,7 @@ func InitAndRun() {
 			"所有构建参数必须通过配置文件指定，不再支持命令行参数",
 		},
 		Examples: []qflag.ExampleInfo{
-			{
-				Desc:  "初始化gob构建文件 (生成 gobf/ 目录)",
-				Usage: fmt.Sprintf("%s init", os.Args[0]),
-			},
+
 			{
 				Desc:  "生成默认配置文件 (gob.toml)",
 				Usage: fmt.Sprintf("%s --generate-config", os.Args[0]),
