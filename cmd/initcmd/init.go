@@ -20,6 +20,7 @@ var templateFS embed.FS
 // InitData 初始化模板数据
 type InitData struct {
 	ProjectName string // 项目名称
+	MainFile    string // 入口文件
 }
 
 // initTemplate 自定义模板初始化，设置不同分隔符避免与 TOML 占位符冲突
@@ -44,6 +45,7 @@ func init() {
 
 	forceFlag = InitCmd.Bool("force", "f", false, "强制生成，覆盖已存在的文件")
 	nameFlag = InitCmd.String("name", "n", "", "指定生成的项目名称, 默认从go.mod读取")
+	mainFileFlag = InitCmd.String("main", "m", "main.go", "指定入口文件, 默认为main.go")
 
 	// 设置运行函数
 	InitCmd.SetRun(run)
@@ -58,7 +60,7 @@ func run(cmd *qflag.Cmd) error {
 	}
 
 	if projectName == "" {
-		return fmt.Errorf("无法获取项目名称，请通过 --name 指定或确保当前目录存在 go.mod 文件")
+		return fmt.Errorf("无法获取项目名称，请通过 --name/-n 指定或确保当前目录存在 go.mod 文件")
 	}
 
 	utils.CL.Greenf("%s 项目名称: %s\n", types.PrintPrefix, projectName)
@@ -72,6 +74,7 @@ func run(cmd *qflag.Cmd) error {
 	// 准备模板数据
 	data := InitData{
 		ProjectName: projectName,
+		MainFile:    mainFileFlag.Get(),
 	}
 
 	// 生成配置文件

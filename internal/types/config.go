@@ -141,70 +141,69 @@ func LoadConfig(filePath string) (*GobConfig, error) {
 // 返回值:
 //   - *gobConfig: 包含所有默认配置值的结构体指针
 func GetDefaultConfig() *GobConfig {
-	// 创建配置结构体
-	defaultConfig := &GobConfig{}
-
-	// UI配置
-	defaultConfig.Build.UI.Color = false
-
-	// 输出配置
-	defaultConfig.Build.Output.Zip = false
-	defaultConfig.Build.Output.Simple = false
-	defaultConfig.Build.Output.Dir = DefaultOutputDir
-	defaultConfig.Build.Output.Name = DefaultAppName
-
-	// 源码配置
-	defaultConfig.Build.Source.UseVendor = false
-	defaultConfig.Build.Source.MainFile = DefaultMainFile
-
-	// Git配置
-	defaultConfig.Build.Git.Inject = false
-
-	// 编译器配置
-	defaultConfig.Build.Compiler.EnableCgo = false
-	defaultConfig.Build.Compiler.Proxy = DefaultGoProxy
-	defaultConfig.Build.Compiler.SkipCheck = false
-	defaultConfig.Build.Compiler.Timeout = "60s"
-
-	// 目标平台配置
-	defaultConfig.Build.Target.Batch = false
-	defaultConfig.Build.Target.CurrentPlatformOnly = false
-
-	// 安装配置
-	defaultConfig.Install.Install = false
-	defaultConfig.Install.InstallPath = "$GOPATH/bin"
-	defaultConfig.Install.Force = false
-
-	// 环境变量
-	defaultConfig.Env = make(map[string]string)
-
-	// 设置默认值
-	defaultConfig.Build.Target.Platforms = DefaultPlatforms // 设置默认支持的平台
-	defaultConfig.Build.Target.Architectures = DefaultArchs // 设置默认支持的架构
-	defaultConfig.Build.Command.Build = GoBuildCmd.Cmds     // 设置默认的编译命令
-	defaultConfig.Build.Compiler.Ldflags = DefaultLDFlags   // 链接器标志
-	defaultConfig.Build.Git.Ldflags = DefaultGitLDFlags     // Git链接器标志
-
 	// 解析timeout
-	var err error
-	defaultConfig.Build.TimeoutDuration, err = time.ParseDuration(defaultConfig.Build.Compiler.Timeout)
+	timeoutDuration, err := time.ParseDuration("60s")
 	if err != nil {
-		defaultConfig.Build.TimeoutDuration = 60 * time.Second
+		timeoutDuration = 60 * time.Second
 	}
 
-	// 返回配置结构体
-	return defaultConfig
+	return &GobConfig{
+		Build: BuildConfig{
+			Output: OutputConfig{
+				Dir:    DefaultOutputDir, // 默认输出目录
+				Name:   DefaultAppName,   // 默认应用名称
+				Simple: false,            // 默认不使用简单模式
+				Zip:    false,            // 默认不压缩输出
+			},
+			Source: SourceConfig{
+				MainFile:  DefaultMainFile, // 默认入口文件
+				UseVendor: false,           // 默认不使用vendor目录
+			},
+			Git: GitConfig{
+				Inject:  false,             // 默认不注入Git信息
+				Ldflags: DefaultGitLDFlags, // 默认Git链接器标志
+			},
+			Compiler: CompilerConfig{
+				EnableCgo: false,          // 默认不启用CGO
+				Ldflags:   DefaultLDFlags, // 默认链接器标志
+				Proxy:     DefaultGoProxy, // 默认Go代理
+				SkipCheck: false,          // 默认不跳过Go模块检查
+				Timeout:   "60s",          // 默认编译超时时间
+			},
+			Target: TargetConfig{
+				Batch:               false,            // 默认不批量编译
+				CurrentPlatformOnly: false,            // 默认不仅编译当前平台
+				Platforms:           DefaultPlatforms, // 默认支持的目标平台
+				Architectures:       DefaultArchs,     // 默认支持的目标架构
+			},
+			Command: CommandConfig{
+				Build: GoBuildCmd.Cmds, // 默认编译命令模板
+			},
+			UI: UIConfig{
+				Color: false, // 默认不启用颜色输出
+			},
+			TimeoutDuration: timeoutDuration, // 默认编译超时时间
+		},
+		Install: InstallConfig{
+			Install:     false,         // 默认不安装编译后的二进制文件
+			InstallPath: "$GOPATH/bin", // 默认安装路径
+			Force:       false,         // 默认不强制安装（覆盖已存在文件）
+		},
+		Env: make(map[string]string), // 默认环境变量
+	}
 }
 
 // GenerateDefaultConfig 生成默认的gob.toml配置文件
 //
 // 参数值:
-//   - config: 默认配置结构体指针
 //   - f: 是否强制覆盖已存在的配置文件
 //
 // 返回值:
 //   - error: 错误信息，如果生成成功则返回nil
-func GenerateDefaultConfig(config *GobConfig, f bool) error {
+func GenerateDefaultConfig(f bool) error {
+	// 获取默认配置
+	config := GetDefaultConfig()
+
 	// 检查gob.toml文件是否已存在
 	if _, err := os.Stat(GobBuildFile); err == nil {
 		// 如果没有启用f, 则返回错误
@@ -212,15 +211,6 @@ func GenerateDefaultConfig(config *GobConfig, f bool) error {
 			return fmt.Errorf("配置文件 %s 已存在，使用 --force/-f 强制覆盖", GobBuildFile)
 		}
 	}
-
-	// 设置默认安装路径
-	config.Install.InstallPath = "$GOPATH/bin"
-
-	// 设置默认的输出路径
-	config.Build.Output.Dir = DefaultOutputDir
-
-	// 设置默认的入口文件
-	config.Build.Source.MainFile = DefaultMainFile
 
 	// 创建文件
 	file, err := os.Create(GobBuildFile)

@@ -95,11 +95,8 @@ func run(cmd *qflag.Cmd) error {
 
 	// 处理--generate-config参数: 生成默认配置文件
 	if generateConfigFlag.Get() {
-		// 生成默认配置
-		defaultConfig := types.GetDefaultConfig()
-
 		// 生成默认配置文件
-		if err := types.GenerateDefaultConfig(defaultConfig, forceFlag.Get()); err != nil {
+		if err := types.GenerateDefaultConfig(forceFlag.Get()); err != nil {
 			utils.CL.PrintErrorf("%v\n", err)
 			os.Exit(1)
 		}
