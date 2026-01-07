@@ -30,7 +30,7 @@ import (
 //   - 完整模式：示例, `myapp_linux_amd64_1.0.0`
 func GenOutputName(appName string, useSimpleName bool, version string, sysPlatform string, sysArch string, isBatch bool) string {
 	if useSimpleName && isBatch {
-		CL.Yellowf("使用批量构建时, 简单模式将失效")
+		CL.Yellow("使用批量构建时, 简单模式将失效")
 	}
 
 	// 简单模式: 不添加平台和版本信息

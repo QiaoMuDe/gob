@@ -97,7 +97,7 @@ func run(cmd *qflag.Cmd) error {
 	if generateConfigFlag.Get() {
 		// 生成默认配置文件
 		if err := types.GenerateDefaultConfig(forceFlag.Get()); err != nil {
-			utils.CL.PrintErrorf("%v\n", err)
+			utils.CL.PrintError(err)
 			os.Exit(1)
 		}
 		utils.CL.Greenf("%s 已生成构建文件: %s\n", types.PrintPrefix, types.GobBuildFile)
@@ -107,7 +107,7 @@ func run(cmd *qflag.Cmd) error {
 	// 处理--list参数: 列出可用的构建任务
 	if listFlag.Get() {
 		if err := listBuildTasks(); err != nil {
-			utils.CL.PrintErrorf("%v\n", err)
+			utils.CL.PrintError(err)
 			os.Exit(1)
 		}
 		os.Exit(0)
@@ -148,7 +148,7 @@ func run(cmd *qflag.Cmd) error {
 
 	// 加载配置文件
 	if err := loadAndValidateConfig(config, configFilePath); err != nil {
-		utils.CL.PrintErrorf("%v\n", err)
+		utils.CL.PrintError(err)
 		os.Exit(1)
 	}
 
@@ -165,13 +165,13 @@ func run(cmd *qflag.Cmd) error {
 
 	// 检查批量构建和安装选项是否同时启用
 	if config.Build.Target.Batch && config.Install.Install {
-		utils.CL.PrintErrorf("不能同时使用批量构建和安装选项")
+		utils.CL.PrintError("不能同时使用批量构建和安装选项")
 		os.Exit(1)
 	}
 
 	// 检查安装和zip选项是否同时启用
 	if config.Install.Install && config.Build.Output.Zip {
-		utils.CL.PrintErrorf("不能同时使用安装和zip选项")
+		utils.CL.PrintError("不能同时使用安装和zip选项")
 		os.Exit(1)
 	}
 
