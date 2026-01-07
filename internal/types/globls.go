@@ -42,7 +42,7 @@ const (
 	DefaultGitLDFlags = "-X 'gitee.com/MM-Q/verman.appName={{AppName}}' -X 'gitee.com/MM-Q/verman.gitVersion={{GitVersion}}' -X 'gitee.com/MM-Q/verman.gitCommit={{GitCommit}}' -X 'gitee.com/MM-Q/verman.gitCommitTime={{GitCommitTime}}' -X 'gitee.com/MM-Q/verman.buildTime={{BuildTime}}' -X 'gitee.com/MM-Q/verman.gitTreeState={{GitTreeState}}' -s -w"
 
 	// ConfigFileHeaderComment 配置文件头注释
-	ConfigFileHeaderComment = "# gob 构建工具配置文件 - 此文件包含所有可用的构建配置选项，与命令行参数对应\n# 项目地址: https://gitee.com/MM-Q/gob.git\n\n"
+	ConfigFileHeaderComment = "# gob 构建工具配置文件 \n# 项目地址: https://gitee.com/MM-Q/gob.git\n\n"
 
 	// EnvExample 环境变量示例
 	EnvExample = "# 示例:\n# GOOS = \"linux\"\n# GOARCH = \"amd64\"\n# CGO_ENABLED = \"1\"\n"
