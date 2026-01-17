@@ -3,6 +3,10 @@
 
 [build]
 
+# ==================== 构建配置 ====================
+# 构建工作目录, 默认为当前目录
+work_dir = '.'
+
 # ==================== 输出配置 ====================
 [build.output]
 # 输出目录
@@ -47,14 +51,14 @@ ldflags = '-s -w'
 batch = false
 # 仅编译当前平台
 current_platform_only = false
-# 支持的目标平台列表，多个平台用逗号分隔
+# 支持的目标平台列表, 多个平台用逗号分隔
 platforms = ['linux', 'windows']
-# 支持的目标架构列表，多个架构用逗号分隔
+# 支持的目标架构列表, 多个架构用逗号分隔
 architectures = ['amd64']
 
 # ==================== 命令配置 ====================
 [build.command]
-# 编译命令模板，支持占位符: {{ldflags}} (链接器标志)、{{output}} (输出路径)、{{if UseVendor}}-mod=vendor{{end}} (条件包含vendor)、{{mainFile}} (入口文件), 多个命令用逗号分隔
+# 编译命令模板, 支持占位符: {{ldflags}} (链接器标志)、{{output}} (输出路径)、{{if UseVendor}}-mod=vendor{{end}} (条件包含vendor)、{{mainFile}} (入口文件), 多个命令用逗号分隔
 build = ['go', 'build', '-trimpath', '-ldflags', '{{ldflags}}', '-o', '{{output}}', '{{if UseVendor}}-mod=vendor{{end}}', '{{mainFile}}']
 
 # ==================== UI 配置 ====================
@@ -77,5 +81,23 @@ force = false
 # GOOS = "linux"
 # GOARCH = "amd64"
 # CGO_ENABLED = "1"
+
+# ==================== 构建前执行配置 ====================
+[build.pre_build]
+# 是否启用构建前命令
+enabled = true
+# 构建前执行的命令列表
+commands = []
+# 命令执行失败时是否退出程序, true=退出, false=继续执行但打印错误
+exit_on_error = true
+
+# ==================== 构建后执行配置 ====================
+[build.post_build]
+# 是否启用构建后命令
+enabled = false
+# 构建后执行的命令列表
+commands = []
+# 命令执行失败时是否退出程序, true=退出, false=继续执行但打印错误
+exit_on_error = true
 
 

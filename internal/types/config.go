@@ -19,13 +19,16 @@ type GobConfig struct {
 // BuildConfig 表示构建相关的配置项
 // 对应gob.toml中的[build]部分
 type BuildConfig struct {
-	Output   OutputConfig   `toml:"output" comment:"输出配置"`    // 输出配置
-	Source   SourceConfig   `toml:"source" comment:"源码配置"`    // 源码配置
-	Git      GitConfig      `toml:"git" comment:"Git配置"`      // Git配置
-	Compiler CompilerConfig `toml:"compiler" comment:"编译器配置"` // 编译器配置
-	Target   TargetConfig   `toml:"target" comment:"目标平台配置"`  // 目标平台配置
-	Command  CommandConfig  `toml:"command" comment:"命令配置"`   // 命令配置
-	UI       UIConfig       `toml:"ui" comment:"UI配置"`        // UI配置
+	Output    OutputConfig    `toml:"output" comment:"输出配置"`             // 输出配置
+	Source    SourceConfig    `toml:"source" comment:"源码配置"`             // 源码配置
+	Git       GitConfig       `toml:"git" comment:"Git配置"`               // Git配置
+	Compiler  CompilerConfig  `toml:"compiler" comment:"编译器配置"`          // 编译器配置
+	Target    TargetConfig    `toml:"target" comment:"目标平台配置"`           // 目标平台配置
+	Command   CommandConfig   `toml:"command" comment:"命令配置"`            // 命令配置
+	UI        UIConfig        `toml:"ui" comment:"UI配置"`                 // UI配置
+	WorkDir   string          `toml:"work_dir" comment:"构建工作目录，默认为当前目录"` // 构建工作目录
+	PreBuild  PreBuildConfig  `toml:"pre_build" comment:"构建前执行配置"`       // 构建前执行配置
+	PostBuild PostBuildConfig `toml:"post_build" comment:"构建后执行配置"`      // 构建后执行配置
 
 	TimeoutDuration time.Duration `toml:"-"` // 内部使用的Duration类型，不导出到TOML
 }
@@ -82,6 +85,22 @@ type CommandConfig struct {
 // 对应gob.toml中的[build.ui]部分
 type UIConfig struct {
 	Color bool `toml:"color" comment:"启用颜色输出"` // 默认值为false
+}
+
+// PreBuildConfig 表示构建前执行的配置项
+// 对应gob.toml中的[build.pre_build]部分
+type PreBuildConfig struct {
+	Enabled     bool     `toml:"enabled" comment:"是否启用构建前命令"`                                   // 是否启用构建前命令
+	Commands    []string `toml:"commands" comment:"构建前执行的命令列表"`                                 // 构建前执行的命令列表
+	ExitOnError bool     `toml:"exit_on_error" comment:"命令执行失败时是否退出程序，true=退出，false=继续执行但打印错误"` // 错误处理策略
+}
+
+// PostBuildConfig 表示构建后执行的配置项
+// 对应gob.toml中的[build.post_build]部分
+type PostBuildConfig struct {
+	Enabled     bool     `toml:"enabled" comment:"是否启用构建后命令"`                                   // 是否启用构建后命令
+	Commands    []string `toml:"commands" comment:"构建后执行的命令列表"`                                 // 构建后执行的命令列表
+	ExitOnError bool     `toml:"exit_on_error" comment:"命令执行失败时是否退出程序，true=退出，false=继续执行但打印错误"` // 错误处理策略
 }
 
 // InstallConfig 表示安装相关的配置项
@@ -181,6 +200,17 @@ func GetDefaultConfig() *GobConfig {
 			},
 			UI: UIConfig{
 				Color: false, // 默认不启用颜色输出
+			},
+			WorkDir: ".", // 默认当前目录
+			PreBuild: PreBuildConfig{
+				Enabled:     false,      // 默认不启用构建前命令
+				Commands:    []string{}, // 默认空命令列表
+				ExitOnError: true,       // 默认遇到错误时退出
+			},
+			PostBuild: PostBuildConfig{
+				Enabled:     false,      // 默认不启用构建后命令
+				Commands:    []string{}, // 默认空命令列表
+				ExitOnError: true,       // 默认遇到错误时退出
 			},
 			TimeoutDuration: timeoutDuration, // 默认编译超时时间
 		},

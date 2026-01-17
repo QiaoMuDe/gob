@@ -17,6 +17,69 @@ import (
 	"gitee.com/MM-Q/verman"
 )
 
+// executeCommands 执行命令列表
+//
+// 参数:
+//   - commands: 要执行的命令列表
+//   - exitOnError: 命令执行失败时是否退出程序
+//   - config: 配置对象
+//   - envs: 环境变量列表
+//
+// 返回值:
+//   - error: 错误信息
+func executeCommands(commands []string, exitOnError bool, config *types.GobConfig, envs []string) error {
+	if len(commands) == 0 {
+		return nil
+	}
+
+	// 准备环境变量
+	var cmdEnvs []string
+	if len(envs) > 0 {
+		cmdEnvs = append(cmdEnvs, envs...)
+	}
+
+	// 添加配置文件中的环境变量
+	if len(config.Env) > 0 {
+		for k, v := range config.Env {
+			cmdEnvs = append(cmdEnvs, fmt.Sprintf("%s=%s", k, v))
+		}
+	}
+
+	// 获取工作目录
+	workDir := config.Build.WorkDir
+	if workDir == "" {
+		workDir = "."
+	}
+
+	// 执行每个命令
+	for _, cmd := range commands {
+		// 检查命令是否为空
+		if strings.TrimSpace(cmd) == "" {
+			continue
+		}
+
+		// 执行命令
+		var err error
+		if runtime.GOOS == "windows" {
+			err = shellx.NewCmdStr(cmd).WithEnvs(cmdEnvs).WithWorkDir(workDir).WithShell(shellx.ShellPowerShell).Exec()
+		} else {
+			err = shellx.NewCmdStr(cmd).WithEnvs(cmdEnvs).WithWorkDir(workDir).WithShell(shellx.ShellSh).Exec()
+		}
+
+		if err != nil {
+			if exitOnError {
+				return fmt.Errorf("执行命令 '%s' 失败: %w", cmd, err)
+			} else {
+				// 打印错误但继续执行
+				utils.CL.Redf("%s 执行命令 '%s' 失败: %v\n", types.PrintPrefix, cmd, err)
+				continue
+			}
+		}
+	}
+
+	return nil
+}
+
 // buildSingle 执行单个平台和架构的构建
 //
 // 参数:
@@ -25,7 +88,14 @@ import (
 // 返回值:
 //   - error: 错误信息
 func buildSingle(ctx *types.BuildContext) error {
-	// 获取构建命令 - 创建副本避免修改全局模板
+	// 1. 执行构建前命令
+	if ctx.Config.Build.PreBuild.Enabled {
+		if err := executeCommands(ctx.Config.Build.PreBuild.Commands, ctx.Config.Build.PreBuild.ExitOnError, ctx.Config, ctx.Env); err != nil {
+			return fmt.Errorf("构建前命令执行失败: %w", err)
+		}
+	}
+
+	// 2. 获取构建命令 - 创建副本避免修改全局模板
 	buildCmds := make([]string, len(ctx.Config.Build.Command.Build))
 	copy(buildCmds, ctx.Config.Build.Command.Build)
 
@@ -87,7 +157,7 @@ func buildSingle(ctx *types.BuildContext) error {
 		envs = append(envs, "CGO_ENABLED=0")
 	}
 
-	// 执行构建命令
+	// 3. 执行构建命令
 	if runtime.GOOS == "windows" {
 		if buildErr := shellx.NewCmds(buildCmds).WithTimeout(ctx.Config.Build.TimeoutDuration).WithEnvs(envs).WithShell(shellx.ShellPowerShell).Exec(); buildErr != nil {
 			return buildErr
@@ -95,6 +165,13 @@ func buildSingle(ctx *types.BuildContext) error {
 	} else {
 		if buildErr := shellx.NewCmds(buildCmds).WithTimeout(ctx.Config.Build.TimeoutDuration).WithEnvs(envs).WithShell(shellx.ShellSh).Exec(); buildErr != nil {
 			return buildErr
+		}
+	}
+
+	// 4. 执行构建后命令
+	if ctx.Config.Build.PostBuild.Enabled {
+		if err := executeCommands(ctx.Config.Build.PostBuild.Commands, ctx.Config.Build.PostBuild.ExitOnError, ctx.Config, ctx.Env); err != nil {
+			return fmt.Errorf("构建后命令执行失败: %w", err)
 		}
 	}
 
