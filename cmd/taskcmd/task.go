@@ -196,11 +196,14 @@ func executeTask(taskName string, context *types.TaskExecutionContext) error {
 	// 准备命令执行参数
 	workDir, timeout, taskEnvs := types.PrepareCommandExecution(task, context.GlobalConfig, context.Envs)
 
-	// 确定是否显示输出
+	// 确定是否显示命令输出
 	showOutput := task.ShowOutput
 	if !task.ShowOutput && context.GlobalConfig.ShowOutput {
 		showOutput = context.GlobalConfig.ShowOutput
 	}
+
+	// 确定是否显示执行的命令
+	showCommand := context.GlobalConfig.ShowCmd
 
 	utils.TaskLog(taskName, "执行任务")
 
@@ -208,6 +211,11 @@ func executeTask(taskName string, context *types.TaskExecutionContext) error {
 	for _, cmdStr := range task.Cmds {
 		// 替换变量占位符（包括解析@开头的命令）
 		resolvedCmd := types.ReplaceTaskVariables(cmdStr, taskName, context)
+
+		// 显示执行的命令（如果启用）
+		if showCommand {
+			utils.TaskLogf(taskName, "执行命令: %s\n", resolvedCmd)
+		}
 
 		// 执行命令
 		var err error

@@ -40,6 +40,8 @@ func init() {
 		Notes: []string{
 			"默认的任务编排文件名: task.toml, Task.toml",
 			"未指定任务文件时，默认使用当前目录下的任务配置文件",
+			"任务变量中@开头的符号将作为命令执行, 结果作为变量值使用",
+			"引用任务变量的格式: {{global.vars.varName}}",
 		},
 	}
 	TaskCmd.ApplyConfig(taskCmdCfg)

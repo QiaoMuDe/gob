@@ -14,7 +14,7 @@ import (
 // 对应gobfile.toml或task.toml配置文件的结构
 type TaskFileConfig struct {
 	Global GlobalConfig           `toml:"global" comment:"全局配置"`
-	Tasks  map[string]*TaskConfig `toml:"task" comment:"任务定义"` // 注意：toml中是task而不是tasks
+	Tasks  map[string]*TaskConfig `toml:"task" comment:"任务定义"` // 注意: toml中是task而不是tasks
 }
 
 // GlobalConfig 表示全局配置项
@@ -26,6 +26,7 @@ type GlobalConfig struct {
 	Timeout     string            `toml:"timeout" comment:"超时时间"`                // 超时时间
 	ShowOutput  bool              `toml:"show_output" comment:"是否显示输出"`          // 是否显示输出
 	ExitOnError bool              `toml:"exit_on_error" comment:"任务执行失败时是否退出程序"` // 任务执行失败时是否退出程序
+	ShowCmd     bool              `toml:"show_cmd" comment:"是否显示执行的命令"`          // 是否显示执行的命令
 }
 
 // TaskConfig 表示单个任务的配置项
@@ -108,6 +109,7 @@ func GetDefaultTaskConfig() *TaskFileConfig {
 			Timeout:     "30s", // 默认30秒超时
 			ShowOutput:  true,  // 默认显示输出
 			ExitOnError: true,  // 默认遇到错误时退出
+			ShowCmd:     false, // 默认不显示执行的命令
 		},
 		Tasks: map[string]*TaskConfig{
 			"run": {
@@ -123,7 +125,7 @@ func GetDefaultTaskConfig() *TaskFileConfig {
 					"run_mode": "production",
 				}, // 示例任务变量
 				WorkDir:    ".",        // 任务工作目录
-				Timeout:    "30s",      // 任务超时时间
+				Timeout:    "60s",      // 任务超时时间
 				DependsOn:  []string{}, // 无依赖
 				ShowOutput: true,       // 显示输出
 			},
@@ -145,6 +147,7 @@ func GetCoreConfig() *TaskFileConfig {
 			Timeout:     "30s",                   // 默认30秒超时
 			ShowOutput:  true,                    // 默认显示输出
 			ExitOnError: true,                    // 默认遇到错误时退出
+			ShowCmd:     false,                   // 默认不显示执行的命令
 		},
 		Tasks: make(map[string]*TaskConfig), // 默认空任务映射
 	}

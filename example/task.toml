@@ -11,6 +11,8 @@ timeout = '30s'
 show_output = true
 # 任务执行失败时是否退出程序, true=退出, false=继续执行但打印错误
 exit_on_error = true
+# 是否显示执行的命令
+show_cmd = false
 
 [task.clean]
 # 任务描述
