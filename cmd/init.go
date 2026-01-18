@@ -1,4 +1,4 @@
-package initcmd
+package cmd
 
 import (
 	"bufio"
@@ -11,7 +11,6 @@ import (
 
 	"gitee.com/MM-Q/gob/internal/types"
 	"gitee.com/MM-Q/gob/internal/utils"
-	"gitee.com/MM-Q/qflag"
 )
 
 //go:embed templates/*.tmpl
@@ -27,66 +26,6 @@ type InitData struct {
 func initTemplate(name, content string) (*template.Template, error) {
 	// 使用 <| |> 作为模板分隔符，避免与 {{ }} 冲突
 	return template.New(name).Delims("<|", "|>").Parse(content)
-}
-
-func init() {
-	InitCmd = qflag.NewCmd("init", "i", qflag.ExitOnError)
-	initCmdCfg := qflag.CmdConfig{
-		Desc:       "初始化gob构建文件",
-		UseChinese: true,
-		Examples: []qflag.ExampleInfo{
-			{
-				Desc:  "初始化gob构建文件 (生成 gobf/ 目录)",
-				Usage: fmt.Sprintf("%s init", os.Args[0]),
-			},
-		},
-	}
-	InitCmd.ApplyConfig(initCmdCfg)
-
-	forceFlag = InitCmd.Bool("force", "f", false, "强制生成，覆盖已存在的文件")
-	nameFlag = InitCmd.String("name", "n", "", "指定生成的项目名称, 默认从go.mod读取")
-	mainFileFlag = InitCmd.String("main", "m", "main.go", "指定入口文件, 默认为main.go")
-
-	// 设置运行函数
-	InitCmd.SetRun(run)
-}
-
-// run 执行初始化命令
-func run(cmd *qflag.Cmd) error {
-	// 获取项目名称
-	projectName := getProjectName()
-	if nameFlag.Get() != "" {
-		projectName = nameFlag.Get()
-	}
-
-	if projectName == "" {
-		return fmt.Errorf("无法获取项目名称，请通过 --name/-n 指定或确保当前目录存在 go.mod 文件")
-	}
-
-	utils.CL.Greenf("%s 项目名称: %s\n", types.PrintPrefix, projectName)
-
-	// 创建 gobf 目录
-	gobfDir := "gobf"
-	if err := ensureDirectory(gobfDir); err != nil {
-		return fmt.Errorf("创建 gobf 目录失败: %w", err)
-	}
-
-	// 准备模板数据
-	data := InitData{
-		ProjectName: projectName,
-		MainFile:    mainFileFlag.Get(),
-	}
-
-	// 生成配置文件
-	configs := []string{"dev", "install", "release"}
-	for _, name := range configs {
-		if err := renderAndWriteConfig(data, gobfDir, name); err != nil {
-			return err
-		}
-	}
-
-	utils.CL.Greenf("%s 初始化完成！已生成 gobf/ 目录及配置文件\n", types.PrintPrefix)
-	return nil
 }
 
 // getProjectName 从 go.mod 读取项目名称
@@ -175,5 +114,43 @@ func renderAndWriteConfig(data InitData, dir, name string) error {
 	}
 
 	utils.CL.Greenf("%s 已生成: %s\n", types.PrintPrefix, outputPath)
+	return nil
+}
+
+// runInit 执行初始化命令
+func runInit() error {
+	// 获取项目名称
+	projectName := getProjectName()
+	if nameFlag.Get() != "" {
+		projectName = nameFlag.Get()
+	}
+
+	if projectName == "" {
+		return fmt.Errorf("无法获取项目名称，请通过 --name/-n 指定或确保当前目录存在 go.mod 文件")
+	}
+
+	utils.CL.Greenf("%s 项目名称: %s\n", types.PrintPrefix, projectName)
+
+	// 创建 gobf 目录
+	gobfDir := "gobf"
+	if err := ensureDirectory(gobfDir); err != nil {
+		return fmt.Errorf("创建 gobf 目录失败: %w", err)
+	}
+
+	// 准备模板数据
+	data := InitData{
+		ProjectName: projectName,
+		MainFile:    mainFileFlag.Get(),
+	}
+
+	// 生成配置文件
+	configs := []string{"dev", "install", "release"}
+	for _, name := range configs {
+		if err := renderAndWriteConfig(data, gobfDir, name); err != nil {
+			return err
+		}
+	}
+
+	utils.CL.Greenf("%s 初始化完成！已生成 gobf/ 目录及配置文件\n", types.PrintPrefix)
 	return nil
 }

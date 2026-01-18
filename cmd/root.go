@@ -8,7 +8,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"gitee.com/MM-Q/gob/cmd/initcmd"
+	"gitee.com/MM-Q/gob/cmd/taskcmd"
 	"gitee.com/MM-Q/gob/internal/types"
 	"gitee.com/MM-Q/gob/internal/utils"
 	"gitee.com/MM-Q/qflag"
@@ -23,6 +23,11 @@ func InitAndRun() {
 	listFlag = qflag.Root.Bool("list", "l", false, "列出可用的构建任务")
 	runFlag = qflag.Root.String("run", "", "", "运行指定的构建任务（自动在 gobf/ 目录下查找）")
 
+	// 初始化相关标志
+	initFlag = qflag.Root.Bool("init", "i", false, "初始化gob构建文件")
+	nameFlag = qflag.Root.String("name", "n", "", "指定生成的项目名称, 默认从go.mod读取")
+	mainFileFlag = qflag.Root.String("main", "m", "main.go", "指定入口文件, 默认为main.go")
+
 	// 设置命令行工具的配置
 	rootCmdCfg := qflag.CmdConfig{
 		UsageSyntax: fmt.Sprintf("%s [options] [build-file]", filepath.Base(os.Args[0])),
@@ -35,7 +40,10 @@ func InitAndRun() {
 			"所有构建参数必须通过配置文件指定，不再支持命令行参数",
 		},
 		Examples: []qflag.ExampleInfo{
-
+			{
+				Desc:  "初始化gob构建文件 (生成 gobf/ 目录)",
+				Usage: fmt.Sprintf("%s --init", os.Args[0]),
+			},
 			{
 				Desc:  "生成默认配置文件 (gob.toml)",
 				Usage: fmt.Sprintf("%s --generate-config", os.Args[0]),
@@ -63,7 +71,7 @@ func InitAndRun() {
 	qflag.Root.SetRun(run)
 
 	// 注册子命令
-	if err := qflag.Root.AddSubCmd(initcmd.InitCmd); err != nil {
+	if err := qflag.Root.AddSubCmd(taskcmd.TaskCmd); err != nil {
 		fmt.Printf("err: %v\n", err)
 		os.Exit(1)
 	}
@@ -92,6 +100,15 @@ func run(cmd *qflag.Cmd) error {
 		// 格式化耗时为秒并保留两位小数
 		utils.CL.Greenf("%s 本次构建耗时 %.2fs\n", types.PrintPrefix, duration.Seconds())
 	}()
+
+	// 处理--init参数: 初始化gob构建文件
+	if initFlag.Get() {
+		if err := runInit(); err != nil {
+			utils.CL.PrintError(err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
 
 	// 处理--generate-config参数: 生成默认配置文件
 	if generateConfigFlag.Get() {

@@ -14,7 +14,7 @@ dir = 'output'
 # 输出文件名
 name = 'gob'
 # 使用简单名称（不包含平台和架构信息）
-simple = false
+simple = true
 # 将输出文件打包为zip
 zip = false
 

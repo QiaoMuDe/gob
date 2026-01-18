@@ -13,4 +13,10 @@ var (
 	listFlag *qflag.BoolFlag
 	// runFlag --run 运行指定的构建任务（自动在 gobf/ 目录下查找）
 	runFlag *qflag.StringFlag
+	// initFlag --init, -i 初始化gob构建文件
+	initFlag *qflag.BoolFlag
+	// nameFlag --name, -n 指定生成的项目名称
+	nameFlag *qflag.StringFlag
+	// mainFileFlag --main, -m 指定入口文件
+	mainFileFlag *qflag.StringFlag
 )
