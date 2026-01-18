@@ -109,7 +109,7 @@ func listTasks() error {
 	// 列出所有任务
 	utils.Log("可用任务列表:")
 	for name, task := range config.Tasks {
-		fmt.Printf("  %s - %s\n", utils.CL.Scyan(name), task.Desc)
+		fmt.Printf("  %-20s - %-20s\n", utils.CL.Scyan(name), task.Desc)
 	}
 
 	utils.CL.Yellow("\nUsage: gob task --run <task-name>")
