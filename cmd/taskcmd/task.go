@@ -14,10 +14,13 @@ import (
 // 优先使用 --file 参数指定的路径，否则使用默认路径
 // 如果文件不存在且未指定 --file，则尝试备用文件名
 //
+// 参数:
+//   - allowCreate: 是否允许文件不存在（用于初始化场景）
+//
 // 返回值:
 //   - string: 配置文件路径
 //   - error: 错误信息
-func getTaskConfigPath() (string, error) {
+func getTaskConfigPath(allowCreate bool) (string, error) {
 	// 确定配置文件路径
 	configPath := types.TaskConfigFileName
 	if fileFlag.Get() != "" {
@@ -26,11 +29,16 @@ func getTaskConfigPath() (string, error) {
 
 	// 检查配置文件是否存在
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		// 如果允许创建文件，直接返回路径（不检查备用文件名）
+		if allowCreate {
+			return configPath, nil
+		}
+
 		// 尝试备用文件名
 		if fileFlag.Get() == "" { // 只有在未指定文件时才尝试备用文件名
 			configPath = types.AltTaskConfigFileName
 			if _, err := os.Stat(configPath); os.IsNotExist(err) {
-				return "", fmt.Errorf("任务配置文件不存在")
+				return "", fmt.Errorf("任务 ['%s'|'%s'] 配置文件不存在", types.TaskConfigFileName, types.AltTaskConfigFileName)
 			}
 		} else {
 			return "", fmt.Errorf("指定的任务配置文件不存在: %s", configPath)
@@ -76,7 +84,7 @@ func run(cmd *qflag.Cmd) error {
 // 返回值:
 //   - error: 错误信息
 func initTaskConfig() error {
-	configPath, err := getTaskConfigPath()
+	configPath, err := getTaskConfigPath(true)
 	if err != nil {
 		return err
 	}
@@ -94,7 +102,7 @@ func initTaskConfig() error {
 //   - error: 错误信息
 func listTasks() error {
 	// 获取配置文件路径
-	configPath, err := getTaskConfigPath()
+	configPath, err := getTaskConfigPath(false)
 	if err != nil {
 		return err
 	}
@@ -126,7 +134,7 @@ func listTasks() error {
 //   - error: 错误信息
 func runTask(taskName string) error {
 	// 获取配置文件路径
-	configPath, err := getTaskConfigPath()
+	configPath, err := getTaskConfigPath(false)
 	if err != nil {
 		return err
 	}

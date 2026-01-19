@@ -84,7 +84,7 @@ func CheckBaseEnv(config *types.GobConfig) error {
 
 	// 如果启用了跳过检查选项，则跳过代码检查
 	if config.Build.Compiler.SkipCheck {
-		CL.Yellowf("%s 已启用 --skip-check 选项，跳过代码检查\n", types.PrintPrefix)
+		CL.Yellowf("%s 已启用 'skip_check' 选项，跳过代码检查\n", types.PrintPrefix)
 	} else {
 		// 定义用于判断选择检查模式的变量
 		var checkMode bool
