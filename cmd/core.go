@@ -100,7 +100,14 @@ func buildSingle(ctx *types.BuildContext) error {
 	copy(buildCmds, ctx.Config.Build.Command.Build)
 
 	// 生成输出路径
-	outputPath := filepath.Join(ctx.Config.Build.Output.Dir, utils.GenOutputName(ctx.Config.Build.Output.Name, ctx.Config.Build.Output.Simple, ctx.VerMan.GitVersion, ctx.SysPlatform, ctx.SysArch, ctx.Config.Build.Target.Batch))
+	// 确定版本号: 如果启用了Git信息注入, 则使用Git版本; 否则使用空字符串 (不包含版本号)
+	var version string
+	if ctx.Config.Build.Git.Inject {
+		version = ctx.VerMan.GitVersion
+	} else {
+		version = "" // 当未启用Git信息注入时, 不包含版本号
+	}
+	outputPath := filepath.Join(ctx.Config.Build.Output.Dir, utils.GenOutputName(ctx.Config.Build.Output.Name, ctx.Config.Build.Output.Simple, version, ctx.SysPlatform, ctx.SysArch, ctx.Config.Build.Target.Batch))
 
 	// 动态替换命令中的占位符
 	for i, cmd := range buildCmds {

@@ -46,9 +46,17 @@ func GenOutputName(appName string, useSimpleName bool, version string, sysPlatfo
 	// 完整模式: 添加平台和版本信息
 	switch sysPlatform {
 	case "windows":
-		return fmt.Sprintf("%s_%s_%s_%s.exe", strings.TrimSuffix(appName, filepath.Ext(appName)), sysPlatform, sysArch, version)
+		if version != "" {
+			return fmt.Sprintf("%s_%s_%s_%s.exe", strings.TrimSuffix(appName, filepath.Ext(appName)), sysPlatform, sysArch, version)
+		} else {
+			return fmt.Sprintf("%s_%s_%s.exe", strings.TrimSuffix(appName, filepath.Ext(appName)), sysPlatform, sysArch)
+		}
 	default:
-		return fmt.Sprintf("%s_%s_%s_%s", appName, sysPlatform, sysArch, version)
+		if version != "" {
+			return fmt.Sprintf("%s_%s_%s_%s", appName, sysPlatform, sysArch, version)
+		} else {
+			return fmt.Sprintf("%s_%s_%s", appName, sysPlatform, sysArch)
+		}
 	}
 }
 
