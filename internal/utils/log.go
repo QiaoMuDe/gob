@@ -29,3 +29,11 @@ func TaskLog(taskName, msg string) {
 func TaskLogf(taskName, format string, args ...interface{}) {
 	CL.Greenf("%s [%s] %s", PrintPrefix, taskName, fmt.Sprintf(format, args...))
 }
+
+func TaskErr(taskName, msg string) {
+	CL.Redf("%s [%s] %s\n", PrintPrefix, taskName, msg)
+}
+
+func TaskErrf(taskName, format string, args ...interface{}) {
+	CL.Redf("%s [%s] %s", PrintPrefix, taskName, fmt.Sprintf(format, args...))
+}

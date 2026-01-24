@@ -358,7 +358,7 @@ func runTask(taskName string) error {
 	utils.Logf("开始执行: %v\n", taskOrder)
 	for _, name := range taskOrder {
 		if err := executeTask(name, context); err != nil {
-			utils.TaskLogf(name, "执行任务失败: %v", err)
+			utils.TaskErrf(name, "执行任务失败: %v\n", err)
 			if config.Global.ExitOnError {
 				return err
 			}
