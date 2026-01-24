@@ -187,7 +187,7 @@ func runTask(taskName string) error {
 
 // executeTask 执行单个任务
 // 设置任务环境变量、工作目录等参数，然后执行任务中的命令列表
-// 根据操作系统自动选择Shell类型：Windows使用PowerShell，Linux/macOS使用bash
+// 根据操作系统自动选择Shell类型: Windows使用PowerShell, Linux/macOS使用bash
 //
 // 参数:
 //   - taskName: 要执行的任务名称
@@ -213,7 +213,12 @@ func executeTask(taskName string, context *types.TaskExecutionContext) error {
 	// 确定是否显示执行的命令
 	showCommand := context.GlobalConfig.ShowCmd
 
-	utils.TaskLog(taskName, "执行任务")
+	// 显示任务描述
+	if task.Desc != "" {
+		utils.TaskLogf(taskName, "执行任务: %s\n", task.Desc)
+	} else {
+		utils.TaskLog(taskName, "执行任务")
+	}
 
 	// 执行任务命令
 	for _, cmdStr := range task.Cmds {

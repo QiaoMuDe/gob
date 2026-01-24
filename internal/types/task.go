@@ -97,37 +97,43 @@ func LoadTaskConfig(filePath string) (*TaskFileConfig, error) {
 func GetDefaultTaskConfig() *TaskFileConfig {
 	return &TaskFileConfig{
 		Global: GlobalConfig{
-			Envs: map[string]string{
-				"GOOS":   "windows",
-				"GOARCH": "amd64",
-			}, // 示例全局环境变量
-			Vars: map[string]string{
-				"app_name": "myapp",
-				"version":  "1.0.0",
-			}, // 示例全局变量
-			WorkDir:     ".",   // 默认当前目录
-			Timeout:     "30s", // 默认30秒超时
-			ShowOutput:  true,  // 默认显示输出
-			ExitOnError: true,  // 默认遇到错误时退出
-			ShowCmd:     false, // 默认不显示执行的命令
+			Envs:        map[string]string{}, // 默认空环境变量
+			Vars:        map[string]string{}, // 默认空变量
+			WorkDir:     ".",                 // 默认当前目录
+			Timeout:     "30s",               // 默认30秒超时
+			ShowOutput:  true,                // 默认显示输出
+			ExitOnError: true,                // 默认遇到错误时退出
+			ShowCmd:     false,               // 默认不显示执行的命令
 		},
 		Tasks: map[string]*TaskConfig{
 			"run": {
-				Desc: "运行应用程序",
+				Desc: "运行程序",
 				Cmds: []string{
-					"echo 启动应用...",
-					"echo 应用已启动",
+					"go run main.go",
 				},
-				Envs: map[string]string{
-					"PORT": "8080",
-				}, // 示例任务环境变量
-				Vars: map[string]string{
-					"run_mode": "production",
-				}, // 示例任务变量
-				WorkDir:    ".",        // 任务工作目录
-				Timeout:    "60s",      // 任务超时时间
-				DependsOn:  []string{}, // 无依赖
-				ShowOutput: true,       // 显示输出
+				DependsOn: []string{"fc"},
+			},
+			"build": {
+				Desc: "构建程序",
+				Cmds: []string{
+					"go build -trimpath -ldflags '-w -s' main.go",
+				},
+				DependsOn: []string{"fc"},
+			},
+			"fc": {
+				Desc: "正在格式化并检查代码...",
+				Cmds: []string{
+					"golangci-lint fmt ./...",
+					"golangci-lint run ./...",
+				},
+			},
+			"test": {
+				Desc: "运行测试",
+				Cmds: []string{
+					"go clean -testcache",
+					"go test -v ./...",
+				},
+				DependsOn: []string{"fc"},
 			},
 		},
 	}
@@ -251,11 +257,7 @@ func ResolveTaskDependencies(taskName string, tasks map[string]*TaskConfig) ([]s
 		return nil, err
 	}
 
-	// 反转结果，因为我们是从依赖到被依赖的顺序添加的
-	for i, j := 0, len(result)-1; i < j; i, j = i+1, j-1 {
-		result[i], result[j] = result[j], result[i]
-	}
-
+	// 结果已经是正确的执行顺序（依赖项在前，被依赖项在后）
 	return result, nil
 }
 
