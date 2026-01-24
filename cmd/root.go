@@ -72,13 +72,13 @@ func InitAndRun() {
 
 	// 注册子命令
 	if err := qflag.Root.AddSubCmd(taskcmd.TaskCmd); err != nil {
-		fmt.Printf("err: %v\n", err)
+		utils.CL.PrintError(err)
 		os.Exit(1)
 	}
 
 	// 解析命令行参数
 	if err := qflag.ParseAndRoute(); err != nil {
-		fmt.Printf("err: %v\n", err)
+		utils.CL.PrintError(err)
 		os.Exit(1)
 	}
 }
@@ -87,7 +87,7 @@ func InitAndRun() {
 func run(cmd *qflag.Cmd) error {
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Printf("%s panic: %v\nstack: %s\n", types.PrintPrefix, err, debug.Stack())
+			utils.CL.Redf("%s panic: %v\nstack: %s\n", types.PrintPrefix, err, debug.Stack())
 			os.Exit(1)
 		}
 	}()

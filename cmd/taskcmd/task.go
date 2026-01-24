@@ -3,6 +3,7 @@ package taskcmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"gitee.com/MM-Q/gob/internal/types"
 	"gitee.com/MM-Q/gob/internal/utils"
@@ -62,6 +63,11 @@ func run(cmd *qflag.Cmd) error {
 		return printTaskExample()
 	}
 
+	// 处理 --check 参数
+	if checkFlag.Get() {
+		return checkTaskConfig()
+	}
+
 	// 处理 --init 参数
 	if initFlag.Get() {
 		return initTaskConfig()
@@ -83,6 +89,70 @@ func run(cmd *qflag.Cmd) error {
 	return nil
 }
 
+// checkTaskConfig 校验任务配置文件
+// 检查配置文件的格式、字段完整性和业务逻辑正确性
+//
+// 返回值:
+//   - error: 错误信息
+func checkTaskConfig() error {
+	// 获取配置文件路径
+	configPath, err := getTaskConfigPath(false)
+	if err != nil {
+		return err
+	}
+
+	utils.Logf("正在校验任务配置文件: %s\n", configPath)
+
+	// 加载配置文件
+	config, err := types.LoadTaskConfig(configPath)
+	if err != nil {
+		return err
+	}
+
+	// 执行校验
+	validationErrors := validateTaskConfig(config)
+
+	// 显示校验结果
+	if len(validationErrors) == 0 {
+		utils.Logf("配置文件校验通过，未发现问题")
+		return nil
+	}
+
+	utils.CL.Red("校验失败, 发现以下问题:")
+	for i, errMsg := range validationErrors {
+		fmt.Printf("  %d. %s\n", i+1, errMsg)
+	}
+
+	return fmt.Errorf("配置文件校验失败，发现 %d 个问题", len(validationErrors))
+}
+
+// validateTaskConfig 校验任务配置内容
+// 检查全局配置、任务配置和依赖关系的正确性
+//
+// 参数:
+//   - config: 任务配置
+//
+// 返回值:
+//   - []string: 错误信息列表
+func validateTaskConfig(config *types.TaskFileConfig) []string {
+	var errors []string
+
+	// 校验全局配置
+	errors = append(errors, validateGlobalConfig(&config.Global)...)
+
+	// 校验任务配置
+	for taskName, task := range config.Tasks {
+		taskErrors := validateTaskConfigItem(taskName, task, config.Tasks)
+		errors = append(errors, taskErrors...)
+	}
+
+	// 校验任务依赖关系
+	depErrors := validateTaskDependencies(config.Tasks)
+	errors = append(errors, depErrors...)
+
+	return errors
+}
+
 // printTaskExample 打印完整的任务配置示例
 //
 // 返回值:
@@ -90,6 +160,106 @@ func run(cmd *qflag.Cmd) error {
 func printTaskExample() error {
 	fmt.Println(exampleConfig)
 	return nil
+}
+
+// validateGlobalConfig 校验全局配置
+//
+// 参数:
+//   - global: 全局配置
+//
+// 返回值:
+//   - []string: 错误信息列表
+func validateGlobalConfig(global *types.GlobalConfig) []string {
+	var errors []string
+
+	// 校验超时时间格式
+	if global.Timeout != "" {
+		if _, err := types.ParseTimeout(global.Timeout); err != nil {
+			errors = append(errors, fmt.Sprintf("全局配置: 超时时间格式错误 '%s' (应为有效的时间间隔，如 '30s', '5m')", global.Timeout))
+		}
+	}
+
+	// 校验工作目录
+	if global.WorkDir != "" {
+		if info, err := os.Stat(global.WorkDir); os.IsNotExist(err) {
+			errors = append(errors, fmt.Sprintf("全局配置: 工作目录不存在 '%s'", global.WorkDir))
+		} else if err != nil {
+			errors = append(errors, fmt.Sprintf("全局配置: 无法访问工作目录 '%s': %v", global.WorkDir, err))
+		} else if !info.IsDir() {
+			errors = append(errors, fmt.Sprintf("全局配置: 工作路径不是目录 '%s'", global.WorkDir))
+		}
+	}
+
+	return errors
+}
+
+// validateTaskConfigItem 校验单个任务配置
+//
+// 参数:
+//   - taskName: 任务名称
+//   - task: 任务配置
+//   - allTasks: 所有任务配置（用于依赖检查）
+//
+// 返回值:
+//   - []string: 错误信息列表
+func validateTaskConfigItem(taskName string, task *types.TaskConfig, allTasks map[string]*types.TaskConfig) []string {
+	var errors []string
+
+	// 检查必需字段
+	if len(task.Cmds) == 0 {
+		errors = append(errors, fmt.Sprintf("任务 '%s': 缺少命令列表 (cmds)", taskName))
+	}
+
+	// 校验任务工作目录
+	if task.WorkDir != "" {
+		if info, err := os.Stat(task.WorkDir); os.IsNotExist(err) {
+			errors = append(errors, fmt.Sprintf("任务 '%s': 工作目录不存在 '%s'", taskName, task.WorkDir))
+		} else if err != nil {
+			errors = append(errors, fmt.Sprintf("任务 '%s': 无法访问工作目录 '%s': %v", taskName, task.WorkDir, err))
+		} else if !info.IsDir() {
+			errors = append(errors, fmt.Sprintf("任务 '%s': 工作路径不是目录 '%s'", taskName, task.WorkDir))
+		}
+	}
+
+	// 校验超时时间格式
+	if task.Timeout != "" {
+		if _, err := types.ParseTimeout(task.Timeout); err != nil {
+			errors = append(errors, fmt.Sprintf("任务 '%s': 超时时间格式错误 '%s' (应为有效的时间间隔，如 '30s', '5m')", taskName, task.Timeout))
+		}
+	}
+
+	// 检查依赖任务是否存在
+	for _, depName := range task.DependsOn {
+		if _, exists := allTasks[depName]; !exists {
+			errors = append(errors, fmt.Sprintf("任务 '%s': 依赖的任务 '%s' 不存在", taskName, depName))
+		}
+	}
+
+	return errors
+}
+
+// validateTaskDependencies 校验所有任务的依赖关系
+// 检查是否存在循环依赖
+//
+// 参数:
+//   - tasks: 所有任务配置
+//
+// 返回值:
+//   - []string: 错误信息列表
+func validateTaskDependencies(tasks map[string]*types.TaskConfig) []string {
+	var errors []string
+
+	// 对每个任务进行依赖关系校验
+	for taskName := range tasks {
+		_, err := types.ResolveTaskDependencies(taskName, tasks)
+		if err != nil {
+			if strings.Contains(err.Error(), "检测到任务依赖循环") {
+				errors = append(errors, fmt.Sprintf("依赖关系: %s", err.Error()))
+			}
+		}
+	}
+
+	return errors
 }
 
 // initTaskConfig 初始化任务配置文件
