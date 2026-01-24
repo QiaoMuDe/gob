@@ -11,11 +11,11 @@ import (
 )
 
 // getTaskConfigPath 获取任务配置文件路径
-// 优先使用 --file 参数指定的路径，否则使用默认路径
-// 如果文件不存在且未指定 --file，则尝试备用文件名
+// 优先使用 --file 参数指定的路径, 否则使用默认路径
+// 如果文件不存在且未指定 --file, 则尝试备用文件名
 //
 // 参数:
-//   - allowCreate: 是否允许文件不存在（用于初始化场景）
+//   - allowCreate: 是否允许文件不存在 (用于初始化场景)
 //
 // 返回值:
 //   - string: 配置文件路径
@@ -29,7 +29,7 @@ func getTaskConfigPath(allowCreate bool) (string, error) {
 
 	// 检查配置文件是否存在
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		// 如果允许创建文件，直接返回路径（不检查备用文件名）
+		// 如果允许创建文件, 直接返回路径 (不检查备用文件名)
 		if allowCreate {
 			return configPath, nil
 		}
@@ -49,7 +49,7 @@ func getTaskConfigPath(allowCreate bool) (string, error) {
 }
 
 // run 任务命令主入口
-// 根据传入的标志执行相应的操作：初始化配置、列出任务或运行指定任务
+// 根据传入的标志执行相应的操作: 初始化配置、列出任务或运行指定任务
 //
 // 参数:
 //   - cmd: 命令对象
@@ -57,6 +57,11 @@ func getTaskConfigPath(allowCreate bool) (string, error) {
 // 返回值:
 //   - error: 错误信息
 func run(cmd *qflag.Cmd) error {
+	// 处理 --example 参数
+	if exampleFlag.Get() {
+		return printTaskExample()
+	}
+
 	// 处理 --init 参数
 	if initFlag.Get() {
 		return initTaskConfig()
@@ -73,13 +78,22 @@ func run(cmd *qflag.Cmd) error {
 		return runTask(taskName)
 	}
 
-	// 如果没有指定参数，显示帮助信息
+	// 如果没有指定参数, 显示帮助信息
 	cmd.PrintHelp()
 	return nil
 }
 
+// printTaskExample 打印完整的任务配置示例
+//
+// 返回值:
+//   - error: 错误信息
+func printTaskExample() error {
+	fmt.Println(exampleConfig)
+	return nil
+}
+
 // initTaskConfig 初始化任务配置文件
-// 生成默认的任务配置文件，如果文件已存在且未启用强制标志，则返回错误
+// 生成默认的任务配置文件, 如果文件已存在且未启用强制标志, 则返回错误
 //
 // 返回值:
 //   - error: 错误信息
@@ -125,7 +139,7 @@ func listTasks() error {
 }
 
 // runTask 运行指定任务
-// 加载配置文件，解析任务依赖关系，并按正确顺序执行任务
+// 加载配置文件, 解析任务依赖关系, 并按正确顺序执行任务
 //
 // 参数:
 //   - taskName: 要运行的任务名称
@@ -186,7 +200,7 @@ func runTask(taskName string) error {
 }
 
 // executeTask 执行单个任务
-// 设置任务环境变量、工作目录等参数，然后执行任务中的命令列表
+// 设置任务环境变量、工作目录等参数, 然后执行任务中的命令列表
 // 根据操作系统自动选择Shell类型: Windows使用PowerShell, Linux/macOS使用bash
 //
 // 参数:
@@ -222,10 +236,10 @@ func executeTask(taskName string, context *types.TaskExecutionContext) error {
 
 	// 执行任务命令
 	for _, cmdStr := range task.Cmds {
-		// 替换变量占位符（包括解析@开头的命令）
+		// 替换变量占位符 (包括解析@开头的命令)
 		resolvedCmd := types.ReplaceTaskVariables(cmdStr, taskName, context)
 
-		// 显示执行的命令（如果启用）
+		// 显示执行的命令 (如果启用)
 		if showCommand {
 			utils.TaskLogf(taskName, "执行命令: %s\n", resolvedCmd)
 		}
@@ -245,3 +259,67 @@ func executeTask(taskName string, context *types.TaskExecutionContext) error {
 
 	return nil
 }
+
+var exampleConfig = `# gob 任务编排文件
+# 项目地址: https://gitee.com/MM-Q/gob.git
+# 使用方法: gob task --run <任务名>
+
+# ==================== 全局配置 ====================
+[global]
+# 工作目录 (默认: .) 
+work_dir = '.'
+
+# 超时时间 (默认: 30s) 
+timeout = '30s'
+
+# 是否显示输出 (默认: true) 
+show_output = true
+
+# 任务执行失败时是否退出程序 (默认: true) 
+exit_on_error = true
+
+# 是否显示执行的命令 (默认: false) 
+show_cmd = false
+
+# 全局环境变量 (可选) 
+[global.envs]
+# GOOS = "windows"
+# GOARCH = "amd64"
+
+# 全局变量 (可选) 
+[global.vars]
+# app_name = "myapp"
+# version = "1.0.0"
+
+# ==================== 任务定义 ====================
+# 任务名称 (示例: task.task_name) 
+[task.example]
+# 任务描述 (可选) 
+desc = '任务描述'
+
+# 命令列表 (必需) 
+cmds = [
+    'echo "执行命令1"',
+    'echo "执行命令2"'
+]
+
+# 任务环境变量 (可选) 
+[task.example.envs]
+# ENV_VAR = "value"
+
+# 任务变量 (可选) 
+[task.example.vars]
+# task_var = "value"
+
+# 任务工作目录 (可选, 默认使用全局配置) 
+work_dir = '.'
+
+# 任务超时时间 (可选, 默认使用全局配置) 
+timeout = '60s'
+
+# 依赖任务列表 (可选) 
+depends_on = ['other_task']
+
+# 是否显示输出 (可选, 默认使用全局配置) 
+show_output = true
+`
