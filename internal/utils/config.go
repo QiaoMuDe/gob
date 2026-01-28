@@ -3,6 +3,8 @@ package utils
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"gitee.com/MM-Q/gob/internal/types"
@@ -171,4 +173,64 @@ func GenerateDefaultConfig(f bool) error {
 	}
 
 	return nil
+}
+
+// FindConfigByPrefix 根据前缀查找配置文件
+//
+// 参数:
+//   - prefix: 前缀字符串（至少两个字符）
+//   - configDir: 配置文件目录（默认为 "gobf"）
+//
+// 返回值:
+//   - string: 匹配的配置文件名（不含路径）
+//   - error: 错误信息
+func FindConfigByPrefix(prefix, configDir string) (string, error) {
+	// 检查前缀长度至少为两个字符
+	if len(prefix) < 2 {
+		return "", fmt.Errorf("配置名称至少需要两个字符")
+	}
+
+	// 如果没有指定配置目录，使用默认值
+	if configDir == "" {
+		configDir = "gobf"
+	}
+
+	// 读取配置目录下的所有文件
+	entries, err := os.ReadDir(configDir)
+	if err != nil {
+		return "", fmt.Errorf("读取配置目录失败: %w", err)
+	}
+
+	// 查找匹配的配置文件
+	var matchedFile string
+	prefixLower := strings.ToLower(prefix) // 转换为小写，实现不区分大小写
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+		// 检查是否为 .toml 文件
+		if filepath.Ext(name) != ".toml" {
+			continue
+		}
+
+		// 去除 .toml 后缀并转换为小写
+		baseName := strings.TrimSuffix(name, ".toml")
+		baseNameLower := strings.ToLower(baseName)
+
+		// 检查是否以前缀匹配（不区分大小写）
+		if strings.HasPrefix(baseNameLower, prefixLower) {
+			matchedFile = name
+			break
+		}
+	}
+
+	// 如果没有找到匹配的文件
+	if matchedFile == "" {
+		return "", fmt.Errorf("没有找到以 '%s' 开头的配置文件", prefix)
+	}
+
+	return matchedFile, nil
 }

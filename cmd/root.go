@@ -20,7 +20,7 @@ func InitAndRun() {
 	generateConfigFlag = qflag.Root.Bool("generate-config", "gcf", false, "生成默认配置文件")
 	forceFlag = qflag.Root.Bool("force", "f", false, "强制操作（覆盖已存在文件）")
 	listFlag = qflag.Root.Bool("list", "l", false, "列出可用的构建任务")
-	runFlag = qflag.Root.String("run", "", "", "运行指定的构建任务（自动在 gobf/ 目录下查找）")
+	runFlag = qflag.Root.String("run", "r", "", "运行指定的构建任务（自动在 gobf/ 目录下查找）")
 
 	// 初始化相关标志
 	initFlag = qflag.Root.Bool("init", "i", false, "初始化gob构建文件")
@@ -129,8 +129,15 @@ func run(cmd *qflag.Cmd) error {
 	// 处理--run参数: 运行指定的构建任务（快捷方式）
 	runTask := runFlag.Get()
 	if runTask != "" {
-		// 自动构建配置文件路径：gobf/<task-name>.toml
-		configFilePath = filepath.Join("gobf", fmt.Sprintf("%s.toml", runTask))
+		// 使用前缀匹配查找配置文件
+		matchedFile, err := utils.FindConfigByPrefix(runTask, "gobf")
+		if err != nil {
+			utils.CL.PrintError(err)
+			os.Exit(1)
+		}
+
+		// 构建配置文件路径
+		configFilePath = filepath.Join("gobf", matchedFile)
 	} else {
 		// 获取非标志参数0作为配置文件路径
 		configFilePath = filepath.Clean(qflag.Root.Arg(0))
