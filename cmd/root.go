@@ -8,7 +8,6 @@ import (
 	"runtime/debug"
 	"time"
 
-	"gitee.com/MM-Q/gob/cmd/taskcmd"
 	"gitee.com/MM-Q/gob/internal/types"
 	"gitee.com/MM-Q/gob/internal/utils"
 	"gitee.com/MM-Q/qflag"
@@ -70,12 +69,6 @@ func InitAndRun() {
 
 	qflag.Root.SetRun(run)
 
-	// 注册子命令
-	if err := qflag.Root.AddSubCmd(taskcmd.TaskCmd); err != nil {
-		utils.CL.PrintError(err)
-		os.Exit(1)
-	}
-
 	// 解析命令行参数
 	if err := qflag.ParseAndRoute(); err != nil {
 		utils.CL.PrintError(err)
@@ -113,7 +106,7 @@ func run(cmd *qflag.Cmd) error {
 	// 处理--generate-config参数: 生成默认配置文件
 	if generateConfigFlag.Get() {
 		// 生成默认配置文件
-		if err := types.GenerateDefaultConfig(forceFlag.Get()); err != nil {
+		if err := utils.GenerateDefaultConfig(forceFlag.Get()); err != nil {
 			utils.CL.PrintError(err)
 			os.Exit(1)
 		}

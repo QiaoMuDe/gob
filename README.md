@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Gitee](https://img.shields.io/badge/Gitee-gob-red.svg)](https://gitee.com/MM-Q/gob.git)
 
-**GOB** 是一个功能强大的 Golang 项目构建和任务编排工具，旨在简化 Go 应用程序的构建、打包、安装和任务执行流程。它支持跨平台编译、自定义安装路径、Git 元数据注入、批量构建以及任务编排等功能，帮助开发者更高效地管理 Go 项目的构建过程。
+**GOB** 是一个功能强大的 Golang 项目构建工具，旨在简化 Go 应用程序的构建、打包和安装流程。它支持跨平台编译、自定义安装路径、Git 元数据注入、批量构建等功能，帮助开发者更高效地管理 Go 项目的构建过程。
 
 ## 📖 项目地址
 
@@ -15,15 +15,13 @@
 - 🌍 **跨平台构建** - 支持 Windows、Linux 和 macOS 等多个操作系统
 - 🏗️ **多架构支持** - 支持 amd64、arm64 等多种硬件架构
 - 📁 **配置文件驱动** - 通过 TOML 配置文件管理所有构建参数
-- 📦 **任务编排** - 支持任务依赖关系定义和自动执行
 - 🏷️ **Git 元数据注入** - 自动从 Git 仓库提取版本信息并注入到二进制文件中
 - 📦 **批量构建** - 支持同时为多个平台和架构构建二进制文件
 - 🗜️ **ZIP 打包** - 可将构建结果打包为 ZIP 文件以便分发
 - ⚙️ **环境变量配置** - 灵活的环境变量设置，支持自定义编译环境
 - � **Vendor 支持** - 可使用 vendor 目录进行依赖管理
 - 🎨 **颜色输出** - 支持彩色日志输出，提高可读性
-- 🚀 **快捷任务** - 通过 `--run` 快捷方式运行预定义的构建任务
-- 🔧 **变量替换** - 支持全局变量和任务变量，以及命令执行变量
+- 🚀 **快捷任务** - 通过 `--run` 快捷方式运行预定义的构建配置
 - 📝 **命令显示** - 可配置是否显示执行的命令，便于调试
 
 ## 📋 系统要求
@@ -44,9 +42,10 @@ gob/
 ├── gobf/                # 构建配置文件目录
 │   ├── dev.toml         # 开发环境配置
 │   └── release.toml     # 发布环境配置
-├── task.toml            # 任务编排配置文件
 ├── internal/            # 内部包目录
-│   └── cmd/             # 命令行相关代码
+│   ├── cmd/             # 命令行相关代码
+│   ├── types/           # 类型定义
+│   └── utils/           # 工具函数
 └── vendor/              # 依赖包目录
 ```
 
@@ -76,22 +75,6 @@ go install gitee.com/MM-Q/gob@latest
 ```bash
 # 初始化 gob 构建配置（生成 gobf/ 目录）
 gob --init
-```
-
-### 任务编排
-
-```bash
-# 初始化任务配置文件
-gob task --init
-
-# 列出所有可用任务
-gob task --list
-
-# 运行指定任务
-gob task --run deploy
-
-# 使用自定义任务文件
-gob task --run deploy --file custom.toml
 ```
 
 ### 基本构建
@@ -133,24 +116,8 @@ gob --generate-config
 | `--main` | `-m` | 指定入口文件，默认为main.go |
 | `--generate-config` | `-gcf` | 生成默认配置文件（gob.toml） |
 | `--force` | `-f` | 强制操作（覆盖已存在文件） |
-| `--list` | `-l` | 列出可用的构建任务 |
-| `--run` | | 运行指定的构建任务（自动在 gobf/ 目录查找） |
-
-### 任务子命令
-
-| 命令 | 描述 |
-|------|------|
-| `task` | 任务编排工具 |
-
-#### 任务子命令参数
-
-| 参数 | 缩写 | 描述 |
-|------|------|------|
-| `--init` | `-i` | 初始化任务配置文件 |
-| `--list` | `-l` | 列出所有可用任务 |
-| `--run` | `-r` | 运行指定任务 |
-| `--file` | | 指定任务配置文件路径 |
-| `--force` | `-f` | 强制覆盖已存在文件 |
+| `--list` | `-l` | 列出可用的构建配置 |
+| `--run` | | 运行指定的构建配置（自动在 gobf/ 目录查找） |
 
 ### 使用说明
 
@@ -163,7 +130,7 @@ GOB 使用 TOML 格式的配置文件来管理所有构建参数。配置文件�
 ### 构建配置文件结构
 
 ```toml
-# 配置文件描述（第一行注释将显示在任务列表中）
+# 配置文件描述（第一行注释将显示在配置列表中）
 # 开发环境构建配置
 
 [build]
@@ -218,115 +185,6 @@ color = true
 [env]
 # 自定义环境变量
 # KEY = "value"
-```
-
-### 任务配置文件结构
-
-```toml
-# 全局配置
-[global]
-# 环境变量
-envs = {}
-# 任务变量
-vars = {}
-# 工作目录
-work_dir = "."
-# 超时时间, 单位秒
-timeout = '30s'
-# 是否显示输出
-show_output = true
-# 是否显示执行的命令
-show_cmd = false
-# 任务执行失败时是否退出程序, true=退出, false=继续执行但打印错误
-exit_on_error = true
-
-# 任务定义
-[task.clean]
-# 任务描述
-desc = "清理项目"
-# 命令列表
-cmds = [
-    "echo 清理临时文件...",
-    "echo 清理完成"
-]
-
-[task.build]
-desc = "构建项目"
-cmds = [
-    "echo 开始构建...",
-    "echo 编译中...",
-    "echo 构建完成"
-]
-depends_on = ["clean"]
-
-[task.test]
-desc = "运行测试"
-cmds = [
-    "echo 运行单元测试...",
-    "echo 运行集成测试...",
-    "echo 测试通过"
-]
-depends_on = ["build"]
-
-[task.deploy]
-desc = "部署应用"
-cmds = [
-    "echo 连接服务器...",
-    "echo 上传文件...",
-    "echo 部署完成"
-]
-depends_on = ["test"]
-
-[task.run]
-desc = "运行完整流程"
-cmds = [
-    "echo 启动应用...",
-    "echo 应用已启动"
-]
-depends_on = ["clean", "build", "test", "deploy"]
-```
-
-### 变量替换
-
-GOB 支持在任务配置中使用变量替换：
-
-#### 全局变量
-
-```toml
-[global.vars]
-app_name = "myapp"
-version = "1.0.0"
-
-[task.build]
-cmds = [
-    "echo 构建 {{global.vars.app_name}} v{{global.vars.version}}..."
-]
-```
-
-#### 任务变量
-
-```toml
-[task.build]
-vars = { build_mode = "debug" }
-cmds = [
-    "echo 构建模式: {{task.build.vars.build_mode}}"
-]
-```
-
-#### 命令执行变量
-
-使用 `@` 前缀执行命令并将结果作为变量值：
-
-```toml
-[global.vars]
-current_time = "@date +%Y-%m-%d"
-git_commit = "@git rev-parse --short HEAD"
-
-[task.build]
-cmds = [
-    "echo 构建时间: {{global.vars.current_time}}",
-    "echo Git提交: {{global.vars.git_commit}}"
-]
 ```
 
 ### 常用配置示例
@@ -464,38 +322,25 @@ git_ldflags = "-X main.version={{GitVersion}} -X main.commit={{GitCommit}}"
 - `gobf/test.toml` - 测试环境
 - `gobf/release.toml` - 生产环境
 
-**2. 使用任务编排**
+**2. 使用多环境配置**
 
-创建任务依赖关系，自动化复杂流程：
-```toml
-[task.build]
-desc = "构建应用"
-cmds = ["go build -o app ."]
+为不同的环境创建独立的配置文件：
+- `gobf/dev.toml` - 开发环境
+- `gobf/test.toml` - 测试环境
+- `gobf/release.toml` - 生产环境
 
-[task.test]
-desc = "运行测试"
-cmds = ["go test ./..."]
-depends_on = ["build"]
+**3. 使用变量**
 
-[task.deploy]
-desc = "部署应用"
-cmds = ["echo 部署到服务器"]
-depends_on = ["test"]
+利用环境变量减少重复配置：
+```bash
+# 设置 Go 代理
+export GOPROXY=https://goproxy.cn,direct
+
+# 设置私有模块
+export GOPRIVATE=gitee.com/your-org/*
 ```
 
-**4. 使用变量**
-
-利用变量减少重复配置：
-```toml
-[global.vars]
-app_name = "myapp"
-build_dir = "dist"
-
-[task.build]
-cmds = ["go build -o {{global.vars.build_dir}}/{{global.vars.app_name}} ."]
-```
-
-**5. 使用命令显示**
+**4. 使用命令显示**
 
 启用命令显示功能，便于调试：
 ```toml
@@ -503,24 +348,25 @@ cmds = ["go build -o {{global.vars.build_dir}}/{{global.vars.app_name}} ."]
 show_cmd = true
 ```
 
-**6. 使用快捷方式**
+**5. 使用快捷方式**
 
 ```bash
-# 列出所有可用任务
-gob task --list
+# 列出所有可用配置
+gob --list
 
-# 使用快捷方式运行任务
-gob task --run deploy
+# 使用快捷方式运行配置
+gob --run dev
+gob --run release
 ```
 
-**5. 配置文件描述**
+**6. 配置文件描述**
 
 在配置文件的第一行添加注释作为描述：
 ```toml
 # 开发环境 - 快速构建当前平台
 ```
 
-这样在运行 `gob task --list` 时会显示该描述。
+这样在运行 `gob --list` 时会显示该描述。
 
 **6. 批量构建和安装**
 
@@ -556,9 +402,6 @@ go version
 # 初始化 gob 构建配置
 gob --init
 
-# 初始化任务配置
-gob task --init
-
 # 或生成默认配置文件
 gob --generate-config
 ```
@@ -585,14 +428,6 @@ git status
 # 例如：install_path = "~/bin"
 ```
 
-**Q: 任务执行失败**
-```bash
-# 检查任务配置文件语法
-gob task --list
-
-# 查看任务依赖关系
-gob task --run <task-name>
-```
 
 ## 🤝 贡献
 

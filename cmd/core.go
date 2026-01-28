@@ -372,7 +372,7 @@ func installExecutable(executablePath string, c *types.GobConfig) error {
 //	error: 如果加载或验证过程中出现错误, 则返回错误信息
 func loadAndValidateConfig(config *types.GobConfig, configFilePath string) error {
 	// 加载配置文件
-	loadedConfig, err := types.LoadConfig(configFilePath)
+	loadedConfig, err := utils.LoadConfig(configFilePath)
 	if err != nil {
 		return fmt.Errorf("加载构建文件 %s 失败: %v", configFilePath, err)
 	}
