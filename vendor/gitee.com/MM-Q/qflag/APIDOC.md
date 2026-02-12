@@ -1,1316 +1,997 @@
-# qflag API文档
+# QFlag API 文档
 
-## 包概述
+## 包信息
 
 ```go
 package qflag // import "gitee.com/MM-Q/qflag"
 ```
 
-### 基础标志创建和管理功能
-本文件提供了Cmd结构体的基础标志创建方法，包括字符串、整数、布尔、浮点数等基本类型标志的创建和绑定功能。
+## 变量 (VARIABLES)
 
-### 命令结构体和核心功能实现
-本文件定义了Cmd结构体，提供命令行解析、子命令管理、标志注册等核心功能。
-Cmd作为适配器连接内部函数式API和外部面向对象API。
-
-### 根包统一导出入口
-本文件用于将各子包的核心功能导出到根包，简化外部使用。通过类型别名和变量导出的方式，为用户提供统一的API接口。
-
-### 扩展标志类型支持
-本文件提供了Cmd结构体的扩展标志创建方法，包括枚举、时间间隔、切片、时间、映射等高级类型标志的创建和绑定功能。
-
-### 内部实现
-cmd_internal 包含 Cmd 的内部实现细节，不对外暴露
-
-
-## 函数
-
-### func Parse() error
-```go
-func Parse() error
-```
-Parse 解析所有命令行参数, 包括根命令和所有子命令的标志参数
-
-**返回：**
-  - error: 解析过程中遇到的错误, 若成功则为 nil
-
-### func ParseFlagsOnly() error
-```go
-func ParseFlagsOnly() error
-```
-ParseFlagsOnly 解析根命令的所有标志参数, 不包括子命令
-
-**返回：**
-  - error: 解析过程中遇到的错误, 若成功则为 nil
-
-### func ParseAndRoute() error
-```go
-func ParseAndRoute() error
-```
-ParseAndRoute 解析参数并自动路由执行子命令
-这是推荐使用的命令行参数处理方式，会自动处理子命令路由
-
-**返回：**
-  - error: 执行过程中遇到的错误, 若成功则为 nil
-
-### func ApplyConfig(config types.CmdConfig)
-```go
-func ApplyConfig(config types.CmdConfig)
-```
-ApplyConfig 批量设置根命令配置
-通过传入一个CmdConfig结构体来一次性设置多个配置项
-这是全局函数，直接操作全局根命令实例
-
-**参数:**
-  - config: 包含所有配置项的CmdConfig结构体
-
-### func AddSubCmd(subCmds ...*Cmd) error
-```go
-func AddSubCmd(subCmds ...*Cmd) error
-```
-AddSubCmd 向根命令添加一个或多个子命令
-这是全局函数，直接操作全局根命令实例
-
-此方法会对所有子命令进行完整性验证，包括名称冲突检查、循环依赖检测等。所有验证通过后，子命令将被注册到根命令的子命令映射表和列表中。
-操作过程中会自动设置子命令的父命令引用，确保命令树结构的完整性。
-
-**参数:**
-  - subCmds: 要添加的子命令实例指针，支持传入多个子命令进行批量添加
-
-**返回值:**
-  - error: 添加过程中的错误信息。如果任何子命令验证失败，将返回包含所有错误详情的聚合错误；
-    如果所有子命令成功添加，返回 nil
-
-### func AddSubCmds(subCmds []*Cmd) error
-```go
-func AddSubCmds(subCmds []*Cmd) error
-```
-AddSubCmds 向根命令添加子命令切片的便捷方法
-这是全局函数，直接操作全局根命令实例
-
-此方法是 AddSubCmd 的便捷包装，专门用于处理子命令切片。内部直接调用 AddSubCmd 方法，具有相同的验证逻辑和并发安全特性。
-
-**参数:**
-  - subCmds: 子命令切片，包含要添加的所有子命令实例指针
-
-**返回值:**
-  - error: 添加过程中的错误信息，与 AddSubCmd 返回的错误类型相同
-
-## 类型
-
-### type BoolFlag = flags.BoolFlag
-```go
-type BoolFlag = flags.BoolFlag
-```
-BoolFlag 导出flag包中的BoolFlag结构体
-
-### type Cmd struct
-```go
-type Cmd struct {
-  // Has unexported fields.
-}
-```
-Cmd 命令结构体，作为适配器连接内部函数式API和外部面向对象API
-
-**字段说明:**
-- Run: 执行函数接口，用于定义命令的执行逻辑。当命令需要执行时，会调用此函数并传入命令实例本身
-
-### var Root *Cmd
-```go
-var Root *Cmd
-```
-Root 全局根命令实例, 提供对全局标志和子命令的访问 用户可以通过 qflag.Root.String() 这样的方式直接创建全局标志
-这是访问命令行功能的主要入口点, 推荐优先使用
-
-### func NewCmd(longName, shortName string, errorHandling ErrorHandling) *Cmd
-```go
-func NewCmd(longName, shortName string, errorHandling ErrorHandling) *Cmd
-```
-NewCmd 创建新的命令实例
-
-**参数:**
-  - longName: 命令的全称(如: ls, rm, mkdir 等)
-  - shortName: 命令的简称(如: l, r, m 等)
-  - errorHandling: 标志解析错误处理策略
-
-**返回值:**
-  - *Cmd: 新创建的命令实例
-
-**errorHandling可选值:**
-  - qflag.ContinueOnError: 遇到错误时继续解析, 并将错误返回
-  - qflag.ExitOnError: 遇到错误时立即退出程序, 并将错误返回
-  - qflag.PanicOnError: 遇到错误时立即触发panic, 并将错误返回
-
-### func (c *Cmd) AddExample(desc, usage string)
-```go
-func (c *Cmd) AddExample(desc, usage string)
-```
-AddExample 为命令添加使用示例
-
-**参数:**
-  - desc: 示例描述
-  - usage: 示例用法
-
-### func (c *Cmd) AddExamples(examples []ExampleInfo)
-```go
-func (c *Cmd) AddExamples(examples []ExampleInfo)
-```
-AddExamples 为命令添加使用示例列表
-
-**参数:**
-  - examples: 示例信息列表
-
-### func (c *Cmd) AddNote(note string)
-```go
-func (c *Cmd) AddNote(note string)
-```
-AddNote 添加备注信息到命令
-
-**参数:**
-  - note: 备注信息
-
-### func (c *Cmd) AddNotes(notes []string)
-```go
-func (c *Cmd) AddNotes(notes []string)
-```
-AddNotes 添加备注信息切片到命令
-
-**参数:**
-  - notes: 备注信息列表
-
-### func (c *Cmd) AddSubCmd(subCmds ...*Cmd) error
-```go
-func (c *Cmd) AddSubCmd(subCmds ...*Cmd) error
-```
-AddSubCmd 向当前命令添加一个或多个子命令
-
-此方法会对所有子命令进行完整性验证，包括名称冲突检查、循环依赖检测等。所有验证通过后，子命令将被注册到当前命令的子命令映射表和列表中。
-操作过程中会自动设置子命令的父命令引用，确保命令树结构的完整性。
-
-**并发安全:** 此方法使用互斥锁保护，可安全地在多个 goroutine 中并发调用。
-
-**参数:**
-  - subCmds: 要添加的子命令实例指针，支持传入多个子命令进行批量添加
-
-**返回值:**
-  - error: 添加过程中的错误信息。如果任何子命令验证失败，将返回包含所有错误详情的聚合错误；如果所有子命令成功添加，返回 nil
-
-**错误类型:**
-  - ValidationError: 子命令为空、名称冲突、循环依赖等验证错误
-  - 其他错误: 内部状态异常或系统错误
-
-**使用示例:**
-
-```go
-cmd := qflag.NewCmd("parent", "p", "父命令")
-subCmd1 := qflag.NewCmd("child1", "c1", "子命令1")
-subCmd2 := qflag.NewCmd("child2", "c2", "子命令2")
-
-if err := cmd.AddSubCmd(subCmd1, subCmd2); err != nil {
-    log.Fatal(err)
-}
-```
-
-### func (c *Cmd) AddSubCmds(subCmds []*Cmd) error
-```go
-func (c *Cmd) AddSubCmds(subCmds []*Cmd) error
-```
-AddSubCmds 向当前命令添加子命令切片的便捷方法
-
-此方法是 AddSubCmd 的便捷包装，专门用于处理子命令切片。内部直接调用 AddSubCmd 方法，具有相同的验证逻辑和并发安全特性。
-
-**并发安全:** 此方法通过调用 AddSubCmd 实现，继承其互斥锁保护特性。
-
-**参数:**
-  - subCmds: 子命令切片，包含要添加的所有子命令实例指针
-
-**返回值:**
-  - error: 添加过程中的错误信息，与 AddSubCmd 返回的错误类型相同
-
-**使用示例:**
-
-```go
-cmd := qflag.NewCmd("parent", "p", "父命令")
-subCmds := []*qflag.Cmd{
-    qflag.NewCmd("child1", "c1", "子命令1"),
-    qflag.NewCmd("child2", "c2", "子命令2"),
-}
-
-if err := cmd.AddSubCmds(subCmds); err != nil {
-    log.Fatal(err)
-}
-```
-
-### func (c *Cmd) ApplyConfig(config CmdConfig)
-```go
-func (c *Cmd) ApplyConfig(config CmdConfig)
-```
-ApplyConfig 批量设置命令配置 通过传入一个CmdConfig结构体来一次性设置多个配置项
-
-**参数:**
-  - config: 包含所有配置项的CmdConfig结构体
-
-### func (c *Cmd) Arg(i int) string
-```go
-func (c *Cmd) Arg(i int) string
-```
-Arg 获取指定索引的非标志参数
-
-**参数:**
-  - i: 参数索引
-
-**返回值:**
-  - string: 指定索引位置的非标志参数；若索引越界，则返回空字符串
-
-### func (c *Cmd) Args() []string
-```go
-func (c *Cmd) Args() []string
-```
-Args 获取非标志参数切片
-
-**返回值:**
-  - []string: 参数切片
-
-### func (c *Cmd) Bool(longName, shortName string, defValue bool, usage string) *BoolFlag
-```go
-func (c *Cmd) Bool(longName, shortName string, defValue bool, usage string) *BoolFlag
-```
-Bool 添加布尔类型标志, 返回标志对象指针
-
-**参数值:**
-  - longName: string - 长标志名
-  - shortName: string - 短标志
-  - defValue: bool - 默认值
-  - usage: string - 帮助说明
-
-**返回值:**
-  - *BoolFlag - 布尔标志对象指针
-
-### func (c *Cmd) BoolVar(f *BoolFlag, longName, shortName string, defValue bool, usage string)
-```go
-func (c *Cmd) BoolVar(f *BoolFlag, longName, shortName string, defValue bool, usage string)
-```
-BoolVar 绑定布尔类型标志到指针并内部注册Flag对象
-
-**参数值:**
-  - f: *BoolFlag - 布尔标志对象指针
-  - longName: string - 长标志名
-  - shortName: string - 短标志
-  - defValue: bool - 默认值
-  - usage: string - 帮助说明
-
-### func (c *Cmd) Chinese() bool
-```go
-func (c *Cmd) Chinese() bool
-```
-Chinese 获取是否使用中文帮助信息
-
-**返回值:**
-  - bool: 是否使用中文帮助信息
-
-### func (c *Cmd) HasSubCmd(cmdName string) bool
-```go
-func (c *Cmd) HasSubCmd(cmdName string) bool
-```
-HasSubCmd 检查子命令是否存在
-
-**参数:**
-  - cmdName: 子命令名称
-
-**返回:**
-  - bool: 子命令是否存在
-
-### func (c *Cmd) Desc() string
-```go
-func (c *Cmd) Desc() string
-```
-Desc 返回命令描述
-
-**返回值:**
-  - string: 命令描述
-
-### func (c *Cmd) Duration(longName, shortName string, defValue time.Duration, usage string) *DurationFlag
-```go
-func (c *Cmd) Duration(longName, shortName string, defValue time.Duration, usage string) *DurationFlag
-```
-Duration 添加时间间隔类型标志, 返回标志对象指针
-
-**参数值:**
-  - longName: string - 长标志名
-  - shortName: string - 短标志
-  - defValue: time.Duration - 默认值
-  - usage: string - 帮助说明
-
-**返回值:**
-  - *DurationFlag - 时间间隔标志对象指针
-
-### func (c *Cmd) DurationVar(f *DurationFlag, longName, shortName string, defValue time.Duration, usage string)
-```go
-func (c *Cmd) DurationVar(f *DurationFlag, longName, shortName string, defValue time.Duration, usage string)
-```
-DurationVar 绑定时间间隔类型标志到指针并内部注册Flag对象
-
-**参数值:**
-  - f: *DurationFlag - 时间间隔标志对象指针
-  - longName: string - 长标志名
-  - shortName: string - 短标志
-  - defValue: time.Duration - 默认值
-  - usage: string - 帮助说明
-
-### func (c *Cmd) Enum(longName, shortName string, defValue string, usage string, options []string) *EnumFlag
-```go
-func (c *Cmd) Enum(longName, shortName string, defValue string, usage string, options []string) *EnumFlag
-```
-Enum 添加枚举类型标志, 返回标志对象指针
-
-**参数值:**
-  - longName: string - 长标志名
-  - shortName: string - 短标志
-  - defValue: string - 默认值
-  - usage: string - 帮助说明
-  - options: []string - 限制该标志取值的枚举值切片
-
-**返回值:**
-  - *EnumFlag - 枚举标志对象指针
-
-### func (c *Cmd) EnumVar(f *EnumFlag, longName, shortName string, defValue string, usage string, options []string)
-```go
-func (c *Cmd) EnumVar(f *EnumFlag, longName, shortName string, defValue string, usage string, options []string)
-```
-EnumVar 绑定枚举类型标志到指针并内部注册Flag对象
-
-**参数值:**
-  - f: *EnumFlag - 枚举标志对象指针
-  - longName: string - 长标志名
-  - shortName: string - 短标志
-  - defValue: string - 默认值
-  - usage: string - 帮助说明
-  - options: []string - 限制该标志取值的枚举值切片
-
-### func (c *Cmd) Examples() []ExampleInfo
-```go
-func (c *Cmd) Examples() []ExampleInfo
-```
-Examples 获取所有使用示例
-
-**返回:**
-  - []ExampleInfo: 使用示例列表
-
-### func (c *Cmd) FlagExists(name string) bool
-```go
-func (c *Cmd) FlagExists(name string) bool
-```
-FlagExists 检查指定名称的标志是否存在
-
-**参数:**
-  - name: 标志名称
-
-**返回值:**
-  - bool: 标志是否存在
-
-### func (c *Cmd) FlagRegistry() *FlagRegistry
-```go
-func (c *Cmd) FlagRegistry() *FlagRegistry
-```
-FlagRegistry 获取标志注册表的只读访问
-
-**返回值:** - *FlagRegistry: 标志注册表的只读访问
-
-### func (c *Cmd) GetSubCmd(name string) *Cmd
-```go
-func (c *Cmd) GetSubCmd(name string) *Cmd
-```
-GetSubCmd 根据名称获取子命令实例
-
-**参数:**
-  - name: 子命令名称 (长名称或短名称)
-
-**返回值:**
-  - *Cmd: 子命令实例
-
-**恐慌:**
-  - 当name为空字符串时，会抛出"subcommand name cannot be empty"的恐慌
-  - 当找不到指定名称的子命令时，会抛出"fmt.Sprintf("subcommand '%s' not found", name)"的恐慌
-
-**并发安全:** 此方法使用读锁保护，可安全地在多个 goroutine 中并发调用。
-
-### func (c *Cmd) Float64(longName, shortName string, defValue float64, usage string) *Float64Flag
-```go
-func (c *Cmd) Float64(longName, shortName string, defValue float64, usage string) *Float64Flag
-```
-Float64 添加浮点型标志, 返回标志对象指针
-
-**参数值:**
-  - longName - 长标志名
-  - shortName - 短标志
-  - defValue - 默认值
-  - usage - 帮助说明
-
-**返回值:**
-  - *Float64Flag - 浮点型标志对象指针
-
-### func (c *Cmd) Float64Var(f *Float64Flag, longName, shortName string, defValue float64, usage string)
-```go
-func (c *Cmd) Float64Var(f *Float64Flag, longName, shortName string, defValue float64, usage string)
-```
-Float64Var 绑定浮点型标志到指针并内部注册Flag对象
-
-**参数值:**
-  - f: *Float64Flag - 浮点型标志对象指针
-  - longName: string - 长标志名
-  - shortName: string - 短标志
-  - defValue: float64 - 默认值
-  - usage: string - 帮助说明
-
-### func (c *Cmd) Help() string
-```go
-func (c *Cmd) Help() string
-```
-Help 返回命令用法帮助信息
-
-**返回值:**
-  - string: 命令用法帮助信息
-
-### func (c *Cmd) Int(longName, shortName string, defValue int, usage string) *IntFlag
-```go
-func (c *Cmd) Int(longName, shortName string, defValue int, usage string) *IntFlag
-```
-Int 添加整数类型标志, 返回标志对象指针
-
-**参数值:**
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-**返回值:**
-  - *IntFlag: 整数标志对象指针
-
-### func (c *Cmd) Int64(longName, shortName string, defValue int64, usage string) *Int64Flag
-```go
-func (c *Cmd) Int64(longName, shortName string, defValue int64, usage string) *Int64Flag
-```
-Int64 添加64位整数类型标志, 返回标志对象指针
-
-**参数值:**
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-**返回值:**
-  - *Int64Flag: 64位整数标志对象指针
-
-### func (c *Cmd) Int64Slice(longName, shortName string, defValue []int64, usage string) *Int64SliceFlag
-```go
-func (c *Cmd) Int64Slice(longName, shortName string, defValue []int64, usage string) *Int64SliceFlag
-```
-Int64Slice 绑定64位整数切片类型标志并内部注册Flag对象
-
-**参数值:**
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-**返回值:**
-  - *Int64SliceFlag: 64位整数切片标志对象指针
-
-### func (c *Cmd) Int64SliceVar(f *Int64SliceFlag, longName, shortName string, defValue []int64, usage string)
-```go
-func (c *Cmd) Int64SliceVar(f *Int64SliceFlag, longName, shortName string, defValue []int64, usage string)
-```
-Int64SliceVar 绑定64位整数切片类型标志到指针并内部注册Flag对象
-
-**参数值:**
-  - f: 64位整数切片标志指针
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-### func (c *Cmd) Int64Var(f *Int64Flag, longName, shortName string, defValue int64, usage string)
-```go
-func (c *Cmd) Int64Var(f *Int64Flag, longName, shortName string, defValue int64, usage string)
-```
-Int64Var 绑定64位整数类型标志到指针并内部注册Flag对象
-
-**参数值:**
-  - f: 64位整数标志指针
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-### func (c *Cmd) IntSlice(longName, shortName string, defValue []int, usage string) *IntSliceFlag
-```go
-func (c *Cmd) IntSlice(longName, shortName string, defValue []int, usage string) *IntSliceFlag
-```
-IntSlice 绑定整数切片类型标志并内部注册Flag对象
-
-**参数值:**
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-**返回值:**
-  - *IntSliceFlag: 整数切片标志对象指针
-
-### func (c *Cmd) IntSliceVar(f *IntSliceFlag, longName, shortName string, defValue []int, usage string)
-```go
-func (c *Cmd) IntSliceVar(f *IntSliceFlag, longName, shortName string, defValue []int, usage string)
-```
-IntSliceVar 绑定整数切片类型标志到指针并内部注册Flag对象
-
-**参数值:**
-  - f: 整数切片标志指针
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-### func (c *Cmd) IntVar(f *IntFlag, longName, shortName string, defValue int, usage string)
-```go
-func (c *Cmd) IntVar(f *IntFlag, longName, shortName string, defValue int, usage string)
-```
-IntVar 绑定整数类型标志到指针并内部注册Flag对象
-
-**参数值:**
-  - f: 整数标志指针
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-### func (c *Cmd) IsParsed() bool
-```go
-func (c *Cmd) IsParsed() bool
-```
-IsParsed 检查命令是否已完成解析
-
-**返回值:**
-  - bool: 解析状态,true表示已解析(无论成功失败), false表示未解析
-
-### func (c *Cmd) Logo() string
-```go
-func (c *Cmd) Logo() string
-```
-Logo 获取logo文本
-
-**返回值:**
-  - string: logo文本字符串
-
-### func (c *Cmd) LongName() string
-```go
-func (c *Cmd) LongName() string
-```
-LongName 返回命令长名称
-
-**返回值:**
-  - string: 命令长名称
-
-### func (c *Cmd) Map(longName, shortName string, defValue map[string]string, usage string) *MapFlag
-```go
-func (c *Cmd) Map(longName, shortName string, defValue map[string]string, usage string) *MapFlag
-```
-Map 添加键值对类型标志, 返回标志对象指针
-
-**参数值:**
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-**返回值:**
-  - *MapFlag: 键值对标志对象指针
-
-### func (c *Cmd) MapVar(f *MapFlag, longName, shortName string, defValue map[string]string, usage string)
-```go
-func (c *Cmd) MapVar(f *MapFlag, longName, shortName string, defValue map[string]string, usage string)
-```
-MapVar 绑定键值对类型标志到指针并内部注册Flag对象
-
-**参数值:**
-  - f: 键值对标志指针
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-### func (c *Cmd) Modules() string
-```go
-func (c *Cmd) Modules() string
-```
-Modules 获取自定义模块帮助信息
-
-**返回值:**
-  - string: 自定义模块帮助信息
-
-### func (c *Cmd) NArg() int
-```go
-func (c *Cmd) NArg() int
-```
-NArg 获取非标志参数的数量
-
-**返回值:**
-  - int: 参数数量
-
-### func (c *Cmd) NFlag() int
-```go
-func (c *Cmd) NFlag() int
-```
-NFlag 获取标志的数量
-
-**返回值:**
-  - int: 标志数量
-
-### func (c *Cmd) Name() string
-```go
-func (c *Cmd) Name() string
-```
-Name 获取命令名称
-
-**返回值:**
-  - string: 命令名称
-
-**说明:**
-  - 优先返回长名称, 如果长名称不存在则返回短名称
-
-### func (c *Cmd) Notes() []string
-```go
-func (c *Cmd) Notes() []string
-```
-Notes 获取所有备注信息
-
-**返回:**
-  - 备注信息列表
-
-### func (c *Cmd) Parse(args []string) (err error)
-```go
-func (c *Cmd) Parse(args []string) (err error)
-```
-Parse 完整解析命令行参数(含子命令处理)
-
-**主要功能：**
- 1. 解析当前命令的长短标志及内置标志
- 2. 自动检测并解析子命令及其参数(若存在)
- 3. 验证枚举类型标志的有效性
-
-**参数：**
-  - args: 原始命令行参数切片(包含可能的子命令及参数)
-
-**返回值：**
-  - error: 解析过程中遇到的错误(如标志格式错误、子命令解析失败等)
-
-**注意事项：**
-  - 每个Cmd实例仅会被解析一次(线程安全)
-  - 若检测到子命令, 会将剩余参数传递给子命令的Parse方法
-  - 处理内置标志执行逻辑
-  - **重要**: Parse方法只负责解析参数，不会自动执行Run函数。执行需要手动调用
-
-### func (c *Cmd) 手动执行Run函数
-```go
-// 示例：手动执行Run函数的标准流程
-if cmd.Run != nil {
-    if err := cmd.Run(cmd); err != nil {
-        // 处理执行错误
-        fmt.Printf("执行失败: %v\n", err)
-        os.Exit(1)
-    }
-}
-```
-
-**执行模式说明：**
-- qflag采用分离式架构：解析(Parse)与执行(Run)完全分离
-- Parse方法只解析命令行参数，不会自动调用Run函数
-- 用户需要手动检查并执行Run函数，提供完全的控制权
-- Run函数接收命令实例本身作为参数，可以访问所有标志值
-
-**最佳实践：**
-```go
-cmd := NewCmd("server", "s", ExitOnError)
-port := cmd.Int("port", "p", 8080, "服务端口")
-
-// 设置执行函数
-cmd.Run = func(c *Cmd) error {
-    fmt.Printf("启动服务器，端口: %d\n", port.Get())
-    // 实际的服务器启动逻辑
-    return nil
-}
-
-// 解析参数
-if err := cmd.Parse(os.Args[1:]); err != nil {
-    log.Fatal(err)
-}
-
-// 手动执行（重要：不会自动执行！）
-if cmd.Run != nil {
-    if err := cmd.Run(cmd); err != nil {
-        log.Fatal(err)
-    }
-}
-```
-
-### func (c *Cmd) ParseFlagsOnly(args []string) (err error)
-```go
-func (c *Cmd) ParseFlagsOnly(args []string) (err error)
-```
-ParseFlagsOnly 仅解析当前命令的标志参数(忽略子命令)
-
-**主要功能：**
- 1. 解析当前命令的长短标志及内置标志
- 2. 验证枚举类型标志的有效性
- 3. 明确忽略所有子命令及后续参数
-
-**参数：**
-  - args: 原始命令行参数切片(子命令及后续参数会被忽略)
-
-**返回值：**
-  - error: 解析过程中遇到的错误(如标志格式错误等)
-
-**注意事项：**
-  - 每个Cmd实例仅会被解析一次(线程安全)
-  - 不会处理任何子命令, 所有参数均视为当前命令的标志或位置参数
-  - 处理内置标志逻辑
-
-### func (c *Cmd) ParseAndRoute(args []string) error
-```go
-func (c *Cmd) ParseAndRoute(args []string) error
-```
-ParseAndRoute 解析参数并自动路由执行子命令
-
-**主要功能：**
- 1. 解析当前命令的参数
- 2. 自动路由并执行匹配的子命令
- 3. 如果没有匹配的子命令，执行当前命令或显示帮助
-
-**参数：**
-  - args: 命令行参数列表(通常为 os.Args[1:])
-
-**返回值：**
-  - error: 执行过程中遇到的错误
-
-**使用示例：**
-```go
-cmd := qflag.NewCmd("myapp", "", qflag.ExitOnError)
-// 添加子命令...
-subCmd := qflag.NewCmd("sub", "s", qflag.ExitOnError)
-cmd.AddSubCmd(subCmd)
-
-// 一行代码完成解析和路由执行
-if err := cmd.ParseAndRoute(os.Args[1:]); err != nil {
-    log.Fatal(err)
-}
-```
-
-### func (c *Cmd) PrintHelp()
-```go
-func (c *Cmd) PrintHelp()
-```
-PrintHelp 打印命令的帮助信息, 优先打印用户的帮助信息, 否则自动生成帮助信息
-
-**注意:**
-  - 打印帮助信息时, 不会自动退出程序
-
-### func (c *Cmd) SetChinese(useChinese bool)
-```go
-func (c *Cmd) SetChinese(useChinese bool)
-```
-SetChinese 设置是否使用中文帮助信息
-
-**参数:**
-  - useChinese: 是否使用中文帮助信息
-
-### func (c *Cmd) SetCompletion(enable bool)
-```go
-func (c *Cmd) SetCompletion(enable bool)
-```
-SetCompletion 设置是否启用自动补全, 只能在根命令上启用
-
-**参数:**
-  - enable: true表示启用补全,false表示禁用
-
-### func (c *Cmd) SetRun(run func(*Cmd) error)
-```go
-func (c *Cmd) SetRun(run func(*Cmd) error)
-```
-SetRun 设置命令的执行函数
-
-**参数:**
-  - run: 命令执行函数，接收*Cmd作为参数，返回error
-
-**恐慌:**
-  - 当run为nil时，会抛出"run function cannot be nil"的恐慌
-
-### func (c *Cmd) SetDesc(desc string)
-```go
-func (c *Cmd) SetDesc(desc string)
-```
-SetDesc 设置命令描述
-
-**参数:**
-  - desc: 命令描述
-
-### func (c *Cmd) SetHelp(help string)
-```go
-func (c *Cmd) SetHelp(help string)
-```
-SetHelp 设置用户自定义命令帮助信息
-
-**参数:**
-  - help: 用户自定义命令帮助信息
-
-### func (c *Cmd) SetLogo(logoText string)
-```go
-func (c *Cmd) SetLogo(logoText string)
-```
-SetLogo 设置logo文本
-
-**参数:**
-  - logoText: logo文本字符串
-
-### func (c *Cmd) SetModules(moduleHelps string)
-```go
-func (c *Cmd) SetModules(moduleHelps string)
-```
-SetModules 设置自定义模块帮助信息
-
-**参数:**
-  - moduleHelps: 自定义模块帮助信息
-
-### func (c *Cmd) SetNoFgExit(exit bool)
-```go
-func (c *Cmd) SetNoFgExit(exit bool)
-```
-SetNoFgExit 设置禁用内置标志自动退出 默认情况下为false, 当解析到内置参数时, QFlag将退出程序
-
-**参数:**
-  - exit: 是否退出
-
-### func (c *Cmd) SetUsage(usageSyntax string)
-```go
-func (c *Cmd) SetUsage(usageSyntax string)
-```
-SetUsage 设置自定义命令用法
-
-**参数:**
-  - usageSyntax: 自定义命令用法
-
-### func (c *Cmd) SetVersion(version string)
-```go
-func (c *Cmd) SetVersion(version string)
-```
-SetVersion 设置版本信息
-
-**参数:**
-  - version: 版本信息
-
-### func (c *Cmd) SetVersionf(format string, args ...any)
-```go
-func (c *Cmd) SetVersionf(format string, args ...any)
-```
-SetVersionf 设置版本信息
-
-**参数:**
-  - format: 版本信息格式字符串
-  - args: 格式化参数
-
-### func (c *Cmd) ShortName() string
-```go
-func (c *Cmd) ShortName() string
-```
-ShortName 返回命令短名称
-
-**返回值:**
-  - string: 命令短名称
-
-### func (c *Cmd) Size(longName, shortName string, defValue int64, usage string) *SizeFlag
-```go
-func (c *Cmd) Size(longName, shortName string, defValue int64, usage string) *SizeFlag
-```
-Size 添加大小类型标志, 返回标志对象指针
-
-**参数值:**
-  - longName: string - 长标志名
-  - shortName: string - 短标志名
-  - defValue: int64 - 默认值(单位为字节)
-  - usage: string - 帮助说明
-
-**返回值:**
-  - *SizeFlag - 大小标志对象指针
-
-**支持的单位格式:**
-  - 字节: "B", "b", "byte", "bytes"
-  - 十进制: "KB", "MB", "GB", "TB", "PB" 或简写 "K", "M", "G", "T", "P"
-  - 二进制: "KiB", "MiB", "GiB", "TiB", "PiB"
-  - 支持小数: "1.5GB", "2.5MB"
-  - 支持负数: "-1GB", "-500MB"
-  - 特殊值: "0" (零值特例)
-
-### func (c *Cmd) SizeVar(f *SizeFlag, longName, shortName string, defValue int64, usage string)
-```go
-func (c *Cmd) SizeVar(f *SizeFlag, longName, shortName string, defValue int64, usage string)
-```
-SizeVar 绑定大小类型标志到指针并内部注册Flag对象
-
-**参数值:**
-  - f: *SizeFlag - 大小标志对象指针
-  - longName: string - 长标志名
-  - shortName: string - 短标志名
-  - defValue: int64 - 默认值(单位为字节)
-  - usage: string - 帮助说明
-
-**支持的单位格式:**
-  - 字节: "B", "b", "byte", "bytes"
-  - 十进制: "KB", "MB", "GB", "TB", "PB" 或简写 "K", "M", "G", "T", "P"
-  - 二进制: "KiB", "MiB", "GiB", "TiB", "PiB"
-  - 支持小数: "1.5GB", "2.5MB"
-  - 支持负数: "-1GB", "-500MB"
-  - 特殊值: "0" (零值特例)
-
-### func (c *Cmd) String(longName, shortName, defValue, usage string) *StringFlag
-```go
-func (c *Cmd) String(longName, shortName, defValue, usage string) *StringFlag
-```
-String 添加字符串类型标志, 返回标志对象指针
-
-**参数值:**
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-**返回值:**
-  - *StringFlag: 字符串标志对象指针
-
-### func (c *Cmd) StringSlice(longName, shortName string, defValue []string, usage string) *StringSliceFlag
-```go
-func (c *Cmd) StringSlice(longName, shortName string, defValue []string, usage string) *StringSliceFlag
-```
-StringSlice 绑定字符串切片类型标志并内部注册Flag对象
-
-**参数值:**
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-**返回值:**
-  - *StringSliceFlag: 字符串切片标志对象指针
-
-### func (c *Cmd) StringSliceVar(f *StringSliceFlag, longName, shortName string, defValue []string, usage string)
-```go
-func (c *Cmd) StringSliceVar(f *StringSliceFlag, longName, shortName string, defValue []string, usage string)
-```
-StringSliceVar 绑定字符串切片类型标志到指针并内部注册Flag对象
-
-**参数值:**
-  - f: 字符串切片标志指针
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-### func (c *Cmd) StringVar(f *StringFlag, longName, shortName, defValue, usage string)
-```go
-func (c *Cmd) StringVar(f *StringFlag, longName, shortName, defValue, usage string)
-```
-StringVar 绑定字符串类型标志到指针并内部注册Flag对象
-
-**参数值:**
-  - f: 字符串标志指针
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-### func (c *Cmd) SubCmdMap() map[string]*Cmd
-```go
-func (c *Cmd) SubCmdMap() map[string]*Cmd
-```
-SubCmdMap 返回子命令映射表(长命令名+短命令名)
-
-**返回值:**
-  - map[string]*Cmd: 子命令映射表
-
-### func (c *Cmd) Time(longName, shortName string, defValue string, usage string) *TimeFlag
-```go
-func (c *Cmd) Time(longName, shortName string, defValue string, usage string) *TimeFlag
-```
-Time 添加时间类型标志, 返回标志对象指针
-
-**参数值:**
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值(时间表达式, 如"now", "zero", "1h", "2006-01-02")
-  - usage: 帮助说明
-
-**返回值:**
-  - *TimeFlag: 时间标志对象指针
-
-**支持的默认值格式:**
-  - "now" 或 "" : 当前时间
-  - "zero" : 零时间 (time.Time{})
-  - "1h", "30m", "-2h" : 相对时间（基于当前时间的偏移）
-  - "2006-01-02", "2006-01-02 15:04:05" : 绝对时间格式
-  - RFC3339等标准格式
-
-### func (c *Cmd) TimeVar(f *TimeFlag, longName, shortName string, defValue string, usage string)
-```go
-func (c *Cmd) TimeVar(f *TimeFlag, longName, shortName string, defValue string, usage string)
-```
-TimeVar 绑定时间类型标志到指针并内部注册Flag对象
-
-**参数值:**
-  - f: 时间标志指针
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值(时间表达式, 如"now", "zero", "1h", "2006-01-02")
-  - usage: 帮助说明
-
-**支持的默认值格式:**
-  - "now" 或 "" : 当前时间
-  - "zero" : 零时间 (time.Time{})
-  - "1h", "30m", "-2h" : 相对时间（基于当前时间的偏移）
-  - "2006-01-02", "2006-01-02 15:04:05" : 绝对时间格式
-  - RFC3339等标准格式
-
-### func (c *Cmd) Uint16(longName, shortName string, defValue uint16, usage string) *Uint16Flag
-```go
-func (c *Cmd) Uint16(longName, shortName string, defValue uint16, usage string) *Uint16Flag
-```
-Uint16 添加16位无符号整数类型标志, 返回标志对象指针
-
-**参数值:**
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-**返回值:**
-  - *Uint16Flag: 16位无符号整数标志对象指针
-
-### func (c *Cmd) Uint16Var(f *Uint16Flag, longName, shortName string, defValue uint16, usage string)
-```go
-func (c *Cmd) Uint16Var(f *Uint16Flag, longName, shortName string, defValue uint16, usage string)
-```
-Uint16Var 绑定16位无符号整数类型标志到指针并内部注册Flag对象
-
-**参数值:**
-  - f: 16位无符号整数标志指针
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-### func (c *Cmd) Uint32(longName, shortName string, defValue uint32, usage string) *Uint32Flag
-```go
-func (c *Cmd) Uint32(longName, shortName string, defValue uint32, usage string) *Uint32Flag
-```
-Uint32 添加32位无符号整数类型标志, 返回标志对象指针
-
-**参数值:**
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-**返回值:**
-  - *Uint32Flag: 32位无符号整数标志对象指针
-
-### func (c *Cmd) Uint32Var(f *Uint32Flag, longName, shortName string, defValue uint32, usage string)
-```go
-func (c *Cmd) Uint32Var(f *Uint32Flag, longName, shortName string, defValue uint32, usage string)
-```
-Uint32Var 绑定32位无符号整数类型标志到指针并内部注册Flag对象
-
-**参数值:**
-  - f: 32位无符号整数标志指针
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-### func (c *Cmd) Uint64(longName, shortName string, defValue uint64, usage string) *Uint64Flag
-```go
-func (c *Cmd) Uint64(longName, shortName string, defValue uint64, usage string) *Uint64Flag
-```
-Uint64 添加64位无符号整数类型标志, 返回标志对象指针
-
-**参数值:**
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-**返回值:**
-  - *Uint64Flag: 64位无符号整数标志对象指针
-
-### func (c *Cmd) Uint64Var(f *Uint64Flag, longName, shortName string, defValue uint64, usage string)
-```go
-func (c *Cmd) Uint64Var(f *Uint64Flag, longName, shortName string, defValue uint64, usage string)
-```
-Uint64Var 绑定64位无符号整数类型标志到指针并内部注册Flag对象
-
-**参数值:**
-  - f: 64位无符号整数标志指针
-  - longName: 长标志名
-  - shortName: 短标志名
-  - defValue: 默认值
-  - usage: 帮助说明
-
-### func (c *Cmd) Usage() string
-```go
-func (c *Cmd) Usage() string
-```
-Usage 获取自定义命令用法
-
-**返回值:**
-  - string: 自定义命令用法
-
-### func (c *Cmd) Version() string
-```go
-func (c *Cmd) Version() string
-```
-Version 获取版本信息
-
-**返回值:** - string: 版本信息
-
-## 类型别名
-
-### type CmdConfig = types.CmdConfig
-```go
-type CmdConfig = types.CmdConfig
-```
-CmdConfig 导出cmd包中的CmdConfig结构体
-
-### type DurationFlag = flags.DurationFlag
-```go
-type DurationFlag = flags.DurationFlag
-```
-DurationFlag 导出flag包中的DurationFlag结构体
-
-### type EnumFlag = flags.EnumFlag
-```go
-type EnumFlag = flags.EnumFlag
-```
-EnumFlag 导出flag包中的EnumFlag结构体
-
-### type ErrorHandling = flags.ErrorHandling
-```go
-type ErrorHandling = flags.ErrorHandling
-```
-ErrorHandling 错误处理策略
-
-## 变量
+### 预定义错误变量
 
 ```go
 var (
-	// ContinueOnError 解析错误时继续解析并返回错误
-	ContinueOnError ErrorHandling = flags.ContinueOnError
-	// ExitOnError 解析错误时退出程序
-	ExitOnError ErrorHandling = flags.ExitOnError
-	// PanicOnError 解析错误时触发panic
-	PanicOnError ErrorHandling = flags.PanicOnError
+    // ErrInvalidFlagType 无效的标志类型错误
+    //
+    // 使用场景: 
+    //   - 传入不支持的标志类型
+    //   - 标志类型转换失败
+    ErrInvalidFlagType = types.ErrInvalidFlagType
+
+    // ErrFlagNotFound 标志不存在错误
+    //
+    // 使用场景: 
+    //   - 查找不存在的标志
+    //   - 引用未注册的标志
+    ErrFlagNotFound = types.ErrFlagNotFound
+
+    // ErrCmdNotFound 命令不存在错误
+    //
+    // 使用场景: 
+    //   - 查找不存在的命令
+    //   - 引用未注册的命令
+    ErrCmdNotFound = types.ErrCmdNotFound
+
+    // ErrFlagAlreadyExists 标志已存在错误
+    //
+    // 使用场景: 
+    //   - 注册重复的标志
+    //   - 标志名称冲突
+    ErrFlagAlreadyExists = types.ErrFlagAlreadyExists
+
+    // ErrCmdAlreadyExists 命令已存在错误
+    //
+    // 使用场景: 
+    //   - 注册重复的命令
+    //   - 命令名称冲突
+    ErrCmdAlreadyExists = types.ErrCmdAlreadyExists
+
+    // ErrParseFailed 解析失败错误
+    //
+    // 使用场景: 
+    //   - 命令行参数解析失败
+    //   - 配置文件解析失败
+    ErrParseFailed = types.ErrParseFailed
+
+    // ErrValidationFailed 验证失败错误
+    //
+    // 使用场景: 
+    //   - 标志值验证失败
+    //   - 业务规则验证失败
+    ErrValidationFailed = types.ErrValidationFailed
+
+    // ErrRequiredFlag 必填标志缺失错误
+    //
+    // 使用场景: 
+    //   - 必填标志未提供
+    //   - 必填标志值为空
+    ErrRequiredFlag = types.ErrRequiredFlag
+
+    // ErrInvalidValue 无效值错误
+    //
+    // 使用场景: 
+    //   - 标志值格式错误
+    //   - 标志值超出范围
+    ErrInvalidValue = types.ErrInvalidValue
 )
 ```
-ErrorHandling 错误处理策略常量
 
-## 类型别名
+### 错误处理策略常量
 
-### type ExampleInfo = types.ExampleInfo
 ```go
-type ExampleInfo = types.ExampleInfo
-```
-ExampleInfo 导出示例信息类型
+var (
+    // ContinueOnError 解析错误时继续解析并返回错误
+    //
+    // 使用场景: 
+    //   - 需要收集所有错误
+    //   - 自定义错误处理逻辑
+    //   - 交互式应用
+    ContinueOnError = types.ContinueOnError
 
-### type Flag = flags.Flag
-```go
-type Flag = flags.Flag
-```
-Flag 导出flag包中的Flag结构体
+    // ExitOnError 解析错误时退出程序
+    //
+    // 使用场景: 
+    //   - 简单命令行工具
+    //   - 错误即致命的应用
+    //   - 脚本和自动化工具
+    ExitOnError = types.ExitOnError
 
-### type FlagRegistry = flags.FlagRegistry
-```go
-type FlagRegistry = flags.FlagRegistry
+    // PanicOnError 解析错误时触发panic
+    //
+    // 使用场景: 
+    //   - 开发和测试环境
+    //   - 需要快速失败的场景
+    //   - 调试和诊断
+    PanicOnError = types.PanicOnError
+)
 ```
-FlagRegistry 导出flag包中的FlagRegistry结构体
 
-### type Float64Flag = flags.Float64Flag
-```go
-type Float64Flag = flags.Float64Flag
-```
-Float64Flag 导出flag包中的Float64Flag结构体
+### 全局根命令
 
-### type Int64Flag = flags.Int64Flag
 ```go
-type Int64Flag = flags.Int64Flag
+var Root *Cmd
 ```
-Int64Flag 导出flag包中的Int64Flag结构体
 
-### type Int64SliceFlag = flags.Int64SliceFlag
-```go
-type Int64SliceFlag = flags.Int64SliceFlag
-```
-Int64SliceFlag 导出flag包中的Int64SliceFlag结构体
+**Root 全局根命令实例, 提供对全局标志和子命令的访问 用户可以通过 qflag.Root.String() 这样的方式直接创建全局标志 这是访问命令行功能的主要入口点, 推荐优先使用**
 
-### type IntFlag = flags.IntFlag
-```go
-type IntFlag = flags.IntFlag
-```
-IntFlag 导出flag包中的IntFlag结构体
+### 补全脚本生成
 
-### type IntSliceFlag = flags.IntSliceFlag
 ```go
-type IntSliceFlag = flags.IntSliceFlag
+var GenAndPrintCompletion = completion.GenAndPrint
 ```
-IntSliceFlag 导出flag包中的IntSliceFlag结构体
 
-### type MapFlag = flags.MapFlag
-```go
-type MapFlag = flags.MapFlag
-```
-MapFlag 导出flag包中的MapFlag结构体
+**GenAndPrintCompletion 生成并打印补全脚本**
 
-### type SizeFlag = flags.SizeFlag
-```go
-type SizeFlag = flags.SizeFlag
-```
-SizeFlag 导出flag包中的SizeFlag结构体
+**参数:**
+  - cmd: 要生成补全脚本的命令
+  - shellType: Shell类型 (bash, pwsh, powershell)
 
-### type StringFlag = flags.StringFlag
-```go
-type StringFlag = flags.StringFlag
-```
-StringFlag 导出flag包中的StringFlag结构体
+**功能说明: **
+  - 生成自动补全脚本
+  - 直接输出到标准输出
+  - 便于在命令行中直接使用
 
-### type StringSliceFlag = flags.StringSliceFlag
 ```go
-type StringSliceFlag = flags.StringSliceFlag
+var GenerateCompletion = completion.Generate
 ```
-StringSliceFlag 导出flag包中的StringSliceFlag结构体
 
-### type TimeFlag = flags.TimeFlag
-```go
-type TimeFlag = flags.TimeFlag
-```
-TimeFlag 导出flag包中的TimeFlag结构体
+**GenerateCompletion 生成补全脚本**
 
-### type Uint16Flag = flags.Uint16Flag
-```go
-type Uint16Flag = flags.Uint16Flag
-```
-Uint16Flag 导出flag包中的UintFlag结构体
+**参数:**
+  - cmd: 要生成补全脚本的命令
+  - shellType: Shell类型 (bash, pwsh, powershell)
 
-### type Uint32Flag = flags.Uint32Flag
-```go
-type Uint32Flag = flags.Uint32Flag
-```
-Uint32Flag 导出flag包中的Uint32Flag结构体
+**返回值:**
+  - string: 生成的补全脚本
+  - error: 生成失败时返回错误
 
-### type Uint64Flag = flags.Uint64Flag
+**功能说明: **
+  - 为指定命令生成自动补全脚本
+  - 支持多种Shell类型
+  - 包含完整的命令树和标志信息
+
+### 错误检查函数
+
 ```go
-type Uint64Flag = flags.Uint64Flag
+var IsNotFoundError = types.IsNotFoundError
 ```
-Uint64Flag 导出flag包中的Uint64Flag结构体
+
+**IsNotFoundError 判断是否为"未找到"错误**
+
+**参数:**
+  - err: 要检查的错误
+
+**返回值:**
+  - bool: 是否为未找到错误, true表示是
+
+**功能说明: **
+  - 检查错误码是否为FLAG_NOT_FOUND或COMMAND_NOT_FOUND
+  - 支持错误链检查
+  - 便于统一处理未找到类型的错误
+
+**使用场景: **
+  - 统一处理资源不存在的情况
+  - 区分未找到错误和其他错误
+  - 简化错误处理逻辑
+
+### 标志创建
+
+推荐使用全局 Root 命令创建标志: 
+
+```go
+// 创建字符串标志
+name := qflag.Root.String("name", "n", "用户名", "guest")
+
+// 创建整数标志
+age := qflag.Root.Int("age", "a", "年龄", 18)
+
+// 创建布尔标志
+verbose := qflag.Root.Bool("verbose", "v", "详细模式", false)
+```
+
+这种方式的优势: 
+- 标志会自动注册到全局命令中
+- 无需手动添加标志
+- 代码更简洁直观
+- 与全局命令解析无缝集成
+
+```go
+var NewCmd = cmd.NewCmd
+```
+
+**NewCmd 创建新的命令实例**
+
+**参数:**
+  - longName: 命令的长名称
+  - shortName: 命令的短名称
+  - errorHandling: 错误处理策略
+
+**返回值:**
+  - *Cmd: 初始化完成的命令实例
+
+**功能说明: **
+  - 创建命令并初始化基本字段
+  - 创建标志和子命令注册器
+  - 设置默认解析器
+  - 初始化配置选项
+
+```go
+var NewCmdFromSpec = cmd.NewCmdFromSpec
+```
+
+**NewCmdFromSpec 从规格创建命令**
+
+**参数:**
+  - spec: 命令规格结构体
+
+**返回值:**
+  - *Cmd: 创建的命令实例
+  - error: 创建失败时返回错误
+
+**功能说明: **
+  - 根据规格结构体创建命令
+  - 自动设置所有属性和配置
+  - 递归创建子命令
+  - 支持默认值处理
+  - 使用defer捕获panic, 转换为错误返回
+
+```go
+var NewCmdSpec = cmd.NewCmdSpec
+```
+
+**NewCmdSpec 创建新的命令规格**
+
+**参数:**
+  - longName: 命令长名称
+  - shortName: 命令短名称
+
+**返回值:**
+  - *CmdSpec: 初始化的命令规格
+
+**功能说明:**
+  - 创建基本命令规格
+  - 设置默认值
+  - 初始化所有字段
+
+```go
+var NewCmdOpts = cmd.NewCmdOpts
+```
+
+**NewCmdOpts 创建新的命令选项**
+
+**返回值:**
+  - *CmdOpts: 初始化的命令选项
+
+**功能说明:**
+  - 创建基本命令选项
+  - 初始化所有字段为零值
+  - 初始化 map 和 slice 避免空指针
+
+**默认值:**
+  - Examples: 空映射
+  - Notes: 空切片
+  - SubCmds: 空切片
+  - MutexGroups: 空切片
+
+```go
+var NewError = types.NewError
+```
+
+**NewError 创建新的错误**
+
+**参数:**
+  - code: 错误码, 用于错误分类和识别
+  - message: 错误消息, 面向用户的描述信息
+  - cause: 原始错误, 可以为nil
+
+**返回值:**
+  - *Error: 新创建的错误实例
+
+**功能说明: **
+  - 创建结构化的错误实例
+  - 保留原始错误信息
+  - 提供错误分类能力
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### 错误包装函数
+
+```go
+var WrapError = types.WrapError
+```
+
+**WrapError 包装错误**
+
+**参数:**
+  - err: 要包装的原始错误
+  - code: 新的错误码
+  - message: 新的错误消息
+
+**返回值:**
+  - *Error: 包装后的错误
+
+**功能说明: **
+  - 为现有错误添加上下文信息
+  - 保持原始错误链
+  - 提供新的错误分类
+
+**使用场景: **
+  - 为底层错误添加业务上下文
+  - 统一错误处理格式
+  - 错误转换和适配
+
+```go
+var WrapParseError = types.WrapParseError
+```
+
+**WrapParseError 包装解析错误, 专门用于标志解析场景**
+
+**参数:**
+  - err: 原始解析错误
+  - flagType: 标志类型描述
+  - value: 解析失败的值
+
+**返回值:**
+  - *Error: 包装后的解析错误
+
+**功能说明: **
+  - 专门用于标志解析错误
+  - 自动生成描述性错误消息
+  - 保留原始错误信息
+
+**使用场景: **
+  - 标志值解析失败
+  - 类型转换错误
+  - 格式验证错误
+
+## 函数 (FUNCTIONS)
+
+### 全局根命令函数
+
+```go
+func AddMutexGroup(name string, flags []string, allowNone bool)
+```
+
+**AddMutexGroup 添加互斥组到命令**
+
+**参数:**
+  - name: 互斥组名称, 用于错误提示和标识
+  - flags: 互斥组中的标志名称列表
+  - allowNone: 是否允许一个都不设置
+
+**功能说明:**
+  - 创建新的互斥组并添加到命令配置中
+  - 互斥组中的标志最多只能有一个被设置
+  - 如果 allowNone 为 false, 则必须至少有一个标志被设置
+  - 使用写锁保护并发安全
+
+**注意事项:**
+  - 标志名称必须是已注册的标志
+  - 互斥组名称在命令中应该唯一
+  - 重复添加同名互斥组会返回错误
+
+```go
+func AddRequiredGroup(name string, flags []string) error
+```
+
+**AddRequiredGroup 添加必需组到命令**
+
+**参数:**
+  - name: 必需组名称, 用于错误提示和标识
+  - flags: 必需组中的标志名称列表
+
+**返回值:**
+  - error: 添加失败时返回错误
+
+**功能说明:**
+  - 创建新的必需组并添加到命令配置中
+  - 必需组中的所有标志都必须被设置
+  - 使用写锁保护并发安全
+
+**注意事项:**
+  - 标志名称必须是已注册的标志
+  - 必需组名称在命令中应该唯一
+  - 重复添加同名必需组会返回错误
+
+```go
+func AddSubCmdFrom(cmds []Command) error
+```
+
+**AddSubCmdFrom 从切片添加子命令**
+
+**参数:**
+  - cmds: 要添加的子命令实例切片
+
+**返回值:**
+  - error: 添加子命令过程中遇到的错误, 如果没有错误则返回 nil
+
+```go
+func AddSubCmds(cmds ...Command) error
+```
+
+**AddSubCmds 添加子命令到全局根命令**
+
+**参数:**
+  - cmd: 要添加的子命令实例
+
+**返回值:**
+  - error: 添加子命令过程中遇到的错误, 如果没有错误则返回 nil
+
+```go
+func ApplyOpts(opts *CmdOpts) error
+```
+
+**ApplyOpts 应用选项到全局根命令**
+
+**参数:**
+  - opts: 要应用的选项结构体实例
+
+**返回值:**
+  - error: 应用选项过程中遇到的错误, 如果没有错误则返回 nil
+
+**功能说明:**
+  - 将选项结构体的所有属性应用到全局根命令实例
+  - 支持部分配置（未设置的属性不会被修改）
+  - 使用写锁保护并发安全
+
+```go
+func Parse() error
+```
+
+**Parse 解析命令行参数**
+
+**参数:**
+  - args: 命令行参数列表
+
+**返回值:**
+  - error: 解析失败时返回错误
+
+**功能说明: **
+  - 实现types.Command接口
+  - 使用sync.Once确保只解析一次
+  - 调用解析器的Parse方法
+  - 递归解析所有子命令
+
+```go
+func ParseAndRoute() error
+```
+
+**ParseAndRoute 解析并路由执行命令**
+
+**参数:**
+  - args: 命令行参数列表
+
+**返回值:**
+  - error: 解析或执行失败时返回错误
+
+**功能说明: **
+  - 实现types.Command接口
+  - 使用sync.Once确保只执行一次
+  - 调用解析器的ParseAndRoute方法
+  - 完整的解析和执行流程
+
+```go
+func ParseOnly() error
+```
+
+**ParseOnly 仅解析当前命令, 不递归解析子命令**
+
+**参数:**
+  - args: 命令行参数列表
+
+**返回值:**
+  - error: 解析失败时返回错误
+
+**功能说明: **
+  - 实现types.Command接口
+  - 使用sync.Once确保只执行一次
+  - 调用解析器的ParseOnly方法
+  - 不处理子命令解析
+
+## 类型 (TYPES)
+
+### 标志类型
+
+```go
+type BoolFlag = flag.BoolFlag
+```
+
+**BoolFlag 布尔标志 BoolFlag 用于处理布尔类型的命令行参数。 它接受多种布尔值表示形式, 包括 "true", "false", "1", "0", "t", "f", "TRUE", "FALSE" 等。**
+
+```go
+type Cmd = cmd.Cmd
+```
+
+**Cmd 命令结构体类型 Cmd 是一个命令结构体, 实现了 types.Command 接口 提供了完整的命令行命令实现, 支持标志管理、子命令、 参数解析和执行等功能。使用读写锁保证并发安全。**
+
+```go
+type CmdConfig = types.CmdConfig
+```
+
+**CmdConfig 包含了命令的各种配置选项, 用于自定义命令的行为和外观 这些配置会影响命令的帮助信息显示、环境变量处理、错误提示等**
+
+```go
+type CmdRegistry = types.CmdRegistry
+```
+
+**CmdRegistry 命令注册表接口 CmdRegistry 定义了命令注册和管理的标准接口, 提供了 命令的完整生命周期管理功能。**
+
+**核心功能: **
+  - 命令的注册和注销
+  - 基于名称的查找和检索
+  - 批量操作和遍历支持
+  - 存在性检查和计数
+
+**设计特点: **
+  - 支持长名称和短名称查找
+  - 提供统一的错误处理
+  - 支持别名管理 (通过具体实现) 
+  - 线程安全由具体实现保证
+
+```go
+type CmdSpec = cmd.CmdSpec
+```
+
+**CmdSpec 命令规格结构体 CmdSpec 提供了通过规格创建命令的方式, 包含命令的所有属性。 这种方式比函数式配置更加直观和集中。**
+
+```go
+type CmdOpts = cmd.CmdOpts
+```
+
+**CmdOpts 命令选项结构体 CmdOpts 提供了配置现有命令的方式，包含命令的所有可配置属性。 与 CmdSpec 不同，CmdOpts 用于配置已存在的命令，而不是创建新命令。**
+
+**使用场景: **
+  - 已有命令实例，需要批量设置属性
+  - 需要结构化的配置管理
+  - 需要部分配置（未设置的属性不会被修改）
+
+```go
+type Command = types.Command
+```
+
+**Command 定义了命令行工具中命令的基本接口, 包括标志管理、参数解析、子命令管理等功能 实现此接口的类型可以作为命令行工具的命令使用**
+
+```go
+type DurationFlag = flag.DurationFlag
+```
+
+**DurationFlag 持续时间标志 DurationFlag 用于处理时间间隔类型的命令行参数。 支持Go标准库time.ParseDuration所支持的所有格式, 如 "300ms", "-1.5h", "2h45m" 等。**
+
+**支持的格式: **
+  - "ns": 纳秒
+  - "us" (或 "µs"): 微秒
+  - "ms": 毫秒
+  - "s": 秒
+  - "m": 分钟
+  - "h": 小时
+
+**注意事项: **
+  - 支持负数表示负时间间隔
+  - 支持小数表示部分时间单位
+  - 可以组合多个单位, 如 "1h30m"
+
+```go
+type EnumFlag = flag.EnumFlag
+```
+
+**EnumFlag 枚举标志 EnumFlag 用于处理枚举类型的命令行参数, 限制输入值必须在预定义的允许值列表中。 使用映射表(map)实现O(1)时间复杂度的值查找, 提高性能。**
+
+**特性: **
+  - 使用映射表进行快速值验证
+  - 不允许空字符串作为枚举值
+  - 默认值必须在允许值列表中
+  - 不允许设置空值
+
+```go
+type Error = types.Error
+```
+
+**Error 是qflag项目的标准错误类型, 提供了结构化的错误信息。 包含错误码、错误消息和原始错误, 便于错误分类和处理。**
+
+**字段说明: **
+  - Code: 错误码, 用于错误分类和程序化处理
+  - Message: 错误消息, 面向用户的描述信息
+  - Cause: 原始错误, 包装的底层错误
+
+**特性: **
+  - 实现error接口
+  - 支持错误链 (errors.Unwrap) 
+  - 支持错误比较 (errors.Is) 
+  - 提供错误码匹配
+
+```go
+type ErrorHandling = types.ErrorHandling
+```
+
+**ErrorHandling 错误处理方式枚举 ErrorHandling 定义了解析错误时的处理策略, 直接使用标准库 flag包的错误处理方式, 保持兼容性。**
+
+**可选值: **
+  - ContinueOnError: 解析错误时继续解析并返回错误
+  - ExitOnError: 解析错误时退出程序
+  - PanicOnError: 解析错误时触发panic
+
+```go
+type Flag = types.Flag
+```
+
+**Flag 接口定义了标志的核心行为 Flag 是所有标志类型必须实现的基础接口, 定义了标志的 基本操作和属性。所有具体标志类型都应实现此接口。**
+
+**设计原则: **
+  - 提供统一的标志操作接口
+  - 支持多种数据类型
+  - 支持验证和环境变量绑定
+  - 提供完整的生命周期管理
+
+```go
+type FlagRegistry = types.FlagRegistry
+```
+
+**FlagRegistry 标志注册表接口 FlagRegistry 定义了标志注册和管理的标准接口, 提供了 标志的完整生命周期管理功能。**
+
+**核心功能: **
+  - 标志的注册和注销
+  - 基于名称的查找和检索
+  - 批量操作和遍历支持
+  - 存在性检查和计数
+
+**设计特点: **
+  - 支持长名称和短名称查找
+  - 提供统一的错误处理
+  - 支持别名管理 (通过具体实现) 
+  - 线程安全由具体实现保证
+
+### 标志类型常量
+
+```go
+type FlagType = types.FlagType
+```
+
+**FlagType 标志类型枚举 FlagType 定义了所有支持的标志类型, 用于类型识别和 特定处理逻辑的实现。**
+
+**设计原则: **
+  - 每种类型对应一种数据格式
+  - 支持基础类型和复合类型
+  - 便于类型检查和转换
+
+```go
+const (
+    FlagTypeUnknown FlagType = types.FlagTypeUnknown // 未知标志类型, 用于错误处理
+
+    // 基础类型
+    FlagTypeString  FlagType = types.FlagTypeString  // 字符串标志, 存储任意文本
+    FlagTypeInt     FlagType = types.FlagTypeInt     // 整数标志, 平台相关int类型
+    FlagTypeInt64   FlagType = types.FlagTypeInt64   // 64位整数标志, 固定64位整数
+    FlagTypeUint    FlagType = types.FlagTypeUint    // 无符号整数标志, 平台相关uint类型
+    FlagTypeUint8   FlagType = types.FlagTypeUint8   // 8位无符号整数标志, 0-255
+    FlagTypeUint16  FlagType = types.FlagTypeUint16  // 16位无符号整数标志, 0-65535
+    FlagTypeUint32  FlagType = types.FlagTypeUint32  // 32位无符号整数标志, 0-4294967295
+    FlagTypeUint64  FlagType = types.FlagTypeUint64  // 64位无符号整数标志, 0-18446744073709551615
+    FlagTypeFloat64 FlagType = types.FlagTypeFloat64 // 64位浮点数标志, IEEE 754双精度
+    FlagTypeBool    FlagType = types.FlagTypeBool    // 布尔标志, true/false值
+
+    // 特殊类型
+    FlagTypeEnum FlagType = types.FlagTypeEnum // 枚举标志, 限制为预定义值集合
+
+    // 时间和大小类型
+    FlagTypeDuration FlagType = types.FlagTypeDuration // 持续时间标志, 支持时间单位解析
+    FlagTypeTime     FlagType = types.FlagTypeTime     // 时间标志, 支持多种时间格式
+    FlagTypeSize     FlagType = types.FlagTypeSize     // 大小标志, 支持存储单位解析
+
+    // 集合类型
+    FlagTypeMap         FlagType = types.FlagTypeMap         // 映射标志, 键值对集合
+    FlagTypeStringSlice FlagType = types.FlagTypeStringSlice // 字符串切片标志, 字符串数组
+    FlagTypeIntSlice    FlagType = types.FlagTypeIntSlice    // 整数切片标志, 整数数组
+    FlagTypeInt64Slice  FlagType = types.FlagTypeInt64Slice  // 64位整数切片标志, 64位整数数组
+)
+```
+
+**标志类型常量**
+
+### 验证器类型
+
+```go
+type Validator[T any] = types.Validator[T]
+```
+
+**Validator 验证器函数类型**
+
+**Validator 是一个泛型函数类型，用于验证标志值的有效性。 验证器接收一个类型为 T 的值，返回错误信息。**
+
+**参数:**
+  - value: 要验证的值
+
+**返回值:**
+  - error: 验证失败时返回错误，验证通过返回 nil
+
+**功能说明:**
+  - 验证器在标志的 Set 方法中被调用
+  - 在解析完值后、设置值之前执行验证
+  - 如果验证失败，Set 方法会返回错误，标志值不会被设置
+  - 验证器是可选的，未设置时跳过验证
+  - 重复设置验证器会覆盖之前的验证器
+
+**空值处理:**
+  - StringFlag: 空字符串不经过验证器，直接设置
+  - BoolFlag: 不经过验证器（无空值概念）
+  - 集合类型 (MapFlag, StringSliceFlag, IntSliceFlag, Int64SliceFlag): 空字符串不经过验证器，创建空集合
+  - 其他类型: 空字符串直接返回错误，不经过验证器
+
+**使用示例:**
+
+```go
+// 端口号验证：1-65535
+port.SetValidator(func(value int) error {
+    if value < 1 || value > 65535 {
+        return fmt.Errorf("端口 %d 超出范围 [1, 65535]", value)
+    }
+    return nil
+})
+
+// 字符串长度验证：3-20个字符
+username.SetValidator(func(value string) error {
+    if len(value) < 3 || len(value) > 20 {
+        return fmt.Errorf("用户名长度 %d 超出范围 [3, 20]", len(value))
+    }
+    return nil
+})
+
+// 邮箱格式验证
+email.SetValidator(func(value string) error {
+    if !isValidEmail(value) {
+        return fmt.Errorf("邮箱格式无效: %s", value)
+    }
+    return nil
+})
+```
+
+**注意事项:**
+  - 验证器应该快速执行，避免耗时操作
+  - 验证器返回的错误应该清晰描述失败原因
+  - 验证器执行时已经持有锁，验证器本身不需要处理并发
+  - 验证器可以随时通过 ClearValidator 清除
+
+### 其他标志类型
+
+```go
+type Float64Flag = flag.Float64Flag
+```
+
+**Float64Flag 64位浮点数标志 Float64Flag 用于处理64位浮点数类型的命令行参数。 支持整数、小数和科学计数法表示的数值。**
+
+**注意事项: **
+  - 支持正数和负数
+  - 支持十进制格式和科学计数法
+  - 支持特殊值: NaN、+Inf、-Inf
+  - 精度遵循IEEE 754双精度浮点数标准
+
+```go
+type Int64Flag = flag.Int64Flag
+```
+
+**Int64Flag 64位整数标志 Int64Flag 用于处理64位整数类型的命令行参数。 在所有平台上都使用固定的64位整数, 提供一致的行为。**
+
+**注意事项: **
+  - 支持正数和负数
+  - 支持十进制格式
+  - 范围: -9,223,372,036,854,775,808 到 9,223,372,036,854,775,807
+
+```go
+type Int64SliceFlag = flag.Int64SliceFlag
+```
+
+**Int64SliceFlag 64位整数切片标志**
+
+```go
+type IntFlag = flag.IntFlag
+```
+
+**IntFlag 整数标志 IntFlag 用于处理整数类型的命令行参数。 使用平台相关的int类型, 在32位系统上为32位整数, 在64位系统上为64位整数。**
+
+**注意事项: **
+  - 支持正数和负数
+  - 支持十进制格式
+  - 超出平台int范围会返回错误
+
+```go
+type IntSliceFlag = flag.IntSliceFlag
+```
+
+**IntSliceFlag 整数切片标志**
+
+```go
+type MapFlag = flag.MapFlag
+```
+
+**MapFlag 用于处理键值对映射类型的命令行参数。 支持的格式: key1=value1,key2=value2**
+
+**空值处理: **
+  - 空字符串 "" 表示创建空映射
+  - ",,," 中的空对会被跳过
+  - 使用 SetKV 方法设置键值对时, 键不能为空
+  - 使用 Clear 方法可以清空映射
+
+```go
+type MutexGroup = types.MutexGroup
+```
+
+**MutexGroup 定义了一组互斥的标志, 其中最多只能有一个被设置 当用户设置了互斥组中的多个标志时, 解析器会返回错误**
+
+```go
+type RequiredGroup = types.RequiredGroup
+```
+
+**RequiredGroup 定义了一组必须同时设置的标志 当用户没有设置必需组中的所有标志时, 解析器会返回错误**
+
+**字段说明:**
+  - Name: 必需组名称, 用于错误提示和标识
+  - Flags: 必需组中的标志名称列表
+
+**使用场景:**
+  - 连接参数必需 (如 --host 和 --port 必须同时设置)
+  - 认证参数必需 (如 --username 和 --password 必须同时设置)
+  - 配置文件路径必需 (如 --config 和 --env 必须同时设置)
+
+**注意事项:**
+  - 必需组中的所有标志都必须被设置
+  - 如果只设置了部分标志, 解析会失败
+  - 必需组名称在命令中应该唯一
+
+```go
+type Parser = types.Parser
+```
+
+**Parser 解析器接口 Parser 定义了命令行参数解析的标准接口, 提供了不同层次的 解析功能, 从简单的参数解析到完整的命令路由执行。**
+
+**设计理念: **
+  - 分层设计: 提供不同层次的解析功能
+  - 灵活性: 支持仅解析、解析+路由等多种使用模式
+  - 可扩展性: 接口设计允许不同的解析策略实现
+
+**使用场景: **
+  - 命令行工具的参数解析
+  - 子命令系统的路由管理
+  - 配置管理和参数验证
+
+```go
+type SizeFlag = flag.SizeFlag
+```
+
+**SizeFlag 大小标志 (支持KB、MB、GB等单位) SizeFlag 用于处理大小类型的命令行参数, 支持多种大小单位。 可以解析带有单位的大小值, 并将其转换为字节数。**
+
+**支持的单位: **
+  - B/b: 字节
+  - KB/kb/K/k: 千字节 (1024字节)
+  - MB/mb/M/m: 兆字节 (1024^2字节)
+  - GB/gb/G/g: 吉字节 (1024^3字节)
+  - TB/tb/T/t: 太字节 (1024^4字节)
+  - PB/pb/P/p: 拍字节 (1024^5字节)
+  - KiB/kib: 二进制千字节 (1024字节)
+  - MiB/mib: 二进制兆字节 (1024^2字节)
+  - GiB/gib: 二进制吉字节 (1024^3字节)
+  - TiB/tib: 二进制太字节 (1024^4字节)
+  - PiB/pib: 二进制拍字节 (1024^5字节)
+
+**注意事项: **
+  - 支持小数, 如 "1.5MB"
+  - 不支持负数
+  - 默认单位为字节(B)
+  - 大小写不敏感
+
+```go
+type StringFlag = flag.StringFlag
+```
+
+**StringFlag 字符串标志 StringFlag 用于处理字符串类型的命令行参数。 它接受任何字符串值, 包括空字符串。**
+
+```go
+type StringSliceFlag = flag.StringSliceFlag
+```
+
+**StringSliceFlag 字符串切片标志**
+
+```go
+type TimeFlag = flag.TimeFlag
+```
+
+**TimeFlag 时间标志 TimeFlag 用于处理时间类型的命令行参数。 支持自动检测多种常见时间格式, 也支持指定特定格式进行解析。**
+
+**特性: **
+  - 自动检测常见时间格式
+  - 支持自定义格式解析
+  - 记录当前使用的格式
+  - 线程安全的格式存储
+
+**常见支持格式: **
+  - RFC3339: "2006-01-02T15:04:05Z07:00"
+  - RFC1123: "Mon, 02 Jan 2006 15:04:05 MST"
+  - 日期格式: "2006-01-02", "2006/01/02"
+  - 时间格式: "15:04:05", "15:04"
+  - 其他常见格式
+
+### 无符号整数标志类型
+
+```go
+type Uint16Flag = flag.Uint16Flag
+```
+
+**Uint16Flag 16位无符号整数标志 Uint16Flag 用于处理16位无符号整数类型的命令行参数。 适用于处理端口号、短范围计数器等场景。**
+
+**注意事项: **
+  - 只支持非负数
+  - 支持十进制格式
+  - 范围: 0 到 65,535
+
+```go
+type Uint32Flag = flag.Uint32Flag
+```
+
+**Uint32Flag 32位无符号整数标志 Uint32Flag 用于处理32位无符号整数类型的命令行参数。 适用于处理IP地址、大范围计数器等场景。**
+
+**注意事项: **
+  - 只支持非负数
+  - 支持十进制格式
+  - 范围: 0 到 4,294,967,295
+
+```go
+type Uint64Flag = flag.Uint64Flag
+```
+
+**Uint64Flag 64位无符号整数标志 Uint64Flag 用于处理64位无符号整数类型的命令行参数。 在所有平台上都使用固定的64位无符号整数, 提供一致的行为。**
+
+**注意事项: **
+  - 只支持非负数
+  - 支持十进制格式
+  - 范围: 0 到 18,446,744,073,709,551,615
+
+```go
+type Uint8Flag = flag.Uint8Flag
+```
+
+**Uint8Flag 8位无符号整数标志 Uint8Flag 用于处理8位无符号整数类型的命令行参数。 适用于处理字节值、小范围计数器等场景。**
+
+**注意事项: **
+  - 只支持非负数
+  - 支持十进制格式
+  - 范围: 0 到 255
+
+```go
+type UintFlag = flag.UintFlag
+```
+
+**UintFlag 无符号整数标志 UintFlag 用于处理无符号整数类型的命令行参数。 使用平台相关的uint类型, 在32位系统上为32位无符号整数, 在64位系统上为64位无符号整数。**
+
+**注意事项: **
+  - 只支持非负数
+  - 支持十进制格式
+  - 超出平台uint范围会返回错误

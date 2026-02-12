@@ -94,22 +94,6 @@ func CheckBaseEnv(config *types.GobConfig) error {
 	if config.Build.Compiler.SkipCheck {
 		CL.Yellowf("%s 已启用 'skip_check' 选项，跳过代码检查\n", types.PrintPrefix)
 	} else {
-		// 定义用于判断选择检查模式的变量
-		var checkMode bool
-
-		// 检查系统中是否存在golangci-lint否则执行默认的处理命令
-		if err := shellx.NewCmds([]string{"golangci-lint", "version"}).WithTimeout(config.Build.TimeoutDuration).Exec(); err != nil {
-			checkMode = true
-		}
-
-		// 根据checkMode的值执行不同的处理命令
-		var cmds []types.CommandGroup
-		if checkMode {
-			cmds = append(cmds, types.DefaultCheckCmds...)
-		} else {
-			cmds = append(cmds, types.GolangciLintCheckCmds...)
-		}
-
 		// 设置Go代理(如果配置了代理)
 		var envs []string
 		if config.Build.Compiler.Proxy != "" {
@@ -117,7 +101,7 @@ func CheckBaseEnv(config *types.GobConfig) error {
 		}
 
 		// 遍历处理命令组
-		for _, cmdGroup := range cmds {
+		for _, cmdGroup := range types.DefaultCheckCmds {
 			if result, runErr := shellx.NewCmds(cmdGroup.Cmds).WithTimeout(config.Build.TimeoutDuration).WithEnvs(envs).ExecOutput(); runErr != nil {
 				// 如果存在输出，则打印
 				if len(result) > 0 {

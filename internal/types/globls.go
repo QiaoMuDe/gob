@@ -60,12 +60,6 @@ var DefaultCheckCmds = []CommandGroup{
 	{"go vet 静态检查", []string{"go", "vet", "./..."}},
 }
 
-// 定义golangci-lint检查命令切片
-var GolangciLintCheckCmds = []CommandGroup{
-	{"golangci-lint 格式化", []string{"golangci-lint", "fmt", "./..."}},
-	{"golangci-lint 静态检查", []string{"golangci-lint", "run", "./..."}},
-}
-
 // 获取git版本号的命令
 var GitVersionCmd = CommandGroup{
 	"获取git版本号",

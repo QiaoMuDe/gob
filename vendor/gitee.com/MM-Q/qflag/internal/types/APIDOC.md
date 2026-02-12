@@ -1,482 +1,1528 @@
-# Package types
-
-**Import Path:** `gitee.com/MM-Q/qflag/internal/types`
-
-Package types 内置类型和数据结构定义。本包定义了qflag包内部使用的内置类型和数据结构，包括内置标志、配置选项等核心数据类型的定义。
-
-## 功能模块
-
-- **内置类型和数据结构定义** - 定义了qflag包内部使用的内置类型和数据结构，包括内置标志、配置选项等核心数据类型的定义
-- **配置结构体和选项定义** - 定义了命令配置相关的结构体和选项，包括命令的各种配置参数、帮助信息设置、版本信息等配置数据的定义和管理
-- **命令上下文和状态管理** - 定义了命令上下文结构体，用于管理命令的状态、子命令、标志注册表等信息，提供命令执行过程中的状态维护和数据共享功能
-
-## 目录
-
-- [类型](#类型)
-  - [BuiltinFlags](#builtinflags)
-  - [CmdConfig](#cmdconfig)
-  - [CmdContext](#cmdcontext)
-  - [ExampleInfo](#exampleinfo)
-
-## 类型
-
-### BuiltinFlags
+# Package types 
 
 ```go
-type BuiltinFlags struct {
-    Help       *flags.BoolFlag // 标志-帮助
-    Version    *flags.BoolFlag // 标志-版本
-    Completion *flags.EnumFlag // 标志-自动完成
-    NameMap    sync.Map        // 内置标志名称映射
+import "gitee.com/MM-Q/qflag/internal/types"
+```
+
+Package types 定义了qflag项目的核心类型和接口
+
+types 包提供了整个项目的基础类型定义, 包括: 
+  - 标志类型和接口定义
+  - 命令接口定义
+  - 注册表接口定义
+  - 错误处理类型
+
+这些类型和接口构成了整个框架的核心抽象层,  为具体的实现提供了统一的规范和契约。
+
+---
+
+## CONSTANTS
+
+### 内置标志名称常量
+
+```go
+const (
+    // HelpFlagName 帮助标志名称
+    HelpFlagName = "help"
+
+    // HelpFlagShortName 帮助标志短名称
+    HelpFlagShortName = "h"
+
+    // VersionFlagName 版本标志名称
+    VersionFlagName = "version"
+
+    // VersionFlagShortName 版本标志短名称
+    VersionFlagShortName = "v"
+
+    // CompletionFlagName 补全标志名称
+    CompletionFlagName = "completion"
+)
+```
+
+### Shell 类型常量
+
+```go
+const (
+    // BashShell bash shell
+    BashShell = "bash"
+
+    // PwshShell pwsh shell
+    PwshShell = "pwsh"
+
+    // PowershellShell powershell shell
+    PowershellShell = "powershell"
+)
+```
+
+### 补全脚本生成相关常量定义
+
+```go
+const (
+    // DefaultFlagParamsCapacity 预估的标志参数初始容量
+    // 基于常见CLI工具分析, 大多数工具的标志数量在100-500之间
+    DefaultFlagParamsCapacity = 256
+
+    // NamesPerItem 每个标志/命令的名称数量(长名+短名)
+    NamesPerItem = 2
+
+    // MaxTraverseDepth 命令树遍历的最大深度限制
+    // 防止循环引用导致的无限递归, 一般CLI工具很少超过20层
+    MaxTraverseDepth = 50
+)
+```
+
+### 帮助信息标题
+
+```go
+const (
+    // 中文帮助信息标题
+    HelpNameCN     = "名称:\n"
+    HelpDescCN     = "\n描述:\n"
+    HelpUsageCN    = "\n用法:\n"
+    HelpOptionsCN  = "\n选项:\n"
+    HelpSubCmdsCN  = "\n子命令:\n"
+    HelpExamplesCN = "\n示例:\n"
+    HelpNotesCN    = "\n注意:\n"
+
+    // 英文帮助信息标题
+    HelpNameEN     = "Name:\n"
+    HelpDescEN     = "\nDesc:\n"
+    HelpUsageEN    = "\nUsage:\n"
+    HelpOptionsEN  = "\nOptions:\n"
+    HelpSubCmdsEN  = "\nSubcmds:\n"
+    HelpExamplesEN = "\nExamples:\n"
+    HelpNotesEN    = "\nNotes:\n"
+)
+```
+
+### 存储单位常量
+
+```go
+const (
+    // 十进制单位 (KB, MB, GB等) 
+    KB = 1000
+    MB = 1000 * KB
+    GB = 1000 * MB
+    TB = 1000 * GB
+    PB = 1000 * TB
+
+    // 二进制单位 (KIB, MIB, GIB等) 
+    KIB = 1024
+    MIB = 1024 * KIB
+    GIB = 1024 * MIB
+    TIB = 1024 * GIB
+    PIB = 1024 * TIB
+)
+```
+
+### 帮助格式常量
+
+```go
+const HelpOptionSubCmdSpace = "      "
+    选项和子命令中间空格, 缩进6个空格
+
+const HelpPrefix = "  "
+    统一的前缀, 缩进两个空格
+```
+
+---
+
+## VARIABLES
+
+### 预定义错误码
+
+```go
+var (
+    // ErrInvalidFlagType 无效的标志类型错误
+    //
+    // 使用场景: 
+    //   - 传入不支持的标志类型
+    //   - 标志类型转换失败
+    ErrInvalidFlagType = NewError("INVALID_FLAG_TYPE", "invalid flag type", nil)
+
+    // ErrFlagNotFound 标志不存在错误
+    //
+    // 使用场景: 
+    //   - 查找不存在的标志
+    //   - 引用未注册的标志
+    ErrFlagNotFound = NewError("FLAG_NOT_FOUND", "flag not found", nil)
+
+    // ErrCmdNotFound 命令不存在错误
+    //
+    // 使用场景: 
+    //   - 查找不存在的命令
+    //   - 引用未注册的命令
+    ErrCmdNotFound = NewError("COMMAND_NOT_FOUND", "cmd not found", nil)
+
+    // ErrFlagAlreadyExists 标志已存在错误
+    //
+    // 使用场景: 
+    //   - 注册重复的标志
+    //   - 标志名称冲突
+    ErrFlagAlreadyExists = NewError("FLAG_ALREADY_EXISTS", "flag already exists", nil)
+
+    // ErrCmdAlreadyExists 命令已存在错误
+    //
+    // 使用场景: 
+    //   - 注册重复的命令
+    //   - 命令名称冲突
+    ErrCmdAlreadyExists = NewError("COMMAND_ALREADY_EXISTS", "cmd already exists", nil)
+
+    // ErrParseFailed 解析失败错误
+    //
+    // 使用场景: 
+    //   - 命令行参数解析失败
+    //   - 配置文件解析失败
+    ErrParseFailed = NewError("PARSE_FAILED", "parse failed", nil)
+
+    // ErrValidationFailed 验证失败错误
+    //
+    // 使用场景: 
+    //   - 标志值验证失败
+    //   - 业务规则验证失败
+    ErrValidationFailed = NewError("VALIDATION_FAILED", "validation failed", nil)
+
+    // ErrRequiredFlag 必填标志缺失错误
+    //
+    // 使用场景: 
+    //   - 必填标志未提供
+    //   - 必填标志值为空
+    ErrRequiredFlag = NewError("REQUIRED_FLAG", "required flag is missing", nil)
+
+    // ErrInvalidValue 无效值错误
+    //
+    // 使用场景: 
+    //   - 标志值格式错误
+    //   - 标志值超出范围
+    ErrInvalidValue = NewError("INVALID_VALUE", "invalid flag value", nil)
+)
+```
+
+以下是项目中常用的预定义错误, 可以直接使用或作为参考。 所有预定义错误都使用NewError创建, 保持一致的错误结构。
+
+### 常见时间格式常量
+
+```go
+var (
+    // RFC3339 RFC3339 格式 (2006-01-02T15:04:05Z07:00)
+    TimeFormatRFC3339 = time.RFC3339
+
+    // RFC3339Nano RFC3339 纳秒格式 (2006-01-02T15:04:05.999999999Z07:00)
+    TimeFormatRFC3339Nano = time.RFC3339Nano
+
+    // RFC1123 RFC1123 格式 (Mon, 02 Jan 2006 15:04:05 MST)
+    TimeFormatRFC1123 = time.RFC1123
+
+    // RFC1123Z RFC1123 带时区格式 (Mon, 02 Jan 2006 15:04:05 -0700)
+    TimeFormatRFC1123Z = time.RFC1123Z
+
+    // RFC822 RFC822 格式 (02 Jan 06 15:04 MST)
+    TimeFormatRFC822 = time.RFC822
+
+    // RFC822Z RFC822 带时区格式 (02 Jan 06 15:04 -0700)
+    TimeFormatRFC822Z = time.RFC822Z
+
+    // Kitchen 厨房格式 (3:04PM)
+    TimeFormatKitchen = time.Kitchen
+
+    // Stamp 简单时间戳格式 (Jan _2 15:04:05)
+    TimeFormatStamp = time.Stamp
+
+    // StampMilli 毫秒时间戳格式 (Jan _2 15:04:05.000)
+    TimeFormatStampMilli = time.StampMilli
+
+    // StampMicro 微秒时间戳格式 (Jan _2 15:04:05.000000)
+    TimeFormatStampMicro = time.StampMicro
+
+    // StampNano 纳秒时间戳格式 (Jan _2 15:04:05.000000000)
+    TimeFormatStampNano = time.StampNano
+
+    // DateOnly 日期格式 (2006-01-02)
+    TimeFormatDateOnly = "2006-01-02"
+
+    // TimeOnly 时间格式 (15:04:05)
+    TimeFormatTimeOnly = "15:04:05"
+
+    // DateTime 日期时间格式 (2006-01-02 15:04:05)
+    TimeFormatDateTime = "2006-01-02 15:04:05"
+
+    // DateTimeSlash 斜杠分隔的日期时间格式 (01/02/2006 15:04:05)
+    TimeFormatDateTimeSlash = "01/02/2006 15:04:05"
+
+    // DateTimeCompact 紧凑日期时间格式 (20060102150405)
+    TimeFormatDateTimeCompact = "20060102150405"
+
+    // ISO8601 ISO8601 格式 (2006-01-02T15:04:05Z)
+    TimeFormatISO8601 = "2006-01-02T15:04:05Z"
+
+    // ISO8601Nano ISO8601 纳秒格式 (2006-01-02T15:04:05.999999999Z)
+    TimeFormatISO8601Nano = "2006-01-02T15:04:05.999999999Z"
+)
+```
+
+### CommonTimeFormats 常见时间格式列表, 按优先级排序
+
+```go
+var CommonTimeFormats = []string{
+    TimeFormatRFC3339,
+    TimeFormatRFC3339Nano,
+    TimeFormatISO8601,
+    TimeFormatISO8601Nano,
+    TimeFormatDateTime,
+    TimeFormatDateOnly,
+    TimeFormatTimeOnly,
+    TimeFormatRFC1123,
+    TimeFormatRFC1123Z,
+    TimeFormatDateTimeSlash,
+    TimeFormatStamp,
+    TimeFormatStampMilli,
+    TimeFormatStampMicro,
+    TimeFormatStampNano,
+    TimeFormatRFC822,
+    TimeFormatRFC822Z,
+    TimeFormatKitchen,
+    TimeFormatDateTimeCompact,
 }
 ```
 
-BuiltinFlags 内置标志结构体，管理系统预定义的标志。
-
-**字段说明:**
-- `Help`: 帮助标志，用于显示帮助信息
-- `Version`: 版本标志，用于显示版本信息
-- `Completion`: 自动完成标志，用于生成shell自动完成脚本
-- `NameMap`: 内置标志名称映射表，用于快速查找
-
-#### 构造函数
-
-##### NewBuiltinFlags
+### 内置补全示例信息 - Linux
 
 ```go
-func NewBuiltinFlags() *BuiltinFlags
+var HelpCompletionExampleLinux = map[string]string{
+    "Linux 临时启用": fmt.Sprintf("source <(%s --completion bash)", filepath.Base(os.Args[0])),
+    "Linux 永久启用": fmt.Sprintf("echo 'source <(%s --completion bash)' >> ~/.bashrc", filepath.Base(os.Args[0])),
+}
 ```
 
-NewBuiltinFlags 创建内置标志实例。
+### 内置补全示例信息 - macOS
+
+```go
+var HelpCompletionExampleMac = map[string]string{
+    "macOS 临时启用": fmt.Sprintf("source <(%s --completion bash)", filepath.Base(os.Args[0])),
+    "macOS 永久启用": fmt.Sprintf("echo 'source <(%s --completion bash)' >> ~/.bash_profile", filepath.Base(os.Args[0])),
+}
+```
+
+### 内置补全示例信息 - Windows
+
+```go
+var HelpCompletionExampleWin = map[string]string{
+    "Windows 临时启用": fmt.Sprintf("%s --completion pwsh | Out-String | Invoke-Expression", filepath.Base(os.Args[0])),
+    "Windows 永久启用": fmt.Sprintf("echo '%s --completion pwsh | Out-String | Invoke-Expression' >> $PROFILE", filepath.Base(os.Args[0])),
+}
+```
+
+### SupportedShells Shell切片, 用于存储支持的Shell类型
+
+```go
+var SupportedShells = []string{
+    BashShell,
+    PwshShell,
+    PowershellShell,
+}
+```
+
+---
+
+## FUNCTIONS
+
+### func CurrentShell() string
+
+```go
+func CurrentShell() string
+```
+
+CurrentShell 根据当前平台返回对应的Shell类型
 
 **返回值:**
-- `*BuiltinFlags`: 新创建的内置标志实例
+  - string: 当前Shell类型
 
-**功能:**
-- 初始化所有内置标志
-- 设置默认的标志配置
-- 建立名称映射关系
+---
 
-#### 方法
-
-##### IsBuiltinFlag
+### func GetCompletionExample() map[string]string
 
 ```go
-func (bf *BuiltinFlags) IsBuiltinFlag(name string) bool
+func GetCompletionExample() map[string]string
 ```
 
-IsBuiltinFlag 检查是否为内置标志。
-
-**参数:**
-- `name`: 标志名称
+GetCompletionExample 获取当前平台的补全示例信息
 
 **返回值:**
-- `bool`: 是否为内置标志
+  - map[string]string: 包含补全示例信息的映射
 
-**用途:**
-- 区分用户定义标志和系统内置标志
-- 在解析过程中进行特殊处理
-- 避免名称冲突
+**功能说明: **
+  - 根据当前运行的操作系统返回对应的补全示例
+  - 支持 Windows、Linux 和 macOS 平台
+  - 提供临时启用和永久启用两种方式的示例
 
-##### MarkAsBuiltin
+---
+
+### func IsNotFoundError(err error) bool
 
 ```go
-func (bf *BuiltinFlags) MarkAsBuiltin(names ...string)
+func IsNotFoundError(err error) bool
 ```
 
-MarkAsBuiltin 标记为内置标志。
+IsNotFoundError 判断是否为"未找到"错误
 
 **参数:**
-- `names`: 标志名称列表（可变参数）
+  - err: 要检查的错误
 
-**功能:**
-- 将指定名称标记为内置标志
-- 更新内部映射表
-- 支持批量标记
+**返回值:**
+  - bool: 是否为未找到错误, true表示是
 
-### CmdConfig
+**功能说明: **
+  - 检查错误码是否为FLAG_NOT_FOUND或COMMAND_NOT_FOUND
+  - 支持错误链检查
+  - 便于统一处理未找到类型的错误
+
+**使用场景: **
+  - 统一处理资源不存在的情况
+  - 区分未找到错误和其他错误
+  - 简化错误处理逻辑
+
+---
+
+### func ParseTimeWithCommonFormats(value string) (time.Time, string, error)
+
+```go
+func ParseTimeWithCommonFormats(value string) (time.Time, string, error)
+```
+
+ParseTimeWithCommonFormats 尝试使用常见格式解析时间字符串
+
+**函数功能: **
+  - 尝试使用常见格式解析时间字符串
+
+**参数:**
+  - value: 要解析的时间字符串
+
+**返回值:**
+  - time.Time: 解析后的时间
+  - string: 使用的时间格式
+  - error: 如果解析失败返回错误
+
+**说明: **
+  - 使用常见时间格式列表进行解析
+  - 返回第一个成功解析的时间和格式
+
+---
+
+### func ParseTimeWithFormats(value string, formats []string) (time.Time, string, error)
+
+```go
+func ParseTimeWithFormats(value string, formats []string) (time.Time, string, error)
+```
+
+ParseTimeWithFormats 尝试使用多种格式解析时间字符串
+
+**参数:**
+  - value: 要解析的时间字符串
+  - formats: 要尝试的时间格式列表, 按优先级排序
+
+**返回值:**
+  - time.Time: 解析后的时间
+  - string: 使用的时间格式
+  - error: 如果解析失败返回错误
+
+**功能说明: **
+  - 按给定格式列表顺序尝试解析
+  - 返回第一个成功解析的时间和格式
+  - 如果所有格式都失败, 返回错误
+
+---
+
+### func WrapParseError(err error, flagType, value string) *Error
+
+```go
+func WrapParseError(err error, flagType, value string) *Error
+```
+
+WrapParseError 包装解析错误, 专门用于标志解析场景
+
+**参数:**
+  - err: 原始解析错误
+  - flagType: 标志类型描述
+  - value: 解析失败的值
+
+**返回值:**
+  - *Error: 包装后的解析错误
+
+**功能说明: **
+  - 专门用于标志解析错误
+  - 自动生成描述性错误消息
+  - 保留原始错误信息
+
+**使用场景: **
+  - 标志值解析失败
+  - 类型转换错误
+  - 格式验证错误
+
+---
+
+## TYPES
+
+### type BuiltinFlagHandler interface
+
+```go
+type BuiltinFlagHandler interface {
+    // Handle 处理内置标志
+    //
+    // 参数:
+    //   - cmd: 要处理的命令
+    //
+    // 返回值:
+    //   - error: 处理失败时返回错误
+    //
+    // 功能说明: 
+    //   - 执行内置标志的特定操作
+    //   - 通常在执行后会调用 os.Exit 退出程序
+    //   - 例如: 帮助标志会打印帮助信息并退出
+    Handle(cmd Command) error
+
+    // Type 返回标志类型
+    //
+    // 返回值:
+    //   - BuiltinFlagType: 标志类型
+    //
+    // 功能说明: 
+    //   - 用于标识处理器处理的标志类型
+    //   - 在注册和管理时使用
+    Type() BuiltinFlagType
+
+    // ShouldRegister 判断是否应该注册此标志
+    //
+    // 参数:
+    //   - cmd: 要检查的命令
+    //
+    // 返回值:
+    //   - bool: 是否应该注册
+    //
+    // 功能说明: 
+    //   - 根据命令的配置决定是否注册此标志
+    //   - 例如: 版本标志只有在设置了版本信息时才注册
+    //   - 帮助标志总是注册
+    ShouldRegister(cmd Command) bool
+}
+```
+
+BuiltinFlagHandler 内置标志处理器接口
+
+内置标志处理器负责处理特定类型的内置标志。 每种内置标志类型都应该有一个对应的处理器实现。
+
+---
+
+### type BuiltinFlagType int
+
+```go
+type BuiltinFlagType int
+```
+
+BuiltinFlagType 内置标志类型
+
+内置标志是系统自动处理的特殊标志, 如帮助标志和版本标志。 这些标志在解析完成后会被自动检查, 如果被设置则执行相应的操作。
+
+```go
+const (
+    // HelpFlag 帮助标志
+    //
+    // 帮助标志用于显示命令的帮助信息, 包括用法、选项、子命令等。
+    // 总是会被注册, 因为所有命令都应该支持帮助功能。
+    HelpFlag BuiltinFlagType = iota
+
+    // VersionFlag 版本标志
+    //
+    // 版本标志用于显示命令的版本信息。
+    // 只有在命令设置了版本信息时才会被注册。
+    VersionFlag
+
+    // CompletionFlag 补全标志
+    //
+    // 补全标志用于生成Shell自动补全脚本。
+    // 总是会被注册, 支持bash和pwsh两种Shell类型。
+    CompletionFlag
+)
+```
+
+---
+
+### type CmdConfig struct
 
 ```go
 type CmdConfig struct {
-    // 版本信息
-    Version string
-
-    // 自定义描述
-    Desc string
-
-    // 自定义的完整命令行帮助信息
-    Help string
-
-    // 自定义用法格式说明
-    UsageSyntax string
-
-    // 模块帮助信息
-    ModuleHelps string
-
-    // logo文本
-    LogoText string
-
-    // 备注内容切片
-    Notes []string
-
-    // 示例信息切片
-    Examples []ExampleInfo
-
-    // 是否使用中文帮助信息
-    UseChinese bool
-
-    // 控制内置标志是否自动退出
-    NoFgExit bool
-
-    // 控制是否启用自动补全功能
-    Completion bool
+    Version        string            // 版本号
+    UseChinese     bool              // 是否使用中文
+    EnvPrefix      string            // 环境变量前缀
+    UsageSyntax    string            // 命令使用语法
+    Example        map[string]string // 示例使用, key为描述, value为示例命令
+    Notes          []string          // 注意事项
+    LogoText       string            // 命令logo文本
+    MutexGroups    []MutexGroup      // 互斥组列表
+    RequiredGroups []RequiredGroup   // 必需组列表
+    Completion     bool              // 是否启用自动补全标志
 }
 ```
 
-CmdConfig 命令行配置结构体，包含命令的所有配置选项。
+CmdConfig 命令配置类型
 
-**配置分类:**
-
-**基本信息:**
-- `Version`: 应用程序版本号
-- `Desc`: 命令描述信息
-- `Help`: 自定义帮助信息
-- `UsageSyntax`: 用法语法说明
-
-**扩展信息:**
-- `ModuleHelps`: 模块帮助信息
-- `LogoText`: 应用程序Logo文本
-- `Notes`: 注意事项列表
-- `Examples`: 使用示例列表
-
-**行为控制:**
-- `UseChinese`: 是否使用中文帮助信息
-- `NoFgExit`: 是否禁用内置标志自动退出
-- `Completion`: 是否启用自动补全功能
-
-#### 构造函数
-
-##### NewCmdConfig
+#### func NewCmdConfig() *CmdConfig
 
 ```go
 func NewCmdConfig() *CmdConfig
 ```
 
-NewCmdConfig 创建一个新的CmdConfig实例。
+NewCmdConfig 创建新的命令配置
 
 **返回值:**
-- `*CmdConfig`: 新创建的配置实例
+  - *CmdConfig: 新创建的 CmdConfig 实例, 初始化为零值
 
-**默认配置:**
-- 启用中文帮助信息
-- 启用内置标志自动退出
-- 启用自动补全功能
+---
 
-### CmdContext
+### type CmdRegistry interface
 
 ```go
-type CmdContext struct {
-    // 长命令名称
-    LongName string
-    // 短命令名称
-    ShortName string
-
-    // 标志注册表, 统一管理标志的元数据
-    FlagRegistry *flags.FlagRegistry
-    // 底层flag集合, 处理参数解析
-    FlagSet *flag.FlagSet
-
-    // 命令行参数(非标志参数)
-    Args []string
-    // 是否已经解析过参数
-    Parsed atomic.Bool
-    // 用于确保参数解析只执行一次
-    ParseOnce sync.Once
-    // 读写锁
-    Mutex sync.RWMutex
-
-    // 子命令上下文切片
-    SubCmds []*CmdContext
-    // 子命令映射表
-    SubCmdMap map[string]*CmdContext
-    // 父命令上下文
-    Parent *CmdContext
-
-    // 配置信息
-    Config *CmdConfig
-
-    // 内置标志结构体
-    BuiltinFlags *BuiltinFlags
-
-    // ParseHook 解析阶段钩子函数
-    // 在标志解析完成后、子命令参数处理后调用
+type CmdRegistry interface {
+    // Register 注册新命令到注册表
     //
     // 参数:
-    //   - 当前命令上下文
+    //   - cmd: 要注册的命令
     //
     // 返回值:
-    //   - error: 错误信息, 非nil时会中断解析流程
-    //   - bool: 是否需要退出程序
-    ParseHook func(*CmdContext) (error, bool)
+    //   - error: 注册失败时返回错误
+    //
+    // 错误情况: 
+    //   - 命令为nil或名称为空
+    //   - 命令名称已存在
+    Register(cmd Command) error
+
+    // Unregister 从注册表中移除指定命令
+    //
+    // 参数:
+    //   - name: 要移除的命令名称
+    //
+    // 返回值:
+    //   - error: 移除失败时返回错误
+    //
+    // 错误情况: 
+    //   - 命令不存在
+    Unregister(name string) error
+
+    // Get 根据名称获取命令
+    //
+    // 参数:
+    //   - name: 命令名称
+    //
+    // 返回值:
+    //   - Command: 找到的命令
+    //   - bool: 是否找到, true表示找到
+    //
+    // 功能说明: 
+    //   - 支持长名称查找
+    //   - 未找到时返回零值和false
+    Get(name string) (Command, bool)
+
+    // List 获取所有注册的命令列表
+    //
+    // 返回值:
+    //   - []Command: 所有命令的切片
+    //
+    // 功能说明: 
+    //   - 返回注册表中所有命令
+    //   - 顺序不确定, 取决于实现
+    List() []Command
+
+    // Has 检查指定名称的命令是否存在
+    //
+    // 参数:
+    //   - name: 要检查的命令名称
+    //
+    // 返回值:
+    //   - bool: 是否存在, true表示存在
+    //
+    // 功能说明: 
+    //   - 快速存在性检查
+    //   - 不返回命令本身, 提高效率
+    Has(name string) bool
+
+    // Count 获取注册表中的命令数量
+    //
+    // 返回值:
+    //   - int: 命令总数
+    //
+    // 功能说明: 
+    //   - 返回当前注册的命令数量
+    //   - 时间复杂度应为O(1)
+    Count() int
+
+    // Clear 清空注册表中的所有命令
+    //
+    // 功能说明: 
+    //   - 移除所有命令
+    //   - 重置注册表到初始状态
+    //   - 释放相关内存
+    Clear()
 }
 ```
 
-CmdContext 命令上下文，包含所有必要的状态信息。这是所有函数操作的核心数据结构。
+CmdRegistry 命令注册表接口
 
-**结构分类:**
+CmdRegistry 定义了命令注册和管理的标准接口, 提供了 命令的完整生命周期管理功能。
 
-**基本标识:**
-- `LongName`: 命令的长名称
-- `ShortName`: 命令的短名称
+**核心功能: **
+  - 命令的注册和注销
+  - 基于名称的查找和检索
+  - 批量操作和遍历支持
+  - 存在性检查和计数
 
-**标志管理:**
-- `FlagRegistry`: 标志注册表，管理标志元数据
-- `FlagSet`: 底层标志集合，处理参数解析
+**设计特点: **
+  - 支持长名称和短名称查找
+  - 提供统一的错误处理
+  - 支持别名管理 (通过具体实现) 
+  - 线程安全由具体实现保证
 
-**解析状态:**
-- `Args`: 解析后的非标志参数
-- `Parsed`: 原子布尔值，标记是否已解析
-- `ParseOnce`: 确保解析只执行一次
-- `Mutex`: 读写锁，保证并发安全
+---
 
-**层级结构:**
-- `SubCmds`: 子命令上下文列表
-- `SubCmdMap`: 子命令映射表，用于快速查找
-- `Parent`: 父命令上下文引用
-
-**配置和扩展:**
-- `Config`: 命令配置信息
-- `BuiltinFlags`: 内置标志管理
-- `ParseHook`: 解析钩子函数
-
-#### 构造函数
-
-##### NewCmdContext
+### type Command interface
 
 ```go
-func NewCmdContext(longName, shortName string, errorHandling flag.ErrorHandling) *CmdContext
+type Command interface {
+    // 基本属性
+    Name() string      // 命令名称, 用于匹配和显示
+    LongName() string  // 长名称, 用于显示和帮助
+    ShortName() string // 短名称, 用于命令行输入
+    Desc() string      // 命令描述, 用于帮助显示
+
+    // 标志管理
+    AddFlag(flag Flag) error          // 添加一个标志到命令
+    AddFlags(flags ...Flag) error     // 添加多个标志到命令
+    AddFlagsFrom(flags []Flag) error  // 从切片添加多个标志
+    GetFlag(name string) (Flag, bool) // 根据名称获取标志
+    Flags() []Flag                    // 获取所有标志
+    FlagRegistry() FlagRegistry       // 获取标志注册器
+
+    // 子命令管理
+    AddSubCmds(cmds ...Command) error      // 添加多个子命令
+    AddSubCmdFrom(cmds []Command) error    // 从切片添加子命令
+    GetSubCmd(name string) (Command, bool) // 根据名称获取子命令
+    SubCmds() []Command                    // 获取所有子命令
+    HasSubCmd(name string) bool            // 是否有指定名称的子命令
+    CmdRegistry() CmdRegistry              // 获取子命令注册器
+
+    // 命令层次
+    IsRootCmd() bool // 是否为根命令
+    Path() string    // 命令的路径, 用于显示和帮助
+
+    // 参数解析
+    Parse(args []string) error         // 解析命令行参数
+    ParseAndRoute(args []string) error // 解析并路由到子命令
+    ParseOnly(args []string) error     // 仅解析参数, 不路由
+    IsParsed() bool                    // 是否已解析参数
+    SetParsed(parsed bool)             // 设置解析状态
+
+    // 参数访问
+    Args() []string        // 获取所有参数
+    Arg(index int) string  // 获取指定索引的参数
+    NArg() int             // 获取参数数量
+    SetArgs(args []string) // 设置参数
+
+    // 执行
+    Run() error                    // 执行命令
+    SetRun(fn func(Command) error) // 设置执行函数
+    HasRunFunc() bool              // 是否有执行函数
+
+    // 帮助信息
+    Help() string // 获取命令帮助信息
+    PrintHelp()   // 打印命令帮助信息
+
+    // 配置
+    SetParser(p Parser)                     // 设置解析器
+    SetDesc(desc string)                    // 设置命令描述
+    SetVersion(version string)              // 设置命令版本
+    SetChinese(useChinese bool)             // 设置是否使用中文
+    SetEnvPrefix(prefix string)             // 设置环境变量前缀
+    SetUsageSyntax(syntax string)           // 设置命令行语法
+    AddExample(title, cmd string)           // 添加一个示例
+    AddExamples(examples map[string]string) // 添加多个示例
+    AddNote(note string)                    // 添加一条注意事项
+    AddNotes(notes []string)                // 添加多条注意事项
+    SetLogoText(logo string)                // 设置命令logo文本
+    Config() *CmdConfig                     // 获取命令配置
+}
 ```
 
-NewCmdContext 创建新的命令上下文。
+Command 接口定义了命令的核心行为
+
+---
+
+### type Error struct
+
+```go
+type Error struct {
+    Code    string // 错误码, 用于错误分类
+    Message string // 错误消息, 面向用户
+    Cause   error  // 原始错误, 底层错误原因
+}
+```
+
+Error 错误类型
+
+Error 是qflag项目的标准错误类型, 提供了结构化的错误信息。 包含错误码、错误消息和原始错误, 便于错误分类和处理。
+
+**字段说明: **
+  - Code: 错误码, 用于错误分类和程序化处理
+  - Message: 错误消息, 面向用户的描述信息
+  - Cause: 原始错误, 包装的底层错误
+
+**特性: **
+  - 实现error接口
+  - 支持错误链 (errors.Unwrap) 
+  - 支持错误比较 (errors.Is) 
+  - 提供错误码匹配
+
+#### func NewError(code, message string, cause error) *Error
+
+```go
+func NewError(code, message string, cause error) *Error
+```
+
+NewError 创建新的错误
 
 **参数:**
-- `longName`: 长命令名称
-- `shortName`: 短命令名称
-- `errorHandling`: 错误处理方式
+  - code: 错误码, 用于错误分类和识别
+  - message: 错误消息, 面向用户的描述信息
+  - cause: 原始错误, 可以为nil
 
 **返回值:**
-- `*CmdContext`: 新创建的命令上下文
+  - *Error: 新创建的错误实例
 
-**错误处理选项:**
-- `flag.ContinueOnError`: 解析标志时遇到错误继续解析，并返回错误信息
-- `flag.ExitOnError`: 解析标志时遇到错误立即退出程序，并返回错误信息
-- `flag.PanicOnError`: 解析标志时遇到错误立即触发panic
+**功能说明: **
 
-#### 方法
-
-##### GetName
+#### func (e *Error) Error() string
 
 ```go
-func (ctx *CmdContext) GetName() string
+func (e *Error) Error() string
 ```
 
-GetName 获取命令名称。如果长命令名称不为空则返回长命令名称，否则返回短命令名称。
+Error 实现 error 接口
 
 **返回值:**
-- `string`: 命令名称
+  - string: 格式化的错误字符串
 
-**逻辑:**
-- 优先返回长名称
-- 长名称为空时返回短名称
-- 用于显示和日志记录
+**功能说明: **
+  - 返回用户友好的错误信息
+  - 包含原始错误信息 (如果有) 
+  - 格式: 消息 + ": " + 原始错误
 
-### ExampleInfo
+#### func (e *Error) Is(target error) bool
 
 ```go
-type ExampleInfo struct {
-    Desc string // 示例描述
-    Usage       string // 示例使用方式
-}
+func (e *Error) Is(target error) bool
 ```
 
-ExampleInfo 示例信息结构体，用于存储命令的使用示例，包括描述和示例内容。
+Is 判断错误是否相同
 
-**字段:**
-- `Desc`: 示例描述，说明示例的用途和场景
-- `Usage`: 示例使用方式，具体的命令行用法
+**参数:**
+  - target: 要比较的目标错误
 
-**用途:**
-- 在帮助信息中展示使用示例
-- 提供用户参考和学习材料
-- 支持多个示例的组织和管理
+**返回值:**
+  - bool: 是否相同, true表示相同
 
-## 使用示例
+**功能说明: **
+  - 基于错误码进行比较
+  - 支持errors.Is函数
+  - 忽略错误消息和原始错误
 
-### 创建基本命令上下文
+#### func (e *Error) Unwrap() error
 
 ```go
-package main
+func (e *Error) Unwrap() error
+```
 
-import (
-    "flag"
-    "gitee.com/MM-Q/qflag/internal/types"
+Unwrap 实现 errors.Unwrap 接口
+
+**返回值:**
+  - error: 原始错误
+
+**功能说明: **
+  - 支持错误链操作
+  - 允许使用errors.Unwrap获取底层错误
+  - 支持errors.As和errors.Is
+
+---
+
+### type ErrorHandling = flag.ErrorHandling
+
+```go
+type ErrorHandling = flag.ErrorHandling
+```
+
+ErrorHandling 错误处理方式枚举
+
+ErrorHandling 定义了解析错误时的处理策略, 直接使用标准库 flag包的错误处理方式, 保持兼容性。
+
+**可选值: **
+  - ContinueOnError: 解析错误时继续解析并返回错误
+  - ExitOnError: 解析错误时退出程序
+  - PanicOnError: 解析错误时触发panic
+
+```go
+var (
+    // ContinueOnError 解析错误时继续解析并返回错误
+    //
+    // 使用场景: 
+    //   - 需要收集所有错误
+    //   - 自定义错误处理逻辑
+    //   - 交互式应用
+    ContinueOnError ErrorHandling = flag.ContinueOnError
+
+    // ExitOnError 解析错误时退出程序
+    //
+    // 使用场景: 
+    //   - 简单命令行工具
+    //   - 错误即致命的应用
+    //   - 脚本和自动化工具
+    ExitOnError ErrorHandling = flag.ExitOnError
+
+    // PanicOnError 解析错误时触发panic
+    //
+    // 使用场景: 
+    //   - 开发和测试环境
+    //   - 需要快速失败的场景
+    //   - 调试和诊断
+    PanicOnError ErrorHandling = flag.PanicOnError
 )
+```
 
-func main() {
-    // 创建命令上下文
-    ctx := types.NewCmdContext("myapp", "app", flag.ExitOnError)
-    
-    // 设置配置
-    ctx.Config = types.NewCmdConfig()
-    ctx.Config.Version = "1.0.0"
-    ctx.Config.Desc = "我的应用程序"
-    
-    // 使用上下文...
+---
+
+### type Flag interface
+
+```go
+type Flag interface {
+    // Name 获取标志名称
+    //
+    // 返回值:
+    //   - string: 标志的完整名称
+    //
+    // 功能说明: 
+    //   - 返回标志的主要标识符
+    //   - 用于命令行参数和查找
+    //   - 名称在注册表中必须唯一
+    Name() string
+
+    // LongName 获取标志长名称
+    //
+    // 返回值:
+    //   - string: 标志的长名称
+    //
+    // 功能说明: 
+    //   - 与Name方法功能相同
+    //   - 提供语义明确的方法名
+    //   - 保持接口一致性
+    LongName() string
+
+    // ShortName 获取标志短名称
+    //
+    // 返回值:
+    //   - string: 标志的短名称
+    //
+    // 功能说明: 
+    //   - 返回标志的简短形式
+    //   - 通常为单个字符
+    //   - 可能为空字符串
+    ShortName() string
+
+    // Desc 获取标志描述
+    //
+    // 返回值:
+    //   - string: 标志的描述信息
+    //
+    // 功能说明: 
+    //   - 返回标志的功能说明
+    //   - 用于帮助信息生成
+    //   - 应简洁明了地描述标志用途
+    Desc() string
+
+    // Type 获取标志类型
+    //
+    // 返回值:
+    //   - FlagType: 标志的类型枚举
+    //
+    // 功能说明: 
+    //   - 返回标志的数据类型
+    //   - 用于类型检查和转换
+    //   - 决定解析和验证逻辑
+    Type() FlagType
+
+    // Set 设置标志值
+    //
+    // 参数:
+    //   - value: 要设置的字符串值
+    //
+    // 返回值:
+    //   - error: 设置失败时返回错误
+    //
+    // 功能说明: 
+    //   - 从字符串解析并设置值
+    //   - 自动进行类型转换
+    //   - 更新内部状态和标记
+    Set(value string) error
+
+    // GetDef 获取默认值
+    //
+    // 返回值:
+    //   - any: 标志的默认值
+    //
+    // 功能说明: 
+    //   - 返回初始化时设置的默认值
+    //   - 用于帮助信息显示
+    //   - 用户未设置值时使用此值
+    GetDef() any
+
+    // GetStr 获取标志当前值的字符串表示
+    //
+    // 返回值:
+    //   - string: 标志当前值的字符串表示
+    //
+    // 功能说明: 
+    //   - 获取标志当前值的字符串表示
+    //   - 与String()方法不同, 此方法专注于值本身
+    //   - 用于内置标志处理中获取标志值
+    GetStr() string
+
+    // IsSet 检查标志是否被用户设置
+    //
+    // 返回值:
+    //   - bool: 是否被设置, true表示已设置
+    //
+    // 功能说明: 
+    //   - 区分默认值和用户设置值
+    //   - 用于必填标志检查
+    //   - 影响某些标志的行为逻辑
+    IsSet() bool
+
+    // Reset 重置标志到默认状态
+    //
+    // 功能说明: 
+    //   - 清除用户设置的值
+    //   - 恢复到默认值
+    //   - 重置设置状态标记
+    Reset()
+
+    // String 获取标志值的字符串表示
+    //
+    // 返回值:
+    //   - string: 值的字符串表示
+    //
+    // 功能说明: 
+    //   - 实现fmt.Stringer接口
+    //   - 用于显示和日志输出
+    //   - 格式应与输入格式兼容
+    String() string
+
+    // BindEnv 绑定环境变量
+    //
+    // 参数:
+    //   - name: 环境变量名称
+    //
+    // 功能说明: 
+    //   - 从环境变量读取默认值
+    //   - 优先级低于命令行参数
+    //   - 支持配置文件和环境变量
+    BindEnv(name string)
+
+    // GetEnvVar 获取绑定的环境变量名
+    //
+    // 返回值:
+    //   - string: 环境变量名称
+    //
+    // 功能说明: 
+    //   - 返回当前绑定的环境变量
+    //   - 未绑定时返回空字符串
+    //   - 用于调试和配置管理
+    GetEnvVar() string
+
+    // EnumValues 获取枚举类型的可选值
+    //
+    // 返回值:
+    //   - []string: 枚举类型的可选值列表
+    //
+    // 功能说明: 
+    //   - 非枚举类型返回空切片
+    //   - 枚举类型返回所有可选值
+    //   - 用于补全脚本生成和验证
+    EnumValues() []string
 }
 ```
 
-### 配置命令信息
+Flag 接口定义了标志的核心行为
+
+Flag 是所有标志类型必须实现的基础接口, 定义了标志的 基本操作和属性。所有具体标志类型都应实现此接口。
+
+**设计原则: **
+  - 提供统一的标志操作接口
+  - 支持多种数据类型
+  - 支持验证和环境变量绑定
+  - 提供完整的生命周期管理
+
+---
+
+### type FlagRegistry interface
 
 ```go
-func setupCommand() *types.CmdContext {
-    ctx := types.NewCmdContext("deploy", "d", flag.ContinueOnError)
-    
-    // 配置基本信息
-    config := types.NewCmdConfig()
-    config.Version = "2.1.0"
-    config.Desc = "部署应用程序到服务器"
-    config.UsageSyntax = "deploy [选项] <目标环境>"
-    
-    // 添加注意事项
-    config.Notes = []string{
-        "部署前请确保目标环境可访问",
-        "建议在部署前进行备份",
-    }
-    
-    // 添加使用示例
-    config.Examples = []types.ExampleInfo{
-        {
-            Desc: "部署到生产环境",
-            Usage:       "deploy --env production --config prod.yaml",
-        },
-        {
-            Desc: "部署到测试环境",
-            Usage:       "deploy --env staging --dry-run",
-        },
-    }
-    
-    ctx.Config = config
-    return ctx
+type FlagRegistry interface {
+    // Register 注册新标志到注册表
+    //
+    // 参数:
+    //   - flag: 要注册的标志
+    //
+    // 返回值:
+    //   - error: 注册失败时返回错误
+    //
+    // 错误情况: 
+    //   - 标志为nil或名称为空
+    //   - 标志名称已存在
+    Register(flag Flag) error
+
+    // Unregister 从注册表中移除指定标志
+    //
+    // 参数:
+    //   - name: 要移除的标志名称
+    //
+    // 返回值:
+    //   - error: 移除失败时返回错误
+    //
+    // 错误情况: 
+    //   - 标志不存在
+    Unregister(name string) error
+
+    // Get 根据名称获取标志
+    //
+    // 参数:
+    //   - name: 标志名称
+    //
+    // 返回值:
+    //   - Flag: 找到的标志
+    //   - bool: 是否找到, true表示找到
+    //
+    // 功能说明: 
+    //   - 支持长名称查找
+    //   - 未找到时返回零值和false
+    Get(name string) (Flag, bool)
+
+    // List 获取所有注册的标志列表
+    //
+    // 返回值:
+    //   - []Flag: 所有标志的切片
+    //
+    // 功能说明: 
+    //   - 返回注册表中所有标志
+    //   - 顺序不确定, 取决于实现
+    List() []Flag
+
+    // Has 检查指定名称的标志是否存在
+    //
+    // 参数:
+    //   - name: 要检查的标志名称
+    //
+    // 返回值:
+    //   - bool: 是否存在, true表示存在
+    //
+    // 功能说明: 
+    //   - 快速存在性检查
+    //   - 不返回标志本身, 提高效率
+    Has(name string) bool
+
+    // Count 获取注册表中的标志数量
+    //
+    // 返回值:
+    //   - int: 标志总数
+    //
+    // 功能说明: 
+    //   - 返回当前注册的标志数量
+    //   - 时间复杂度应为O(1)
+    Count() int
+
+    // Clear 清空注册表中的所有标志
+    //
+    // 功能说明: 
+    //   - 移除所有标志
+    //   - 重置注册表到初始状态
+    //   - 释放相关内存
+    Clear()
 }
 ```
 
-### 管理子命令
+FlagRegistry 标志注册表接口
+
+FlagRegistry 定义了标志注册和管理的标准接口, 提供了 标志的完整生命周期管理功能。
+
+**核心功能: **
+  - 标志的注册和注销
+  - 基于名称的查找和检索
+  - 批量操作和遍历支持
+  - 存在性检查和计数
+
+**设计特点: **
+  - 支持长名称和短名称查找
+  - 提供统一的错误处理
+  - 支持别名管理 (通过具体实现) 
+  - 线程安全由具体实现保证
+
+---
+
+### type FlagType int
 
 ```go
-func setupSubCommands(parent *types.CmdContext) {
-    // 创建子命令
-    startCmd := types.NewCmdContext("start", "s", flag.ExitOnError)
-    startCmd.Config = types.NewCmdConfig()
-    startCmd.Config.Desc = "启动服务"
-    startCmd.Parent = parent
-    
-    stopCmd := types.NewCmdContext("stop", "st", flag.ExitOnError)
-    stopCmd.Config = types.NewCmdConfig()
-    stopCmd.Config.Desc = "停止服务"
-    stopCmd.Parent = parent
-    
-    // 添加到父命令
-    parent.SubCmds = append(parent.SubCmds, startCmd, stopCmd)
-    
-    // 建立映射关系
-    if parent.SubCmdMap == nil {
-        parent.SubCmdMap = make(map[string]*types.CmdContext)
-    }
-    parent.SubCmdMap["start"] = startCmd
-    parent.SubCmdMap["s"] = startCmd
-    parent.SubCmdMap["stop"] = stopCmd
-    parent.SubCmdMap["st"] = stopCmd
+type FlagType int
+```
+
+FlagType 标志类型枚举
+
+FlagType 定义了所有支持的标志类型, 用于类型识别和 特定处理逻辑的实现。
+
+**设计原则: **
+  - 每种类型对应一种数据格式
+  - 支持基础类型和复合类型
+  - 便于类型检查和转换
+
+```go
+const (
+    FlagTypeUnknown FlagType = iota // 未知标志类型, 用于错误处理
+
+    // 基础类型
+    FlagTypeString  // 字符串标志, 存储任意文本
+    FlagTypeInt     // 整数标志, 平台相关int类型
+    FlagTypeInt64   // 64位整数标志, 固定64位整数
+    FlagTypeUint    // 无符号整数标志, 平台相关uint类型
+    FlagTypeUint8   // 8位无符号整数标志, 0-255
+    FlagTypeUint16  // 16位无符号整数标志, 0-65535
+    FlagTypeUint32  // 32位无符号整数标志, 0-4294967295
+    FlagTypeUint64  // 64位无符号整数标志, 0-18446744073709551615
+    FlagTypeFloat64 // 64位浮点数标志, IEEE 754双精度
+    FlagTypeBool    // 布尔标志, true/false值
+
+    // 特殊类型
+    FlagTypeEnum // 枚举标志, 限制为预定义值集合
+
+    // 时间和大小类型
+    FlagTypeDuration // 持续时间标志, 支持时间单位解析
+    FlagTypeTime     // 时间标志, 支持多种时间格式
+    FlagTypeSize     // 大小标志, 支持存储单位解析
+
+    // 集合类型
+    FlagTypeMap         // 映射标志, 键值对集合
+    FlagTypeStringSlice // 字符串切片标志, 字符串数组
+    FlagTypeIntSlice    // 整数切片标志, 整数数组
+    FlagTypeInt64Slice  // 64位整数切片标志, 64位整数数组
+)
+```
+
+#### func (t FlagType) IsNumericType() bool
+
+```go
+func (t FlagType) IsNumericType() bool
+```
+
+IsNumericType 检查是否为数值类型
+
+**返回值:**
+  - bool: 是否为数值类型, true表示是
+
+**功能说明: **
+  - 识别所有数值类型的标志
+  - 包括整数、浮点数和大小类型
+  - 用于数值范围验证
+
+#### func (t FlagType) IsSliceType() bool
+
+```go
+func (t FlagType) IsSliceType() bool
+```
+
+IsSliceType 检查是否为切片类型
+
+**返回值:**
+  - bool: 是否为切片类型, true表示是
+
+**功能说明: **
+  - 识别所有切片类型的标志
+  - 用于特殊处理逻辑
+  - 支持多值输入的标志
+
+#### func (t FlagType) IsValid() bool
+
+```go
+func (t FlagType) IsValid() bool
+```
+
+IsValid 检查标志类型是否有效
+
+**返回值:**
+  - bool: 是否有效, true表示有效
+
+**功能说明: **
+  - 排除未知类型
+  - 用于类型验证
+  - 确保类型在预定义范围内
+
+#### func (t FlagType) String() string
+
+```go
+func (t FlagType) String() string
+```
+
+String 返回标志类型的字符串表示
+
+**返回值:**
+  - string: 类型的可读字符串表示
+
+**功能说明: **
+  - 提供人类可读的类型名称
+  - 用于错误消息和日志
+  - 未知类型返回格式化字符串
+
+**示例: **
+  - FlagTypeString -> "string"
+  - FlagTypeIntSlice -> "[]int"
+  - FlagType(999) -> "FlagType(999)"
+
+---
+
+### type MutexGroup struct
+
+```go
+type MutexGroup struct {
+    Name      string   // 互斥组名称, 用于错误提示和标识
+    Flags     []string // 互斥组中的标志名称列表
+    AllowNone bool     // 是否允许一个都不设置
 }
 ```
 
-### 使用内置标志
+MutexGroup 互斥组定义
+
+MutexGroup 定义了一组互斥的标志, 其中最多只能有一个被设置。 当用户设置了互斥组中的多个标志时, 解析器会返回错误。
+
+**字段说明: **
+  - Name: 互斥组名称, 用于错误提示和标识
+  - Flags: 互斥组中的标志名称列表
+  - AllowNone: 是否允许一个都不设置
+
+**使用场景: **
+  - 输出格式互斥 (如 --json 和 --xml 不能同时使用) 
+  - 操作模式互斥 (如 --create 和 --update 不能同时使用) 
+  - 必选选项 (如必须指定 --file 或 --url 中的一个) 
+
+---
+
+### type RequiredGroup struct
 
 ```go
-func setupBuiltinFlags(ctx *types.CmdContext) {
-    // 创建内置标志
-    ctx.BuiltinFlags = types.NewBuiltinFlags()
-    
-    // 检查是否为内置标志
-    if ctx.BuiltinFlags.IsBuiltinFlag("help") {
-        fmt.Println("help 是内置标志")
-    }
-    
-    // 标记自定义标志为内置
-    ctx.BuiltinFlags.MarkAsBuiltin("debug", "verbose")
+type RequiredGroup struct {
+    Name  string   // 必需组名称，用于错误提示和标识
+    Flags []string // 必需组中的标志名称列表
 }
 ```
 
-### 设置解析钩子
+RequiredGroup 必需组定义
+
+RequiredGroup 定义了一组必须同时设置的标志。 当用户没有设置必需组中的所有标志时, 解析器会返回错误。
+
+**字段说明:**
+  - Name: 必需组名称, 用于错误提示和标识
+  - Flags: 必需组中的标志名称列表
+
+**使用场景:**
+  - 连接参数必需 (如 --host 和 --port 必须同时设置)
+  - 认证参数必需 (如 --username 和 --password 必须同时设置)
+  - 配置文件路径必需 (如 --config 和 --env 必须同时设置)
+
+**注意事项:**
+  - 必需组中的所有标志都必须被设置
+  - 如果只设置了部分标志, 解析会失败
+  - 必需组名称在命令中应该唯一
+
+---
+
+### type Validator[T any]
 
 ```go
-func setupParseHook(ctx *types.CmdContext) {
-    ctx.ParseHook = func(context *types.CmdContext) (error, bool) {
-        // 在解析完成后执行自定义逻辑
-        fmt.Printf("解析完成，命令: %s\n", context.GetName())
-        
-        // 检查必需的参数
-        if len(context.Args) == 0 {
-            return fmt.Errorf("缺少必需的参数"), false
-        }
-        
-        // 执行验证逻辑
-        if err := validateArgs(context.Args); err != nil {
-            return err, false
-        }
-        
-        // 正常继续执行
-        return nil, false
-    }
-}
+type Validator[T any] func(value T) error
+```
 
-func validateArgs(args []string) error {
-    // 自定义验证逻辑
-    for _, arg := range args {
-        if arg == "" {
-            return fmt.Errorf("参数不能为空")
-        }
+Validator 验证器函数类型
+
+Validator 是一个泛型函数类型，用于验证标志值的有效性。验证器接收一个类型为 T 的值，返回错误信息。
+
+**参数:**
+  - value: 要验证的值
+
+**返回值:**
+  - error: 验证失败时返回错误，验证通过返回 nil
+
+**功能说明:**
+  - 验证器在标志的 Set 方法中被调用
+  - 在解析完值后、设置值之前执行验证
+  - 如果验证失败，Set 方法会返回错误，标志值不会被设置
+  - 验证器是可选的，未设置时跳过验证
+  - 重复设置验证器会覆盖之前的验证器
+
+**使用示例:**
+
+```go
+// 端口号验证：1-65535
+port.SetValidator(func(value int) error {
+    if value < 1 || value > 65535 {
+        return fmt.Errorf("端口 %d 超出范围 [1, 65535]", value)
     }
     return nil
+})
+
+// 字符串长度验证：3-20个字符
+username.SetValidator(func(value string) error {
+    if len(value) < 3 || len(value) > 20 {
+        return fmt.Errorf("用户名长度 %d 超出范围 [3, 20]", len(value))
+    }
+    return nil
+})
+
+// 邮箱格式验证
+email.SetValidator(func(value string) error {
+    if !isValidEmail(value) {
+        return fmt.Errorf("邮箱格式无效: %s", value)
+    }
+    return nil
+})
+
+// 自定义验证：检查端口是否被占用
+port.SetValidator(func(value int) error {
+    if isPortInUse(value) {
+        return fmt.Errorf("端口 %d 已被占用", value)
+    }
+    return nil
+})
+```
+
+**注意事项:**
+  - 验证器应该快速执行，避免耗时操作
+  - 验证器返回的错误应该清晰描述失败原因
+  - 验证器执行时已经持有锁，验证器本身不需要处理并发
+  - 空字符串（对于 BoolFlag 和集合类型）不经过验证
+  - 验证器可以随时通过 ClearValidator 清除
+
+---
+
+### type OptionInfo struct
+
+```go
+type OptionInfo struct {
+    NamePart string
+    Desc     string
+    DefValue string
 }
 ```
 
-## 设计特点
+用于存储选项的信息
 
-1. **类型安全** - 使用强类型定义，避免运行时错误
-2. **并发安全** - 使用原子操作和锁机制保证并发安全
-3. **层级结构** - 支持命令和子命令的层级组织
-4. **配置驱动** - 通过配置结构体灵活控制行为
-5. **扩展性强** - 提供钩子函数支持自定义逻辑
+---
 
-## 内存管理
+### type Parser interface
 
-- 上下文结构体使用指针传递，避免大结构体复制
-- 子命令映射使用map提供O(1)查找性能
-- 原子操作避免锁竞争，提高并发性能
-- 合理的字段布局减少内存对齐开销
+```go
+type Parser interface {
+    // ParseOnly 解析当前命令的参数, 不递归解析子命令
+    //
+    // 参数:
+    //   - cmd: 要解析的命令
+    //   - args: 命令行参数列表
+    //
+    // 返回值:
+    //   - error: 解析失败时返回错误
+    //
+    // 功能说明: 
+    //   - 仅解析当前命令的标志和参数
+    //   - 不处理子命令的解析
+    //   - 适用于需要手动控制子命令处理的场景
+    //
+    // 使用场景: 
+    //   - 多阶段解析
+    //   - 自定义子命令处理逻辑
+    //   - 参数预处理和验证
+    ParseOnly(cmd Command, args []string) error
 
-## 最佳实践
+    // Parse 单纯解析, 递归解析子命令
+    //
+    // 参数:
+    //   - cmd: 要解析的根命令
+    //   - args: 命令行参数列表
+    //
+    // 返回值:
+    //   - error: 解析失败时返回错误
+    //
+    // 功能说明: 
+    //   - 解析根命令的标志和参数
+    //   - 递归解析所有子命令
+    //   - 构建完整的命令树结构
+    //   - 不执行任何命令的运行函数
+    //
+    // 使用场景: 
+    //   - 命令结构验证
+    //   - 帮助信息生成
+    //   - 配置预检查
+    Parse(cmd Command, args []string) error
 
-1. **初始化顺序**: 先创建上下文，再设置配置，最后注册标志
-2. **错误处理**: 根据应用场景选择合适的错误处理策略
-3. **并发使用**: 在多goroutine环境中注意使用读写锁
-4. **资源清理**: 及时清理不再使用的上下文引用
-5. **配置管理**: 使用配置结构体统一管理命令行为
+    // ParseAndRoute 解析并且路由执行
+    //
+    // 参数:
+    //   - cmd: 要解析和执行的根命令
+    //   - args: 命令行参数列表
+    //
+    // 返回值:
+    //   - error: 解析或执行失败时返回错误
+    //
+    // 功能说明: 
+    //   - 解析根命令和所有子命令
+    //   - 根据参数路由到相应的命令
+    //   - 执行最终目标命令的运行函数
+    //   - 提供完整的命令行处理流程
+    //
+    // 执行流程: 
+    //   1. 解析根命令的标志和参数
+    //   2. 识别并解析子命令
+    //   3. 递归处理直到找到最终命令
+    //   4. 执行最终命令的Run函数
+    //
+    // 使用场景: 
+    //   - 标准命令行应用
+    //   - CLI工具的主入口
+    //   - 自动化脚本执行
+    ParseAndRoute(cmd Command, args []string) error
+}
+```
 
-## 注意事项
+Parser 解析器接口
 
-- 命令上下文创建后不应修改基本标识字段
-- 解析状态字段由系统管理，不应手动修改
-- 子命令映射表需要与子命令列表保持同步
-- 钩子函数应避免长时间阻塞操作
-- 配置修改应在解析之前完成
+Parser 定义了命令行参数解析的标准接口, 提供了不同层次的 解析功能, 从简单的参数解析到完整的命令路由执行。
+
+**设计理念: **
+  - 分层设计: 提供不同层次的解析功能
+  - 灵活性: 支持仅解析、解析+路由等多种使用模式
+  - 可扩展性: 接口设计允许不同的解析策略实现
+
+**使用场景: **
+  - 命令行工具的参数解析
+  - 子命令系统的路由管理
+  - 配置管理和参数验证
+
+---
+
+### type SubCmdInfo struct
+
+```go
+type SubCmdInfo struct {
+    Name string
+    Desc string
+}
+```
+
+用于存储子命令的信息

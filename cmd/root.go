@@ -17,56 +17,44 @@ import (
 // InitAndRun 初始化并运行命令行参数
 func InitAndRun() {
 	// 注册全局标志
-	generateConfigFlag = qflag.Root.Bool("generate-config", "gcf", false, "生成默认配置文件")
-	forceFlag = qflag.Root.Bool("force", "f", false, "强制操作（覆盖已存在文件）")
-	listFlag = qflag.Root.Bool("list", "l", false, "列出可用的构建任务")
+	generateConfigFlag = qflag.Root.Bool("generate-config", "gcf", "生成默认配置文件", false)
+	forceFlag = qflag.Root.Bool("force", "f", "强制操作 (覆盖已存在文件)", false)
+	listFlag = qflag.Root.Bool("list", "l", "列出可用的构建任务", false)
 	runFlag = qflag.Root.String("run", "r", "", "运行指定的构建任务（自动在 gobf/ 目录下查找）")
 
 	// 初始化相关标志
-	initFlag = qflag.Root.Bool("init", "i", false, "初始化gob构建文件")
+	initFlag = qflag.Root.Bool("init", "i", "初始化gob构建文件", false)
 	nameFlag = qflag.Root.String("name", "n", "", "指定生成的项目名称, 默认从go.mod读取")
 	mainFileFlag = qflag.Root.String("main", "m", "main.go", "指定入口文件, 默认为main.go")
 
-	// 设置命令行工具的配置
-	rootCmdCfg := qflag.CmdConfig{
-		UsageSyntax: fmt.Sprintf("%s [options] [build-file]", filepath.Base(os.Args[0])),
-		UseChinese:  true,
-		Completion:  true,
+	// 设置命令行工具选项配置
+	rootCmdOpts := &qflag.CmdOpts{
 		Desc:        "gob 构建工具 - 支持自定义安装路径和跨平台构建的Go项目构建工具",
+		UsageSyntax: fmt.Sprintf("%s [options] [build-file]", qflag.Root.Name()),
+		UseChinese:  true,
 		Version:     verman.V.Version(),
+		Completion:  true,
 		Notes: []string{
 			"[build-file] 指定gob配置文件路径, 默认为gob.toml",
 			"所有构建参数必须通过配置文件指定，不再支持命令行参数",
 		},
-		Examples: []qflag.ExampleInfo{
-			{
-				Desc:  "初始化gob构建文件 (生成 gobf/ 目录)",
-				Usage: fmt.Sprintf("%s --init", os.Args[0]),
-			},
-			{
-				Desc:  "生成默认配置文件 (gob.toml)",
-				Usage: fmt.Sprintf("%s --generate-config", os.Args[0]),
-			},
-			{
-				Desc:  "列出可用的构建任务",
-				Usage: fmt.Sprintf("%s --list", os.Args[0]),
-			},
-			{
-				Desc:  "运行指定的构建任务（快捷方式）",
-				Usage: fmt.Sprintf("%s --run dev", os.Args[0]),
-			},
-			{
-				Desc:  "使用指定配置文件构建",
-				Usage: fmt.Sprintf("%s gobf/dev.toml", os.Args[0]),
-			},
-			{
-				Desc:  "使用默认配置文件构建",
-				Usage: os.Args[0],
-			},
+		Examples: map[string]string{
+			"初始化gob构建文件 (生成 gobf/ 目录)": fmt.Sprintf("%s --init", qflag.Root.Name()),
+			"生成默认配置文件 (gob.toml)":      fmt.Sprintf("%s --generate-config", qflag.Root.Name()),
+			"列出可用的构建任务":                fmt.Sprintf("%s --list", qflag.Root.Name()),
+			"运行指定的构建任务（快捷方式）":          fmt.Sprintf("%s --run dev", qflag.Root.Name()),
+			"使用指定配置文件构建":               fmt.Sprintf("%s gobf/dev.toml", qflag.Root.Name()),
+			"使用默认配置文件构建":               qflag.Root.Name(),
 		},
 	}
-	qflag.ApplyConfig(rootCmdCfg)
 
+	// 应用命令行工具选项配置
+	if err := qflag.ApplyOpts(rootCmdOpts); err != nil {
+		utils.CL.PrintError(err)
+		os.Exit(1)
+	}
+
+	// 设置命令行工具运行函数
 	qflag.Root.SetRun(run)
 
 	// 解析命令行参数
@@ -77,7 +65,7 @@ func InitAndRun() {
 }
 
 // run 运行 gob 构建工具
-func run(cmd *qflag.Cmd) error {
+func run(cmd qflag.Command) error {
 	defer func() {
 		if err := recover(); err != nil {
 			utils.CL.Redf("%s panic: %v\nstack: %s\n", types.PrintPrefix, err, debug.Stack())

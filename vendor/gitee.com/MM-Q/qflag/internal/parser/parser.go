@@ -1,54 +1,203 @@
-// Package parser 命令行参数解析器
-// 本文件实现了命令行参数的解析逻辑，包括标志解析、参数分离、
-// 子命令识别等核心解析功能，为命令行参数处理提供基础支持。
 package parser
 
 import (
+	"flag"
 	"fmt"
-	"runtime/debug"
 
-	"gitee.com/MM-Q/qflag/internal/help"
+	"gitee.com/MM-Q/qflag/internal/builtin"
 	"gitee.com/MM-Q/qflag/internal/types"
-	"gitee.com/MM-Q/qflag/qerr"
 )
 
-// ParseCommand 解析单个命令的标志和参数
+// DefaultParser 默认解析器实现
+//
+// DefaultParser 是types.Parser接口的默认实现, 基于Go标准库的flag包。
+// 它负责解析命令行参数、处理环境变量和路由子命令。
+//
+// 特性:
+//   - 支持所有标准标志类型
+//   - 支持环境变量绑定
+//   - 支持子命令解析和路由
+//   - 支持内置标志自动处理
+type DefaultParser struct {
+	flagSet       *flag.FlagSet               // 标准库flag.FlagSet实例
+	errorHandling types.ErrorHandling         // 错误处理策略
+	builtinMgr    *builtin.BuiltinFlagManager // 内置标志管理器
+	setFlagsMap   map[string]bool             // 已设置标志映射（缓存）
+}
+
+// NewDefaultParser 创建默认解析器实例
 //
 // 参数:
-//   - ctx: 命令上下文
-//   - args: 命令行参数
+//   - errorHandling: 错误处理策略, 决定解析错误时的行为
 //
 // 返回值:
-//   - error: 如果解析失败，返回错误信息
-func ParseCommand(ctx *types.CmdContext, args []string) (err error) {
+//   - types.Parser: 解析器接口实例
+func NewDefaultParser(errorHandling types.ErrorHandling) types.Parser {
+	return &DefaultParser{
+		errorHandling: errorHandling,
+		builtinMgr:    builtin.NewBuiltinFlagManager(), // 初始化内置标志管理器
+	}
+}
+
+// ParseOnly 仅解析命令行参数, 不执行子命令路由
+//
+// 参数:
+//   - cmd: 要解析的命令
+//   - args: 命令行参数列表
+//
+// 返回值:
+//   - error: 如果解析失败返回错误
+//
+// 注意事项:
+//   - 注册内置标志
+//   - 创建新的FlagSet实例进行解析
+//   - 注册命令的所有标志到FlagSet
+//   - 先解析命令行参数
+//   - 再加载环境变量 (仅在标志未被命令行参数设置时)
+//   - 处理内置标志
+//   - 不处理子命令路由
+//   - 使用defer确保命令状态和参数在函数返回时被设置
+func (p *DefaultParser) ParseOnly(cmd types.Command, args []string) error {
+	// 创建新的 FlagSet 实例
+	p.flagSet = flag.NewFlagSet("", p.errorHandling)
+
+	// 自定义 Usage 函数, 避免打印默认的使用说明
+	p.flagSet.Usage = func() {
+		cmd.PrintHelp()
+	}
+
+	// 注册内置标志
+	if err := p.builtinMgr.RegisterBuiltinFlags(cmd); err != nil {
+		return err
+	}
+
+	// 使用defer确保命令状态和参数在函数返回时被设置
 	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("%w: %v\nStack: %s", qerr.ErrPanicRecovered, r, debug.Stack())
-		}
+		cmd.SetParsed(true)
+		cmd.SetArgs(p.flagSet.Args())
 	}()
 
-	// 添加默认的注意事项
-	if ctx.Config.UseChinese {
-		ctx.Config.Notes = append(ctx.Config.Notes, help.ChineseTemplate.DefaultNote)
-	} else {
-		ctx.Config.Notes = append(ctx.Config.Notes, help.EnglishTemplate.DefaultNote)
+	// 获取命令的标志注册表
+	flagRegistry := cmd.FlagRegistry()
+
+	// 注册命令行标志
+	for _, f := range flagRegistry.List() {
+		p.registerFlag(f)
 	}
 
-	// 加载当前命令的环境变量
-	if err = LoadEnvVars(ctx); err != nil {
-		return fmt.Errorf("%w: %v", qerr.ErrEnvLoadFailed, err)
+	// 先解析命令行参数
+	if err := p.flagSet.Parse(args); err != nil {
+		return err
 	}
 
-	// 解析当前命令的标志
-	if err = ctx.FlagSet.Parse(args); err != nil {
-		return fmt.Errorf("%w: %w", qerr.ErrFlagParseFailed, err)
+	// 获取命令配置, 检查是否为nil
+	config := cmd.Config()
+	if config == nil {
+		return types.NewError("CONFIG_ERROR", "command config is nil", nil)
 	}
 
-	// 获取非标志参数
-	parsedArgs := ctx.FlagSet.Args()
+	// 加载环境变量 (仅在标志未被命令行参数设置时)
+	if err := p.loadEnvVars(cmd, config.EnvPrefix); err != nil {
+		return err
+	}
 
-	// 更新当前命令的非标志参数
-	ctx.Args = append(ctx.Args, parsedArgs...) // 设置非标志参数
+	// 如果有互斥组或必需组，需要验证, 则构建已设置标志映射
+	if len(config.MutexGroups) > 0 || len(config.RequiredGroups) > 0 {
+		// 构建已设置标志映射（在验证前构建，确保标志状态已确定）
+		p.buildSetFlagsMap(cmd)
+
+		// 验证互斥组规则
+		if err := p.validateMutexGroups(config); err != nil {
+			return err
+		}
+
+		// 验证必需组规则
+		if err := p.validateRequiredGroups(config); err != nil {
+			return err
+		}
+	}
+
+	// 处理内置标志
+	if err := p.builtinMgr.HandleBuiltinFlags(cmd); err != nil {
+		return err
+	}
 
 	return nil
+}
+
+// Parse 解析命令行参数并处理子命令
+//
+// 参数:
+//   - cmd: 要解析的命令
+//   - args: 命令行参数列表
+//
+// 返回值:
+//   - error: 如果解析失败返回错误
+//
+// 注意事项:
+//   - 首先调用ParseOnly解析参数
+//   - 检查剩余参数是否为子命令
+//   - 如果是子命令, 递归解析子命令
+//   - 不执行子命令的运行函数
+func (p *DefaultParser) Parse(cmd types.Command, args []string) error {
+	if err := p.ParseOnly(cmd, args); err != nil {
+		return err
+	}
+
+	cmdRegistry := cmd.CmdRegistry()
+	remainingArgs := cmd.Args()
+
+	if len(remainingArgs) > 0 {
+		firstArg := remainingArgs[0]
+		if subCmd, ok := cmdRegistry.Get(firstArg); ok {
+			return subCmd.Parse(remainingArgs[1:])
+		}
+	}
+
+	return nil
+}
+
+// ParseAndRoute 解析命令行参数、处理子命令并执行
+//
+// 参数:
+//   - cmd: 要解析的命令
+//   - args: 命令行参数列表
+//
+// 返回值:
+//   - error: 如果解析或执行失败返回错误
+//
+// 注意事项:
+//   - 首先调用ParseOnly解析参数
+//   - 检查剩余参数是否为子命令
+//   - 如果是子命令, 递归解析并执行子命令
+//   - 如果不是子命令, 执行当前命令的运行函数
+//   - 如果命令没有设置运行函数, 返回错误
+func (p *DefaultParser) ParseAndRoute(cmd types.Command, args []string) error {
+	if err := p.ParseOnly(cmd, args); err != nil {
+		return err
+	}
+
+	cmdRegistry := cmd.CmdRegistry()
+	remainingArgs := cmd.Args()
+
+	if len(remainingArgs) > 0 {
+		firstArg := remainingArgs[0]
+		if subCmd, ok := cmdRegistry.Get(firstArg); ok {
+			if err := subCmd.Parse(remainingArgs[1:]); err != nil {
+				return err
+			}
+
+			if subCmd.HasRunFunc() {
+				return subCmd.Run()
+			}
+
+			return fmt.Errorf("subcmd %q has no run function set", firstArg)
+		}
+	}
+
+	if cmd.HasRunFunc() {
+		return cmd.Run()
+	}
+
+	return fmt.Errorf("cmd %q has no run function set", cmd.Name())
 }
