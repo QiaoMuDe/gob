@@ -20,12 +20,12 @@ func InitAndRun() {
 	generateConfigFlag = qflag.Root.Bool("generate-config", "gcf", "生成默认配置文件", false)
 	forceFlag = qflag.Root.Bool("force", "f", "强制操作 (覆盖已存在文件)", false)
 	listFlag = qflag.Root.Bool("list", "l", "列出可用的构建任务", false)
-	runFlag = qflag.Root.String("run", "r", "", "运行指定的构建任务（自动在 gobf/ 目录下查找）")
+	runFlag = qflag.Root.String("run", "r", "运行指定的构建任务 (自动在 gobf/ 目录下查找)", "")
 
 	// 初始化相关标志
 	initFlag = qflag.Root.Bool("init", "i", "初始化gob构建文件", false)
-	nameFlag = qflag.Root.String("name", "n", "", "指定生成的项目名称, 默认从go.mod读取")
-	mainFileFlag = qflag.Root.String("main", "m", "main.go", "指定入口文件, 默认为main.go")
+	nameFlag = qflag.Root.String("name", "n", "指定生成的项目名称, 默认从go.mod读取", "")
+	mainFileFlag = qflag.Root.String("main", "m", "指定入口文件, 默认为main.go", "main.go")
 
 	// 设置命令行工具选项配置
 	rootCmdOpts := &qflag.CmdOpts{

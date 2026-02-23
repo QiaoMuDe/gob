@@ -18,11 +18,16 @@
 
 ## 📋 项目简介
 
-ShellX 是一个基于 Go 标准库 `os/exec` 包封装的高级命令执行库，提供了更加友好的 API 和丰富的功能。它支持同步和异步命令执行、输入输出重定向、超时控制、上下文管理、多种 shell 类型支持等功能，并提供类型安全的 API 和友好的链式调用接口。
+ShellX 是一个功能完善、易于使用的 Go 语言 Shell 命令执行库。本项目包含两个子包：
+
+- **主包 (shellx)**：基于 Go 标准库 `os/exec` 包封装的高级命令执行库，提供了更加友好的 API 和丰富的功能
+- **子包 (shx)**：基于 [mvdan.cc/sh/v3](https://mvdan.cc/sh/v3) 的纯 Go shell 命令执行功能，具有更好的跨平台一致性
 
 无论您是需要执行简单的系统命令，还是构建复杂的命令行工具，ShellX 都能为您提供强大而灵活的解决方案。
 
 ## ✨ 核心特性
+
+### 主包 (shellx) 特性
 
 | 特性 | 描述 |
 |------|------|
@@ -41,18 +46,42 @@ ShellX 是一个基于 Go 标准库 `os/exec` 包封装的高级命令执行库�
 | 🌍 **跨平台兼容** | 支持 Windows、Linux、macOS 等主流操作系统 |
 | 🧠 **智能解析** | 强大的命令字符串解析，支持复杂引号处理 |
 
+### 子包 (shx) 特性
+
+| 特性 | 描述 |
+|------|------|
+| 🟢 **纯 Go 实现** | 基于 mvdan.cc/sh/v3，不依赖系统 shell |
+| 🌍 **跨平台一致** | Windows/Linux/macOS 行为完全一致 |
+| 🔒 **轻量级并发** | 使用 atomic.Bool 防止重复执行 |
+| ⛓️ **链式调用** | 支持流畅的方法链配置 |
+| ⏱️ **超时控制** | 支持上下文超时和超时参数 |
+| 🔄 **输入输出重定向** | 灵活的标准输入输出配置 |
+
 ## 📦 安装指南
 
 ### 使用 Go Modules（推荐）
 
 ```bash
+# 安装主包
 go get gitee.com/MM-Q/shellx
+
+# 安装子包 shx (基于 mvdan.cc/sh/v3)
+go get gitee.com/MM-Q/shellx/shx
 ```
 
 ### 版本要求
 
 - Go 1.25.0 或更高版本
 - 支持 Go Modules
+
+### 包说明
+
+ShellX 项目包含两个包，您可以根据需求选择使用：
+
+| 包 | 导入路径 | 特点 |
+|----|----------|------|
+| 主包 | `gitee.com/MM-Q/shellx` | 基于 os/exec，功能丰富，支持进程控制 |
+| 子包 | `gitee.com/MM-Q/shellx/shx` | 纯 Go 实现，跨平台一致性好 |
 
 ## 🚀 使用示例
 
@@ -130,16 +159,22 @@ func main() {
 
 ```go
 // 使用字符串创建命令（支持复杂引号处理）
-result, err := shellx.NewCmdStr(`git commit -m "feat: add new feature with 'quotes'"`).
+cmd := shellx.NewCmdStr(`git commit -m "feat: add new feature with 'quotes'"`).
     WithWorkDir("/path/to/repo").
-    WithEnv("GIT_AUTHOR_NAME", "John Doe").
-    ExecResult()
+    WithEnv("GIT_AUTHOR_NAME", "John Doe")
+
+// 执行命令
+err := cmd.Exec()
 if err != nil {
     log.Fatal(err)
 }
-fmt.Printf("Exit Code: %d\n", result.Code())
-fmt.Printf("Success: %t\n", result.Success())
-fmt.Printf("Duration: %v\n", result.Duration())
+
+// 如果需要获取退出码，可以使用 WaitWithCode
+exitCode, err := cmd.WaitWithCode()
+if err != nil {
+    log.Printf("Command failed: %v", err)
+}
+fmt.Printf("Exit Code: %d\n", exitCode)
 ```
 
 ### 高级用法
@@ -228,9 +263,98 @@ for name, shellType := range examples {
 }
 ```
 
+### 子包 shx 使用示例
+
+shx 子包提供基于 mvdan.cc/sh/v3 的纯 Go shell 执行功能，具有更好的跨平台一致性。
+
+#### 基础用法
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    
+    "gitee.com/MM-Q/shellx/shx"
+)
+
+func main() {
+    // 简单执行
+    err := shx.Run("echo hello world")
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    // 获取输出
+    output, err := shx.Out("ls -la")
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Println(string(output))
+}
+```
+
+#### 链式配置
+
+```go
+// 使用链式配置
+output, err := shx.New("echo hello").
+    WithTimeout(5 * time.Second).
+    WithDir("/tmp").
+    ExecOutput()
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println(string(output))
+```
+
+#### 使用上下文
+
+```go
+// 使用上下文控制超时
+ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+defer cancel()
+
+err := shx.New("long-running-command").
+    WithContext(ctx).
+    Exec()
+if err != nil {
+    log.Printf("Command failed: %v", err)
+}
+```
+
+#### 自定义输入输出
+
+```go
+// 自定义标准输入输出
+var stdout, stderr bytes.Buffer
+stdin := strings.NewReader("hello")
+
+err := shx.New("cat").
+    WithStdin(stdin).
+    WithStdout(&stdout).
+    WithStderr(&stderr).
+    Exec()
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println(string(stdout.Bytes()))
+```
+
+#### 检查退出状态
+
+```go
+// 检查命令退出状态
+err := shx.Run("exit 5")
+if exitCode, ok := shx.IsExitStatus(err); ok {
+    fmt.Printf("Command exited with code: %d\n", exitCode)
+}
+```
+
 ## 🎯 支持的功能
 
-### Shell 类型支持
+### 主包 Shell 类型支持
 
 - **sh** - 标准 Unix shell
 - **bash** - Bash shell  
@@ -241,6 +365,11 @@ for name, shellType := range examples {
 - **def1** - 根据操作系统自动选择(Windows系统默认为cmd, 其他系统默认为sh)
 - **def2** - 根据操作系统自动选择(Windows系统默认为powershell, 其他系统默认为sh)
 
+### 子包 shx Shell 类型支持
+
+shx 子包使用 mvdan.cc/sh/v3 作为解析器，支持以下 shell 类型：
+- **bash** - Bash shell (默认)
+- **sh** - POSIX shell 
 
 ### 命令解析特性
 
@@ -249,19 +378,37 @@ for name, shellType := range examples {
 - ✅ 转义字符支持
 - ✅ 多空格和制表符处理
 - ✅ 未闭合引号检测
+- ✅ Unicode 字符支持（中文、emoji 等多字节字符）
 
 ### 执行模式
 
 - 🔄 **同步执行**：阻塞等待命令完成
-- ⚡ **异步执行**：非阻塞启动，可后续等待
+- ⚡ **异步执行**（仅主包）：非阻塞启动，可后续等待
 - 📊 **结果获取**：完整的执行结果信息
 - 🎯 **输出捕获**：标准输出和错误输出
+- ⏱️ **超时控制**：支持上下文超时和超时参数
 
-详细的 API 文档请参考：[📖 API 文档](APIDOC.md)
+### 选择指南
+
+| 需求 | 推荐使用 |
+|------|----------|
+| 需要进程控制（获取PID、Kill、Signal） | 主包 shellx |
+| 需要 Windows cmd 命令支持 | 主包 shellx |
+| 需要 PowerShell 命令支持 | 主包 shellx |
+| 需要异步执行 | 主包 shellx |
+| 纯 Go 实现，不依赖系统 shell | 子包 shx |
+| 跨平台行为一致 | 子包 shx |
+| 轻量级使用场景 | 子包 shx |
+
+详细的 API 文档请参考：
+- [📖 主包 API 文档](APIDOC.md)
+- [📖 子包 shx API 文档](shx/APIDOC.md)
 
 ## ⚙️ 配置选项
 
-### 环境配置
+### 主包 (shellx) 配置
+
+#### 环境配置
 
 ```go
 cmd := shellx.NewCmd("command").
@@ -271,7 +418,7 @@ cmd := shellx.NewCmd("command").
     WithContext(ctx)                      // 设置上下文
 ```
 
-### 输入输出配置
+#### 输入输出配置
 
 ```go
 var stdout, stderr bytes.Buffer
@@ -283,68 +430,59 @@ cmd := shellx.NewCmd("command").
     WithStderr(&stderr)                   // 设置标准错误
 ```
 
-### Shell 配置
+#### Shell 配置
 
 ```go
 cmd := shellx.NewCmd("command").
     WithShell(shellx.ShellBash)           // 指定 shell 类型
 ```
 
-## 📁 项目结构
+### 子包 (shx) 配置
 
-```
-shellx/
-├── README.md                 # 项目文档
-├── LICENSE                   # MIT 许可证
-├── go.mod                    # Go 模块文件
-├── shellx.go                 # 主包文档
-├── command.go                # 命令执行对象实现
-|── errors.go                 # 错误处理
-├── types.go                  # 类型定义
-├── utils.go                  # 工具函数和便捷函数
-├── internal.go               # 内部共享函数
-├── command_test.go           # Command 测试
-├── utils_test.go             # 工具函数测试
-├── command_bench_test.go     # Command 基准测试
-└── TEST_README.md            # 测试说明文档
+#### 环境配置
+
+```go
+cmd := shx.New("command").
+    WithDir("/custom/path").              // 设置工作目录
+    WithEnv("KEY", "value").              // 添加环境变量
+    WithTimeout(30 * time.Second).        // 设置超时时间
+    WithContext(ctx)                      // 设置上下文
 ```
 
-## 🧪 测试说明
+#### 输入输出配置
 
-### 运行测试
+```go
+var stdout, stderr bytes.Buffer
+stdin := strings.NewReader("input")
 
-```bash
-# 运行所有测试
-go test -v
-
-# 运行特定测试
-go test -v -run TestBuilder
-go test -v -run TestCommand
-
-# 运行基准测试
-go test -bench=. -benchmem
-
-# 查看测试覆盖率
-go test -cover
-go test -coverprofile=coverage.out
-go tool cover -html=coverage.out
+cmd := shx.New("command").
+    WithStdin(stdin).                     // 设置标准输入
+    WithStdout(&stdout).                  // 设置标准输出
+    WithStderr(&stderr)                   // 设置标准错误
 ```
 
-### 测试覆盖
+#### 批量环境变量
 
-- ✅ **功能测试**：完整的功能正确性测试
-- ✅ **边界测试**：边界条件和错误处理测试
-- ✅ **并发测试**：并发安全性测试
-- ✅ **性能测试**：基准测试和性能监控
-- ✅ **模糊测试**：命令解析的模糊测试
+```go
+// 方式1: 使用 map (WithEnvMap)
+cmd := shx.New("command").
+    WithEnvMap(map[string]string{
+        "KEY1": "value1",
+        "KEY2": "value2",
+    })
 
-### 测试结果
+// 方式2: 使用切片 (WithEnvs)
+cmd := shx.New("command").
+    WithEnvs([]string{
+        "KEY1=value1",
+        "KEY2=value2",
+    })
 
-最新测试结果显示所有测试通过，性能表现良好：
-
-- 功能测试：15/15 通过 ✅
-- 命令测试：14/14 通过 ✅
-- 基准测试：性能优异 🚀
+// 方式3: 配合 os.Environ() 使用
+envs := os.Environ()
+envs = append(envs, "CUSTOM_VAR=my_value")
+cmd := shx.New("command").WithEnvs(envs)
+```
 
 ## 📄 许可证
 
@@ -407,6 +545,7 @@ copies or substantial portions of the Software.
 - 🔧 [os/exec 包文档](https://pkg.go.dev/os/exec)
 - 🏠 [项目主页](https://gitee.com/MM-Q/shellx)
 - 📋 [更新日志](https://gitee.com/MM-Q/shellx/releases)
+- 📦 [mvdan.cc/sh/v3](https://mvdan.cc/sh/v3) - shx 子包依赖
 
 ---
 

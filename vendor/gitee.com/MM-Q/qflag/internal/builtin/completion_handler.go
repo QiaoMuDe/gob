@@ -73,7 +73,7 @@ func (h *CompletionHandler) ShouldRegister(cmd types.Command) bool {
 func getShellTypeFromArgs(cmd types.Command) string {
 	f, ok := cmd.GetFlag(types.CompletionFlagName)
 	if ok {
-		f.GetStr()
+		return f.GetStr()
 	}
 
 	// 默认返回当前平台的Shell类型

@@ -16,12 +16,17 @@
 //   - 命令执行状态管理和进程控制
 //   - 输入输出重定向和环境变量设置
 //   - 上下文取消和优先级控制
-//   - 并发安全的设计
+//   - 无锁设计，高性能
 //   - 跨平台兼容（Windows、Linux、macOS）
+//
+// 并发安全说明：
+//   - Command 对象的配置方法 (WithXxx) 不是并发安全的，不要在多个 goroutine 中并发配置
+//   - 每个 Command 对象只能执行一次，重复执行会返回错误
+//   - 执行方法是并发安全的，使用 atomic.Bool 防止重复执行
+//   - 属性获取方法不是并发安全的，不要在多个 goroutine 中并发调用
 //
 // 核心组件：
 //   - Command: 命令对象，集配置、构建、执行于一体
-//   - Result: 命令执行结果，包含输出、错误、时间等信息
 //   - ShellType: Shell类型枚举，支持多种shell
 //
 // 基本用法：
@@ -40,17 +45,11 @@
 //		WithEnv("MY_VAR", "value").
 //		ExecOutput()
 //
-//	// 方式3：获取完整结果
-//	result, err := shellx.NewCmd("git", "status").
-//		WithTimeout(10 * time.Second).
-//		ExecResult()
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//	fmt.Printf("Exit Code: %d\n", result.Code())
-//	fmt.Printf("Success: %t\n", result.Success())
-//	fmt.Printf("Duration: %v\n", result.Duration())
-//	fmt.Printf("Output: %s\n", result.Output())
+// 注意事项：
+//   - 每个 Command 对象只能执行一次，重复执行会返回错误
+//   - Command 对象的配置方法 (WithXxx) 不是并发安全的，不要在多个 goroutine 中并发配置
+//   - 执行方法是并发安全的，使用 atomic.Bool 防止重复执行
+//   - 属性获取方法不是并发安全的，不要在多个 goroutine 中并发调用
 //
 // 便捷函数用法：
 //
@@ -103,14 +102,15 @@
 //
 // Shell类型：
 //
-//	// 支持多种shell类型
-//	shellx.ShellSh         // sh shell
-//	shellx.ShellBash       // bash shell
-//	shellx.ShellCmd        // Windows cmd
-//	shellx.ShellPowerShell // Windows PowerShell
-//	shellx.ShellPwsh       // PowerShell Core
-//	shellx.ShellNone       // 直接执行，不使用shell
-//	shellx.ShellDef1    // 根据操作系统自动选择
+//		// 支持多种shell类型
+//		shellx.ShellSh         // sh shell
+//		shellx.ShellBash       // bash shell
+//		shellx.ShellCmd        // Windows cmd
+//		shellx.ShellPowerShell // Windows PowerShell
+//		shellx.ShellPwsh       // PowerShell Core
+//		shellx.ShellNone       // 直接执行，不使用shell
+//		shellx.ShellDef1       // 默认shell，根据操作系统自动选择 (Windows: cmd, 其他: sh)
+//	    shellx.ShellDef2       // 默认shell，根据操作系统自动选择 (Windows: PowerShell, 其他: sh)
 //
 // 注意事项：
 //   - 每个Command对象只能执行一次，重复执行会返回错误

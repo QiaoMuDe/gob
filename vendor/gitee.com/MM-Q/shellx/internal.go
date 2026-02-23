@@ -18,13 +18,14 @@ import (
 //
 // 注意:
 //   - 该方法会根据上下文和超时时间来创建exec.Cmd对象.
-//   - 如果上下文设置了超时时间, 则会忽略超时参数.
-func (c *Command) buildExecCmd() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
+//   - 如果上下文设置了超时时间, 则会忽略timeout参数.
+//   - 此方法不是并发安全的，不要在多个goroutine中并发调用
+//
+// 返回:
+//   - error: 构建错误，成功时为 nil
+func (c *Command) buildExecCmd() error {
 	if c.execCmd != nil {
-		return // 已经构建过了
+		return nil // 已经构建过了
 	}
 
 	// 根据实际情况选择创建方式，避免不必要的上下文使用
@@ -66,6 +67,8 @@ func (c *Command) buildExecCmd() {
 	c.execCmd.Stdin = c.stdin   // 设置标准输入
 	c.execCmd.Stdout = c.stdout // 设置标准输出
 	c.execCmd.Stderr = c.stderr // 设置标准错误输出
+
+	return nil
 }
 
 // cleanup 清理资源
@@ -96,4 +99,54 @@ func (c *Command) getCmdStr() string {
 	} else {
 		return fmt.Sprintf("%s %s", c.name, strings.Join(c.args, " "))
 	}
+}
+
+// extractExitCode 从错误中提取退出码
+//
+// 参数:
+//   - err: 错误对象
+//
+// 返回:
+//   - int: 退出码(0表示成功，-1表示无法提取的执行错误，其他值表示命令返回的退出码)
+func extractExitCode(err error) int {
+	if err == nil {
+		return 0
+	}
+
+	// 尝试从ExitError中提取真实的退出码
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		return exitErr.ExitCode()
+	}
+
+	// 其他类型的错误（如命令不存在、超时等）返回-1
+	return -1
+}
+
+// validateEnvVar 验证环境变量格式
+//
+// 参数:
+//   - env: 环境变量字符串，格式为 "key=value"
+//
+// 返回:
+//   - error: 错误信息
+func validateEnvVar(env string) error {
+	// 验证环境变量字符串是否为空
+	if strings.TrimSpace(env) == "" {
+		return fmt.Errorf("environment variable cannot be empty")
+	}
+
+	// 检查格式是否为 "key=value", 允许value为空
+	parts := strings.SplitN(env, "=", 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid environment variable format, expected 'key=value': %s", env)
+	}
+
+	// 验证key是否为空
+	key := strings.TrimSpace(parts[0])
+	if key == "" {
+		return fmt.Errorf("environment variable key cannot be empty: %s", env)
+	}
+
+	// 注意：value 可以为空，这是合法的（例如：KEY= 用于取消环境变量）
+	return nil
 }

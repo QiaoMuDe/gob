@@ -6,7 +6,45 @@ import (
 	"gitee.com/MM-Q/qflag/internal/types"
 )
 
-// buildSetFlagsMap 构建已设置标志的映射
+// buildFlagDisplayName 构建标志的显示名称
+//
+// 参数:
+//   - flag: 标志对象
+//
+// 返回值:
+//   - string: 显示名称
+//   - 有长短标志："--long/-s"
+//   - 只有长标志："--long"
+//   - 只有短标志："-s"
+//
+// 功能说明:
+//   - 根据标志的长名和短名生成友好的显示名称
+//   - 优先显示长名，短名作为补充
+//   - 用于错误信息中显示用户使用的标志
+func (p *DefaultParser) buildFlagDisplayName(flag types.Flag) string {
+	longName := flag.LongName()
+	shortName := flag.ShortName()
+
+	// 长标志和短标志都存在
+	if longName != "" && shortName != "" {
+		return fmt.Sprintf("--%s/-%s", longName, shortName)
+	}
+
+	// 只有长标志
+	if longName != "" {
+		return fmt.Sprintf("--%s", longName)
+	}
+
+	// 只有短标志
+	if shortName != "" {
+		return fmt.Sprintf("-%s", shortName)
+	}
+
+	// 都没有（理论上不应该发生），返回 Name()
+	return flag.Name()
+}
+
+// buildSetFlagsMap 构建已设置标志的映射和显示名称映射
 //
 // 参数:
 //   - cmd: 要验证的命令
@@ -16,18 +54,34 @@ import (
 //
 // 功能说明:
 //   - 遍历所有标志，收集已设置的标志
-//   - 构建映射以支持快速查询
-//   - 避免在验证过程中重复调用 GetFlag() 和 IsSet()
-//   - 将结果缓存到解析器的 setFlagsMap 字段中
+//   - 同时构建所有标志的显示名称映射
+//   - 支持混合使用长短名：将长名和短名都存储到 map 中
+//   - 将结果缓存到解析器的 setFlagsMap 和 flagDisplayNames 字段中
 //   - 根据标志数量预分配map空间，减少扩容开销
 func (p *DefaultParser) buildSetFlagsMap(cmd types.Command) map[string]bool {
 	// 根据标志数量预分配map空间，减少扩容开销
 	flags := cmd.Flags()
-	p.setFlagsMap = make(map[string]bool, len(flags))
+	p.setFlagsMap = make(map[string]bool, len(flags)*2)        // 预留空间存储长名和短名
+	p.flagDisplayNames = make(map[string]string, len(flags)*2) // 预分配空间存储显示名称
 
 	for _, flag := range flags {
-		if flag.IsSet() {
-			p.setFlagsMap[flag.Name()] = true
+		// 生成显示名称
+		displayName := p.buildFlagDisplayName(flag)
+
+		// 存储长名和缓存显示名称
+		if flag.LongName() != "" {
+			p.flagDisplayNames[flag.LongName()] = displayName
+			if flag.IsSet() {
+				p.setFlagsMap[flag.LongName()] = true
+			}
+		}
+
+		// 存储短名和缓存显示名称
+		if flag.ShortName() != "" {
+			p.flagDisplayNames[flag.ShortName()] = displayName
+			if flag.IsSet() {
+				p.setFlagsMap[flag.ShortName()] = true
+			}
 		}
 	}
 
@@ -68,16 +122,31 @@ func (p *DefaultParser) validateMutexGroups(config *types.CmdConfig) error {
 
 	// 遍历所有互斥组
 	for _, group := range config.MutexGroups {
-		setCount := 0
 		var setFlagsList []string
+		seenDisplayNames := make(map[string]bool, len(group.Flags)) // 去重map，防止重复显示相同的标志
 
 		// 检查互斥组中的每个标志是否被设置
 		for _, flagName := range group.Flags {
+			// 如果拿组里的标志没有获取到显示名称, 则表示为不是一个有效标志, 返回错误
+			displayName, ok := p.flagDisplayNames[flagName]
+			if !ok {
+				return types.NewError("INVALID_FLAG_NAME",
+					fmt.Sprintf("invalid flag name '%s' in mutex group '%s'", flagName, group.Name),
+					nil)
+			}
+
+			// 如果标志被设置, 添加到已设置列表
 			if setFlags[flagName] {
-				setCount++
-				setFlagsList = append(setFlagsList, flagName)
+				if !seenDisplayNames[displayName] {
+					// 添加去重检查，避免同一个标志的多个名称重复显示
+					seenDisplayNames[displayName] = true
+					setFlagsList = append(setFlagsList, displayName)
+				}
 			}
 		}
+
+		// 直接计算实际设置的标志数量（用于验证逻辑）
+		setCount := len(setFlagsList)
 
 		// 如果互斥组中设置了多个标志, 返回错误
 		if setCount > 1 {
@@ -130,11 +199,25 @@ func (p *DefaultParser) validateRequiredGroups(config *types.CmdConfig) error {
 	// 遍历所有必需组
 	for _, group := range config.RequiredGroups {
 		var unsetFlags []string
+		seenUnsetDisplayNames := make(map[string]bool, len(group.Flags)) // 去重map，防止重复显示相同的标志
 
 		// 遍历组中的每个标志
 		for _, flagName := range group.Flags {
+			// 如果拿组里的标志没有获取到显示名称, 则表示为不是一个有效标志, 返回错误
+			displayName, ok := p.flagDisplayNames[flagName]
+			if !ok {
+				return types.NewError("INVALID_FLAG_NAME",
+					fmt.Sprintf("invalid flag name '%s' in required group '%s'", flagName, group.Name),
+					nil)
+			}
+
+			// 如果标志未被设置, 添加到未设置列表
 			if !setFlags[flagName] {
-				unsetFlags = append(unsetFlags, flagName)
+				if !seenUnsetDisplayNames[displayName] {
+					// 添加去重检查，避免同一个标志的多个名称重复显示
+					seenUnsetDisplayNames[displayName] = true
+					unsetFlags = append(unsetFlags, displayName)
+				}
 			}
 		}
 

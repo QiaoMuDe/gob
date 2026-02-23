@@ -24,6 +24,20 @@ var (
 	ErrNoProcess = errors.New("no process to operate")
 )
 
+// UnclosedQuoteError 表示命令字符串中存在未闭合的引号
+type UnclosedQuoteError struct {
+	QuoteType rune // 未闭合的引号类型 (', ", 或 `)
+}
+
+func (e *UnclosedQuoteError) Error() string {
+	return fmt.Sprintf("unclosed quote in command string: %c", e.QuoteType)
+}
+
+// QuoteType 返回未闭合的引号类型
+func (e *UnclosedQuoteError) GetQuoteType() rune {
+	return e.QuoteType
+}
+
 // 错误消息常量
 const (
 	// 超时和取消错误消息

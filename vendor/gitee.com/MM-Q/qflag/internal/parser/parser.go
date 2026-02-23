@@ -19,10 +19,11 @@ import (
 //   - 支持子命令解析和路由
 //   - 支持内置标志自动处理
 type DefaultParser struct {
-	flagSet       *flag.FlagSet               // 标准库flag.FlagSet实例
-	errorHandling types.ErrorHandling         // 错误处理策略
-	builtinMgr    *builtin.BuiltinFlagManager // 内置标志管理器
-	setFlagsMap   map[string]bool             // 已设置标志映射（缓存）
+	flagSet          *flag.FlagSet               // 标准库flag.FlagSet实例
+	errorHandling    types.ErrorHandling         // 错误处理策略
+	builtinMgr       *builtin.BuiltinFlagManager // 内置标志管理器
+	setFlagsMap      map[string]bool             // 已设置标志映射（缓存）
+	flagDisplayNames map[string]string           // 所有标志的显示名称映射（缓存）
 }
 
 // NewDefaultParser 创建默认解析器实例
