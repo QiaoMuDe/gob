@@ -3,6 +3,7 @@ package parser
 import (
 	"flag"
 	"fmt"
+	"strings"
 
 	"gitee.com/MM-Q/qflag/internal/builtin"
 	"gitee.com/MM-Q/qflag/internal/types"
@@ -50,6 +51,7 @@ func NewDefaultParser(errorHandling types.ErrorHandling) types.Parser {
 //   - error: 如果解析失败返回错误
 //
 // 注意事项:
+//   - 重置所有标志到默认状态（避免重复解析时的遗留值）
 //   - 注册内置标志
 //   - 创建新的FlagSet实例进行解析
 //   - 注册命令的所有标志到FlagSet
@@ -59,12 +61,29 @@ func NewDefaultParser(errorHandling types.ErrorHandling) types.Parser {
 //   - 不处理子命令路由
 //   - 使用defer确保命令状态和参数在函数返回时被设置
 func (p *DefaultParser) ParseOnly(cmd types.Command, args []string) error {
+	// 如果禁用标志解析，直接设置参数并返回
+	if cmd.IsDisableFlagParsing() {
+		cmd.SetParsed(true)
+		cmd.SetArgs(args)
+		return nil
+	}
+
 	// 创建新的 FlagSet 实例
 	p.flagSet = flag.NewFlagSet("", p.errorHandling)
 
 	// 自定义 Usage 函数, 避免打印默认的使用说明
 	p.flagSet.Usage = func() {
 		cmd.PrintHelp()
+	}
+
+	// 重置所有标志到默认状态
+	// 这对于重复解析场景至关重要：
+	// 1. 清除上次解析的遗留值，恢复到默认值
+	// 2. 重置 isSet 状态，确保环境变量能正确加载
+	// 3. 确保互斥组和必需组验证基于正确的状态
+	flagRegistry := cmd.FlagRegistry()
+	for _, f := range flagRegistry.List() {
+		f.Reset()
 	}
 
 	// 注册内置标志
@@ -78,12 +97,14 @@ func (p *DefaultParser) ParseOnly(cmd types.Command, args []string) error {
 		cmd.SetArgs(p.flagSet.Args())
 	}()
 
-	// 获取命令的标志注册表
-	flagRegistry := cmd.FlagRegistry()
-
 	// 注册命令行标志
 	for _, f := range flagRegistry.List() {
 		p.registerFlag(f)
+	}
+
+	// 预检查：扫描未知标志
+	if err := checkUnknownFlags(cmd, args); err != nil {
+		return err
 	}
 
 	// 先解析命令行参数
@@ -94,7 +115,7 @@ func (p *DefaultParser) ParseOnly(cmd types.Command, args []string) error {
 	// 获取命令配置, 检查是否为nil
 	config := cmd.Config()
 	if config == nil {
-		return types.NewError("CONFIG_ERROR", "command config is nil", nil)
+		return fmt.Errorf("nil config in '%s'", cmd.Name())
 	}
 
 	// 加载环境变量 (仅在标志未被命令行参数设置时)
@@ -141,18 +162,35 @@ func (p *DefaultParser) ParseOnly(cmd types.Command, args []string) error {
 //   - 如果是子命令, 递归解析子命令
 //   - 不执行子命令的运行函数
 func (p *DefaultParser) Parse(cmd types.Command, args []string) error {
+	// 先解析参数 (ParseOnly 会处理禁用标志解析的情况)
 	if err := p.ParseOnly(cmd, args); err != nil {
 		return err
 	}
 
+	// 检查剩余参数是否为子命令
 	cmdRegistry := cmd.CmdRegistry()
 	remainingArgs := cmd.Args()
 
+	// 如果有剩余参数, 检查是否为子命令
 	if len(remainingArgs) > 0 {
+		// 获取第一个参数
 		firstArg := remainingArgs[0]
+
+		// 检查是否为子命令, 如果是, 递归解析并执行子命令
 		if subCmd, ok := cmdRegistry.Get(firstArg); ok {
 			return subCmd.Parse(remainingArgs[1:])
 		}
+
+		// 有子命令但没匹配上 → 纠错（但参数以 - 开头的不是子命令）
+		if len(cmd.SubCmds()) > 0 && !strings.HasPrefix(firstArg, "-") {
+			// 尝试纠错，如果有建议则返回错误，否则继续处理
+			if err := newUnknownSubcommandError(cmd, firstArg); err != nil {
+				return err
+			}
+			// 没有找到建议，不拦截，作为普通参数继续处理
+		}
+
+		// 没有子命令或参数以 - 开头 → 是普通参数，正常处理
 	}
 
 	return nil
@@ -174,28 +212,37 @@ func (p *DefaultParser) Parse(cmd types.Command, args []string) error {
 //   - 如果不是子命令, 执行当前命令的运行函数
 //   - 如果命令没有设置运行函数, 返回错误
 func (p *DefaultParser) ParseAndRoute(cmd types.Command, args []string) error {
+	// 先解析参数 (ParseOnly 会处理禁用标志解析的情况)
 	if err := p.ParseOnly(cmd, args); err != nil {
 		return err
 	}
 
+	// 检查剩余参数是否为子命令
 	cmdRegistry := cmd.CmdRegistry()
 	remainingArgs := cmd.Args()
 
+	// 如果是子命令, 递归解析并执行子命令
 	if len(remainingArgs) > 0 {
-		firstArg := remainingArgs[0]
+		firstArg := remainingArgs[0] // 获取第一个参数
+
+		// 检查是否为子命令, 如果是, 递归解析并执行子命令
 		if subCmd, ok := cmdRegistry.Get(firstArg); ok {
-			if err := subCmd.Parse(remainingArgs[1:]); err != nil {
+			return subCmd.ParseAndRoute(remainingArgs[1:])
+		}
+
+		// 有子命令但没匹配上 → 纠错（但参数以 - 开头的不是子命令）
+		if len(cmd.SubCmds()) > 0 && !strings.HasPrefix(firstArg, "-") {
+			// 尝试纠错，如果有建议则返回错误，否则继续处理
+			if err := newUnknownSubcommandError(cmd, firstArg); err != nil {
 				return err
 			}
-
-			if subCmd.HasRunFunc() {
-				return subCmd.Run()
-			}
-
-			return fmt.Errorf("subcmd %q has no run function set", firstArg)
+			// 没有找到建议，不拦截，作为普通参数继续处理
 		}
+
+		// 没有子命令或参数以 - 开头 → 是普通参数，正常处理
 	}
 
+	// 如果不是子命令, 执行当前命令的运行函数
 	if cmd.HasRunFunc() {
 		return cmd.Run()
 	}

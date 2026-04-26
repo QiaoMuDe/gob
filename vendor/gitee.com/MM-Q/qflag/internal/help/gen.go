@@ -197,7 +197,7 @@ func writeSubCmds(cmd types.Command, cfg *types.CmdConfig, buf *strings.Builder)
 		buf.WriteString(types.HelpSubCmdsEN)
 	}
 
-	// 收集子命令信息
+	// 收集子命令信息（SubCmds() 已自动过滤隐藏命令）
 	subCmds := make([]types.SubCmdInfo, 0, len(SubCmds))
 	for _, subCmd := range SubCmds {
 		info := types.SubCmdInfo{Desc: subCmd.Desc()}
@@ -212,6 +212,11 @@ func writeSubCmds(cmd types.Command, cfg *types.CmdConfig, buf *strings.Builder)
 			info.Name = subCmd.Name()
 		}
 		subCmds = append(subCmds, info)
+	}
+
+	// 如果所有子命令都被隐藏，则不显示子命令部分
+	if len(subCmds) == 0 {
+		return
 	}
 
 	// 排序子命令

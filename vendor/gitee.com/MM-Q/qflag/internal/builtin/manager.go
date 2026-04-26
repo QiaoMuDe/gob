@@ -13,7 +13,6 @@ import (
 // 它维护一个处理器映射表, 根据标志类型找到对应的处理器。
 type BuiltinFlagManager struct {
 	handlers map[types.BuiltinFlagType]types.BuiltinFlagHandler // 处理器映射表
-	flags    map[string]types.BuiltinFlagType                   // 标志名到类型的映射
 }
 
 // NewBuiltinFlagManager 创建内置标志管理器
@@ -22,18 +21,18 @@ type BuiltinFlagManager struct {
 //   - *BuiltinFlagManager: 内置标志管理器实例
 //
 // 功能说明:
-//   - 初始化处理器映射表和标志名映射表
+//   - 初始化处理器映射表
 //   - 注册默认的内置标志处理器
 func NewBuiltinFlagManager() *BuiltinFlagManager {
 	m := &BuiltinFlagManager{
 		handlers: make(map[types.BuiltinFlagType]types.BuiltinFlagHandler),
-		flags:    make(map[string]types.BuiltinFlagType),
 	}
 
 	// 注册默认处理器
-	m.RegisterHandler(&HelpHandler{})
-	m.RegisterHandler(&VersionHandler{})
-	m.RegisterHandler(&CompletionHandler{})
+	m.RegisterHandler(&HelpHandler{})              // 注册帮助标志处理器
+	m.RegisterHandler(&VersionHandler{})           // 注册版本标志处理器
+	m.RegisterHandler(&CompletionHandler{})        // 注册补全标志处理器
+	m.RegisterHandler(&InstallCompletionHandler{}) // 注册安装补全标志处理器
 
 	return m
 }
@@ -45,23 +44,10 @@ func NewBuiltinFlagManager() *BuiltinFlagManager {
 //
 // 功能说明:
 //   - 将处理器添加到处理器映射表
-//   - 注册处理器的标志名映射
-//   - 支持长名称和短名称的映射
+//   - 不再预注册标志名映射
 func (m *BuiltinFlagManager) RegisterHandler(handler types.BuiltinFlagHandler) {
 	flagType := handler.Type()
 	m.handlers[flagType] = handler
-
-	// 注册标志名映射
-	switch flagType {
-	case types.HelpFlag:
-		m.flags[types.HelpFlagName] = types.HelpFlag
-		m.flags[types.HelpFlagShortName] = types.HelpFlag
-	case types.VersionFlag:
-		m.flags[types.VersionFlagName] = types.VersionFlag
-		m.flags[types.VersionFlagShortName] = types.VersionFlag
-	case types.CompletionFlag:
-		m.flags[types.CompletionFlagName] = types.CompletionFlag
-	}
 }
 
 // RegisterBuiltinFlags 注册内置标志
@@ -76,10 +62,20 @@ func (m *BuiltinFlagManager) RegisterHandler(handler types.BuiltinFlagHandler) {
 //   - 遍历所有处理器, 检查是否应该注册对应的标志
 //   - 根据命令的语言设置使用相应的描述信息
 //   - 创建并注册标志到命令中
+//   - 如果标志已存在, 则跳过注册, 支持重复解析
 func (m *BuiltinFlagManager) RegisterBuiltinFlags(cmd types.Command) error {
+	// 提前获取配置，避免重复调用
+	config := cmd.Config()
+	useChinese := config.UseChinese
+
 	for _, handler := range m.handlers {
 		// 检查是否应该注册标志, 如果不应该, 则跳过
 		if !handler.ShouldRegister(cmd) {
+			continue
+		}
+
+		// 检查是否应该跳过注册（避免重复注册）
+		if handler.ShouldSkipRegistration(cmd) {
 			continue
 		}
 
@@ -88,10 +84,10 @@ func (m *BuiltinFlagManager) RegisterBuiltinFlags(cmd types.Command) error {
 		case types.HelpFlag: // 注册帮助标志
 			// 根据命令的语言设置使用相应的描述信息
 			var desc string
-			if cmd.Config().UseChinese {
-				desc = "显示帮助信息"
+			if useChinese {
+				desc = types.HelpFlagDescCN
 			} else {
-				desc = "Show help information"
+				desc = types.HelpFlagDescEN
 			}
 			helpFlag := flag.NewBoolFlag(types.HelpFlagName, types.HelpFlagShortName, desc, false)
 			if err := cmd.AddFlag(helpFlag); err != nil {
@@ -101,10 +97,10 @@ func (m *BuiltinFlagManager) RegisterBuiltinFlags(cmd types.Command) error {
 		case types.VersionFlag: // 注册版本标志
 			// 根据命令的语言设置使用相应的描述信息
 			var desc string
-			if cmd.Config().UseChinese {
-				desc = "显示版本信息"
+			if useChinese {
+				desc = types.VersionFlagDescCN
 			} else {
-				desc = "Show version information"
+				desc = types.VersionFlagDescEN
 			}
 			versionFlag := flag.NewBoolFlag(types.VersionFlagName, types.VersionFlagShortName, desc, false)
 			if err := cmd.AddFlag(versionFlag); err != nil {
@@ -114,10 +110,10 @@ func (m *BuiltinFlagManager) RegisterBuiltinFlags(cmd types.Command) error {
 		case types.CompletionFlag: // 注册自动完成标志
 			// 根据命令的语言设置使用相应的描述信息
 			var desc string
-			if cmd.Config().UseChinese {
-				desc = fmt.Sprintf("生成Shell自动补全脚本, 支持的Shell: %v", types.SupportedShells)
+			if useChinese {
+				desc = fmt.Sprintf(types.CompletionFlagDescCN, types.SupportedShells)
 			} else {
-				desc = fmt.Sprintf("Generate shell completion script. Supported shells: %v", types.SupportedShells)
+				desc = fmt.Sprintf(types.CompletionFlagDescEN, types.SupportedShells)
 			}
 			completionFlag := flag.NewEnumFlag(types.CompletionFlagName, "", desc, types.CurrentShell(), types.SupportedShells)
 			if err := cmd.AddFlag(completionFlag); err != nil {
@@ -125,7 +121,33 @@ func (m *BuiltinFlagManager) RegisterBuiltinFlags(cmd types.Command) error {
 			}
 
 			// 注册补全标志后注册内置的示例信息
-			cmd.AddExamples(types.GetCompletionExample())
+			// 根据语言设置选择对应的中英文示例
+			if useChinese {
+				cmd.AddExamples(types.GetCompletionExample())
+			} else {
+				cmd.AddExamples(types.GetCompletionExampleEN())
+			}
+
+		case types.InstallCompletionFlag: // 注册安装补全标志
+			// 根据命令的语言设置使用相应的描述信息
+			var desc string
+			if useChinese {
+				desc = fmt.Sprintf(types.InstallCompletionFlagDescCN, types.SupportedShells)
+			} else {
+				desc = fmt.Sprintf(types.InstallCompletionFlagDescEN, types.SupportedShells)
+			}
+			installCompletionFlag := flag.NewEnumFlag(types.InstallCompletionFlagName, "", desc, types.CurrentShell(), types.SupportedShells)
+			if err := cmd.AddFlag(installCompletionFlag); err != nil {
+				return err
+			}
+
+			// 注册安装补全标志后注册内置的示例信息
+			// 根据语言设置选择对应的中英文示例
+			if useChinese {
+				cmd.AddExamples(types.GetInstallCompletionExample())
+			} else {
+				cmd.AddExamples(types.GetInstallCompletionExampleEN())
+			}
 		}
 	}
 
@@ -143,13 +165,13 @@ func (m *BuiltinFlagManager) RegisterBuiltinFlags(cmd types.Command) error {
 // 功能说明:
 //   - 遍历命令的所有标志, 检查是否是内置标志
 //   - 如果是内置标志且被设置, 则执行对应的处理器
-//   - 处理器通常会执行操作并退出程序
+//   - 传入当前命令进行动态检查
 func (m *BuiltinFlagManager) HandleBuiltinFlags(cmd types.Command) error {
 	flags := cmd.Flags()
 
 	for _, f := range flags {
-		// 检查是否是内置标志
-		if flagType, isBuiltin := m.isBuiltinFlag(f); isBuiltin {
+		// 传入当前命令进行动态检查
+		if flagType, isBuiltin := m.isBuiltinFlag(f, cmd); isBuiltin {
 			// 检查是否被设置
 			if f.IsSet() {
 				// 执行处理器
@@ -167,23 +189,50 @@ func (m *BuiltinFlagManager) HandleBuiltinFlags(cmd types.Command) error {
 //
 // 参数:
 //   - f: 要检查的标志
+//   - cmd: 当前命令实例
 //
 // 返回值:
 //   - types.BuiltinFlagType: 标志类型
 //   - bool: 是否是内置标志
 //
 // 功能说明:
-//   - 检查标志的长名称和短名称是否在映射表中
-//   - 返回对应的标志类型和是否是内置标志的标志
-func (m *BuiltinFlagManager) isBuiltinFlag(f types.Flag) (types.BuiltinFlagType, bool) {
-	// 检查长名称
-	if flagType, exists := m.flags[f.Name()]; exists {
-		return flagType, true
-	}
+//   - 动态检查标志是否为内置标志
+//   - 基于当前命令的配置和 ShouldRegister 判断
+//   - 解决名称冲突问题
+func (m *BuiltinFlagManager) isBuiltinFlag(f types.Flag, cmd types.Command) (types.BuiltinFlagType, bool) {
+	// 遍历所有处理器，检查是否应该注册且名称匹配
+	for _, handler := range m.handlers {
+		// 检查该标志类型是否真的会在当前命令中注册
+		if !handler.ShouldRegister(cmd) {
+			continue
+		}
 
-	// 检查短名称
-	if flagType, exists := m.flags[f.ShortName()]; exists {
-		return flagType, true
+		// 检查名称是否匹配
+		switch handler.Type() {
+		case types.HelpFlag:
+			// 检查是否为帮助标志
+			if f.LongName() == types.HelpFlagName || f.ShortName() == types.HelpFlagShortName {
+				return types.HelpFlag, true
+			}
+
+		case types.VersionFlag:
+			// 检查是否为版本标志
+			if f.LongName() == types.VersionFlagName || f.ShortName() == types.VersionFlagShortName {
+				return types.VersionFlag, true
+			}
+
+		case types.CompletionFlag:
+			// 检查是否为自动补全标志
+			if f.LongName() == types.CompletionFlagName {
+				return types.CompletionFlag, true
+			}
+
+		case types.InstallCompletionFlag:
+			// 检查是否为安装补全标志
+			if f.LongName() == types.InstallCompletionFlagName {
+				return types.InstallCompletionFlag, true
+			}
+		}
 	}
 
 	return 0, false

@@ -6,11 +6,11 @@ import "gitee.com/MM-Q/qflag/internal/types"
 
 Package types 定义了qflag项目的核心类型和接口
 
-types 包提供了整个项目的基础类型定义, 包括: 
+types 包提供了整个项目的基础类型定义, 包括:
   - 标志类型和接口定义
   - 命令接口定义
   - 注册表接口定义
-  - 错误处理类型
+  - 智能纠错错误类型（UnknownSubcommandError, UnknownFlagError）
 
 这些类型和接口构成了整个框架的核心抽象层,  为具体的实现提供了统一的规范和契约。
 
@@ -71,11 +71,10 @@ const (
 )
 ```
 
-### 帮助信息标题
+### 帮助信息标题 - 中文
 
 ```go
 const (
-    // 中文帮助信息标题
     HelpNameCN     = "名称:\n"
     HelpDescCN     = "\n描述:\n"
     HelpUsageCN    = "\n用法:\n"
@@ -83,8 +82,13 @@ const (
     HelpSubCmdsCN  = "\n子命令:\n"
     HelpExamplesCN = "\n示例:\n"
     HelpNotesCN    = "\n注意:\n"
+)
+```
 
-    // 英文帮助信息标题
+### 帮助信息标题 - 英文
+
+```go
+const (
     HelpNameEN     = "Name:\n"
     HelpDescEN     = "\nDesc:\n"
     HelpUsageEN    = "\nUsage:\n"
@@ -125,80 +129,136 @@ const HelpPrefix = "  "
     统一的前缀, 缩进两个空格
 ```
 
----
-
-## VARIABLES
-
-### 预定义错误码
+### __complete 子命令指令常量
 
 ```go
-var (
-    // ErrInvalidFlagType 无效的标志类型错误
-    //
-    // 使用场景: 
-    //   - 传入不支持的标志类型
-    //   - 标志类型转换失败
-    ErrInvalidFlagType = NewError("INVALID_FLAG_TYPE", "invalid flag type", nil)
+const (
+    // InstructionFuzzy 模糊匹配指令
+    // 用法: __complete fuzzy <模式> <候选1> [候选2] ...
+    // 输出: 每行一个匹配结果（按匹配质量降序）
+    InstructionFuzzy = "fuzzy"
 
-    // ErrFlagNotFound 标志不存在错误
-    //
-    // 使用场景: 
-    //   - 查找不存在的标志
-    //   - 引用未注册的标志
-    ErrFlagNotFound = NewError("FLAG_NOT_FOUND", "flag not found", nil)
+    // InstructionContext 上下文计算指令
+    // 用法: __complete context <arg0> [arg1] ...
+    // 输出: 上下文路径，如 "/server/start/"
+    InstructionContext = "context"
 
-    // ErrCmdNotFound 命令不存在错误
-    //
-    // 使用场景: 
-    //   - 查找不存在的命令
-    //   - 引用未注册的命令
-    ErrCmdNotFound = NewError("COMMAND_NOT_FOUND", "cmd not found", nil)
+    // InstructionCandidates 候选选项获取指令
+    // 用法: __complete candidates <context>
+    // 输出: 空格分隔的候选选项列表
+    InstructionCandidates = "candidates"
 
-    // ErrFlagAlreadyExists 标志已存在错误
-    //
-    // 使用场景: 
-    //   - 注册重复的标志
-    //   - 标志名称冲突
-    ErrFlagAlreadyExists = NewError("FLAG_ALREADY_EXISTS", "flag already exists", nil)
+    // InstructionEnum 枚举值获取指令
+    // 用法: __complete enum <context> <flag-name>
+    // 输出: 空格分隔的枚举值列表
+    InstructionEnum = "enum"
 
-    // ErrCmdAlreadyExists 命令已存在错误
-    //
-    // 使用场景: 
-    //   - 注册重复的命令
-    //   - 命令名称冲突
-    ErrCmdAlreadyExists = NewError("COMMAND_ALREADY_EXISTS", "cmd already exists", nil)
-
-    // ErrParseFailed 解析失败错误
-    //
-    // 使用场景: 
-    //   - 命令行参数解析失败
-    //   - 配置文件解析失败
-    ErrParseFailed = NewError("PARSE_FAILED", "parse failed", nil)
-
-    // ErrValidationFailed 验证失败错误
-    //
-    // 使用场景: 
-    //   - 标志值验证失败
-    //   - 业务规则验证失败
-    ErrValidationFailed = NewError("VALIDATION_FAILED", "validation failed", nil)
-
-    // ErrRequiredFlag 必填标志缺失错误
-    //
-    // 使用场景: 
-    //   - 必填标志未提供
-    //   - 必填标志值为空
-    ErrRequiredFlag = NewError("REQUIRED_FLAG", "required flag is missing", nil)
-
-    // ErrInvalidValue 无效值错误
-    //
-    // 使用场景: 
-    //   - 标志值格式错误
-    //   - 标志值超出范围
-    ErrInvalidValue = NewError("INVALID_VALUE", "invalid flag value", nil)
+    // InstructionAll 统一补全指令
+    // 用法: __complete all <cur> <prev> [cmd_args...]
+    // 输出: 多行格式，包含 CONTEXT, CUR, PREV, CANDIDATES, ENUM, MATCHES, IS_FLAG
+    InstructionAll = "all"
 )
 ```
 
-以下是项目中常用的预定义错误, 可以直接使用或作为参考。 所有预定义错误都使用NewError创建, 保持一致的错误结构。
+### 补全命令名称常量
+
+```go
+const CompleteCmdName = "__complete"
+    // 补全子命令名称，用于 Shell 自动补全脚本
+```
+
+### 补全安装相关常量
+
+```go
+const (
+    // CompletionsDirName 补全脚本存放目录名
+    CompletionsDirName = ".qflag_completions"
+
+    // CompletionScriptComment 补全脚本注释模板
+    CompletionScriptComment = "# qflag completion for %s\n"
+
+    // PwshCompletionScriptExt PowerShell 补全脚本扩展名
+    PwshCompletionScriptExt = ".ps1"
+
+    // BashCompletionScriptExt Bash 补全脚本扩展名
+    BashCompletionScriptExt = ".sh"
+
+    // PwshProfileDirWindows Windows PowerShell 配置文件目录
+    PwshProfileDirWindows = "Documents/PowerShell"
+
+    // PwshProfileFileName PowerShell 配置文件名
+    PwshProfileFileName = "Microsoft.PowerShell_profile.ps1"
+
+    // PwshProfileDirUnix Unix PowerShell 配置文件目录
+    PwshProfileDirUnix = ".config/powershell"
+
+    // BashProfileFileNameDarwin macOS Bash 配置文件名
+    BashProfileFileNameDarwin = ".bash_profile"
+
+    // BashProfileFileNameLinux Linux Bash 配置文件名
+    BashProfileFileNameLinux = ".bashrc"
+)
+```
+
+### 补全加载命令模板
+
+```go
+const (
+    // PwshLoadCommandTemplate PowerShell 加载命令模板
+    // 参数: 程序名（3次）、脚本路径（1次）
+    PwshLoadCommandTemplate = "$__qflag_comp_%s = '%s'; if (Test-Path $__qflag_comp_%s) { . $__qflag_comp_%s }"
+
+    // BashLoadCommandTemplate Bash 加载命令模板
+    // 参数: 脚本路径（2次）
+    BashLoadCommandTemplate = "[ -f '%s' ] && source '%s'"
+)
+```
+
+### 补全安装成功信息 - 中文
+
+```go
+const (
+    // InstallSuccessScriptPathCN 脚本安装路径提示（中文）
+    InstallSuccessScriptPathCN = "✓ 补全脚本已安装: %s"
+
+    // InstallSuccessProfilePathCN 配置文件路径提示（中文）
+    InstallSuccessProfilePathCN = "✓ 加载命令已添加到: %s"
+
+    // InstallSuccessHintCN 重启提示（中文）
+    InstallSuccessHintCN = "\n请重启终端或运行以下命令启用补全:"
+)
+```
+
+### 补全安装成功信息 - 英文
+
+```go
+const (
+    // InstallSuccessScriptPathEN 脚本安装路径提示（英文）
+    InstallSuccessScriptPathEN = "✓ Completion script installed: %s"
+
+    // InstallSuccessProfilePathEN 配置文件路径提示（英文）
+    InstallSuccessProfilePathEN = "✓ Load command added to: %s"
+
+    // InstallSuccessHintEN 重启提示（英文）
+    InstallSuccessHintEN = "\nPlease restart your terminal or run the following command to enable completions:"
+)
+```
+
+### 补全执行命令（Shell 命令本身不需要翻译）
+
+```go
+const (
+    // InstallSuccessBashCmd Bash 执行命令
+    InstallSuccessBashCmd = "  source %s"
+
+    // InstallSuccessPwshCmd PowerShell 执行命令
+    InstallSuccessPwshCmd = "  . %s"
+)
+```
+
+---
+
+## VARIABLES
 
 ### 常见时间格式常量
 
@@ -285,30 +345,35 @@ var CommonTimeFormats = []string{
 }
 ```
 
-### 内置补全示例信息 - Linux
+### 内置补全示例信息 - Windows 中文
 
 ```go
-var HelpCompletionExampleLinux = map[string]string{
-    "Linux 临时启用": fmt.Sprintf("source <(%s --completion bash)", filepath.Base(os.Args[0])),
-    "Linux 永久启用": fmt.Sprintf("echo 'source <(%s --completion bash)' >> ~/.bashrc", filepath.Base(os.Args[0])),
+var HelpCompletionExampleWinCN = map[string]string{
+    "临时启用": fmt.Sprintf("%s --completion pwsh | Out-String | Invoke-Expression", programName),
 }
 ```
 
-### 内置补全示例信息 - macOS
+### 内置补全示例信息 - Windows 英文
 
 ```go
-var HelpCompletionExampleMac = map[string]string{
-    "macOS 临时启用": fmt.Sprintf("source <(%s --completion bash)", filepath.Base(os.Args[0])),
-    "macOS 永久启用": fmt.Sprintf("echo 'source <(%s --completion bash)' >> ~/.bash_profile", filepath.Base(os.Args[0])),
+var HelpCompletionExampleWinEN = map[string]string{
+    "Temporary": fmt.Sprintf("%s --completion pwsh | Out-String | Invoke-Expression", programName),
 }
 ```
 
-### 内置补全示例信息 - Windows
+### 内置补全示例信息 - Unix-like 系统中文（Linux 和 macOS 共用）
 
 ```go
-var HelpCompletionExampleWin = map[string]string{
-    "Windows 临时启用": fmt.Sprintf("%s --completion pwsh | Out-String | Invoke-Expression", filepath.Base(os.Args[0])),
-    "Windows 永久启用": fmt.Sprintf("echo '%s --completion pwsh | Out-String | Invoke-Expression' >> $PROFILE", filepath.Base(os.Args[0])),
+var HelpCompletionExampleUnixCN = map[string]string{
+    "临时启用": fmt.Sprintf("source <(%s --completion bash)", programName),
+}
+```
+
+### 内置补全示例信息 - Unix-like 系统英文（Linux 和 macOS 共用）
+
+```go
+var HelpCompletionExampleUnixEN = map[string]string{
+    "Temporary": fmt.Sprintf("source <(%s --completion bash)", programName),
 }
 ```
 
@@ -345,41 +410,69 @@ CurrentShell 根据当前平台返回对应的Shell类型
 func GetCompletionExample() map[string]string
 ```
 
-GetCompletionExample 获取当前平台的补全示例信息
+GetCompletionExample 获取当前平台的补全示例信息（中文）
 
 **返回值:**
   - map[string]string: 包含补全示例信息的映射
 
-**功能说明: **
-  - 根据当前运行的操作系统返回对应的补全示例
+**功能说明:**
+  - 根据当前运行的操作系统返回对应的中文补全示例
   - 支持 Windows、Linux 和 macOS 平台
   - 提供临时启用和永久启用两种方式的示例
 
 ---
 
-### func IsNotFoundError(err error) bool
+### func GetCompletionExampleEN() map[string]string
 
 ```go
-func IsNotFoundError(err error) bool
+func GetCompletionExampleEN() map[string]string
 ```
 
-IsNotFoundError 判断是否为"未找到"错误
-
-**参数:**
-  - err: 要检查的错误
+GetCompletionExampleEN 获取当前平台的补全示例信息（英文）
 
 **返回值:**
-  - bool: 是否为未找到错误, true表示是
+  - map[string]string: 包含补全示例信息的映射
 
-**功能说明: **
-  - 检查错误码是否为FLAG_NOT_FOUND或COMMAND_NOT_FOUND
-  - 支持错误链检查
-  - 便于统一处理未找到类型的错误
+**功能说明:**
+  - 根据当前运行的操作系统返回对应的英文补全示例
+  - 支持 Windows、Linux 和 macOS 平台
+  - 提供临时启用和永久启用两种方式的示例
 
-**使用场景: **
-  - 统一处理资源不存在的情况
-  - 区分未找到错误和其他错误
-  - 简化错误处理逻辑
+---
+
+### func GetInstallCompletionExample() map[string]string
+
+```go
+func GetInstallCompletionExample() map[string]string
+```
+
+GetInstallCompletionExample 获取当前平台的安装补全示例信息（中文）
+
+**返回值:**
+  - map[string]string: 包含安装补全示例信息的映射
+
+**功能说明:**
+  - 根据当前运行的操作系统返回对应的中文安装补全示例
+  - Windows 使用 pwsh，其他平台使用 bash
+  - 作为永久启用的推荐方式
+
+---
+
+### func GetInstallCompletionExampleEN() map[string]string
+
+```go
+func GetInstallCompletionExampleEN() map[string]string
+```
+
+GetInstallCompletionExampleEN 获取当前平台的安装补全示例信息（英文）
+
+**返回值:**
+  - map[string]string: 包含安装补全示例信息的映射
+
+**功能说明:**
+  - 根据当前运行的操作系统返回对应的英文安装补全示例
+  - Windows 使用 pwsh，其他平台使用 bash
+  - 作为永久启用的推荐方式
 
 ---
 
@@ -432,35 +525,88 @@ ParseTimeWithFormats 尝试使用多种格式解析时间字符串
 
 ---
 
-### func WrapParseError(err error, flagType, value string) *Error
+## TYPES
+
+### type UnknownFlagError struct
 
 ```go
-func WrapParseError(err error, flagType, value string) *Error
+type UnknownFlagError struct {
+    Command     string   // 当前命令名
+    Input       string   // 用户输入的错误标志
+    Suggestions []string // 相似标志建议列表
+}
 ```
 
-WrapParseError 包装解析错误, 专门用于标志解析场景
+UnknownFlagError 未知标志错误
 
-**参数:**
-  - err: 原始解析错误
-  - flagType: 标志类型描述
-  - value: 解析失败的值
+当用户输入的标志不存在时返回此错误, 包含相似标志建议。
+
+**字段说明:**
+  - Command: 当前命令名
+  - Input: 用户输入的错误标志
+  - Suggestions: 相似标志建议列表
+
+**错误格式示例:**
+```
+myapp: unknown flag: '--verboose'
+
+The most similar flags are
+	--verbose
+	-v
+```
+
+#### func (e *UnknownFlagError) Error() string
+
+```go
+func (e *UnknownFlagError) Error() string
+```
+
+Error 实现 error 接口, 返回格式化的错误信息
 
 **返回值:**
-  - *Error: 包装后的解析错误
-
-**功能说明: **
-  - 专门用于标志解析错误
-  - 自动生成描述性错误消息
-  - 保留原始错误信息
-
-**使用场景: **
-  - 标志值解析失败
-  - 类型转换错误
-  - 格式验证错误
+  - string: 格式化的错误信息, 包含建议列表
 
 ---
 
-## TYPES
+### type UnknownSubcommandError struct
+
+```go
+type UnknownSubcommandError struct {
+    Command     string   // 当前命令名
+    Input       string   // 用户输入的错误子命令
+    Suggestions []string // 相似子命令建议列表
+}
+```
+
+UnknownSubcommandError 未知子命令错误
+
+当用户输入的子命令不存在时返回此错误, 包含相似子命令建议。
+
+**字段说明:**
+  - Command: 当前命令名
+  - Input: 用户输入的错误子命令
+  - Suggestions: 相似子命令建议列表
+
+**错误格式示例:**
+```
+myapp: 'cnfig' is not a valid command. See 'myapp --help'.
+
+The most similar commands are
+	config
+```
+
+#### func (e *UnknownSubcommandError) Error() string
+
+```go
+func (e *UnknownSubcommandError) Error() string
+```
+
+Error 实现 error 接口, 返回格式化的错误信息
+
+**返回值:**
+  - string: 格式化的错误信息, 包含建议列表
+
+---
 
 ### type BuiltinFlagHandler interface
 
@@ -503,6 +649,25 @@ type BuiltinFlagHandler interface {
     //   - 例如: 版本标志只有在设置了版本信息时才注册
     //   - 帮助标志总是注册
     ShouldRegister(cmd Command) bool
+
+    // ShouldSkipRegistration 判断是否应该跳过注册
+    //
+    // 参数:
+    //   - cmd: 要检查的命令
+    //
+    // 返回值:
+    //   - bool: 是否应该跳过注册
+    //
+    // 功能说明: 
+    //   - 检查标志是否已经被注册（避免重复注册）
+    //   - 支持重复解析场景
+    //   - 由每个处理器自己实现检查逻辑
+    //
+    // 使用场景:
+    //   - 重复调用 Parse() 方法时避免重复注册
+    //   - 测试场景中多次解析同一命令
+    //   - 支持幂等性操作
+    ShouldSkipRegistration(cmd Command) bool
 }
 ```
 
@@ -560,6 +725,7 @@ type CmdConfig struct {
     MutexGroups    []MutexGroup      // 互斥组列表
     RequiredGroups []RequiredGroup   // 必需组列表
     Completion     bool              // 是否启用自动补全标志
+    DynamicCompletion bool           // 是否启用动态补全
 }
 ```
 
@@ -575,6 +741,23 @@ NewCmdConfig 创建新的命令配置
 
 **返回值:**
   - *CmdConfig: 新创建的 CmdConfig 实例, 初始化为零值
+
+#### func (c *CmdConfig) Clone() *CmdConfig
+
+```go
+func (c *CmdConfig) Clone() *CmdConfig
+```
+
+Clone 克隆命令配置
+
+**返回值:**
+  - *CmdConfig: 克隆后的新 CmdConfig 实例
+
+**功能说明:**
+  - 创建当前配置的深拷贝
+  - 复制所有字段值
+  - 复制切片和映射时创建新的底层数组/映射
+  - 用于避免配置共享导致的副作用
 
 ---
 
@@ -747,10 +930,145 @@ type Command interface {
     AddNotes(notes []string)                // 添加多条注意事项
     SetLogoText(logo string)                // 设置命令logo文本
     Config() *CmdConfig                     // 获取命令配置
+
+    // 禁用标志解析
+    IsDisableFlagParsing() bool             // 检查是否禁用标志解析
+    SetDisableFlagParsing(disable bool)     // 设置是否禁用标志解析
+
+    // 隐藏命令
+    IsHidden() bool                         // 检查命令是否隐藏
+    SetHidden(hidden bool)                  // 设置命令是否隐藏
+
+    // 环境变量绑定
+    AutoBindAllEnv() // 为所有标志自动绑定环境变量
 }
 ```
 
 Command 接口定义了命令的核心行为
+
+#### 禁用标志解析相关方法
+
+##### func IsDisableFlagParsing() bool
+
+```go
+func IsDisableFlagParsing() bool
+```
+
+IsDisableFlagParsing 检查是否禁用标志解析
+
+**返回值:**
+  - bool: 如果禁用标志解析返回 true，否则返回 false
+
+**功能说明:**
+  - 获取命令的禁用标志解析状态
+  - 当返回 true 时，解析器会跳过标志解析阶段
+  - 所有参数（包括 `--flag` 形式）都作为位置参数处理
+  - 不影响子命令的路由功能
+
+**使用场景:**
+  - 包装外部命令（如 kubectl exec、docker run）
+  - 需要透传参数给子进程的场景
+  - Shell 脚本包装器
+
+**注意事项:**
+  - 默认值为 false（不禁用）
+  - 只影响当前命令的标志解析，不影响子命令
+  - 禁用后，`--help` 和 `--version` 等内置标志也不会被特殊处理
+
+---
+
+##### func SetDisableFlagParsing(disable bool)
+
+```go
+func SetDisableFlagParsing(disable bool)
+```
+
+SetDisableFlagParsing 设置是否禁用标志解析
+
+**参数:**
+  - disable: 是否禁用标志解析，true 表示禁用，false 表示不禁用
+
+**功能说明:**
+  - 设置命令的禁用标志解析状态
+  - 设置为 true 后，解析器会跳过标志解析阶段
+  - 所有参数原样保留为位置参数
+  - 子命令路由功能正常工作
+
+**使用示例:**
+```go
+cmd := NewCmd("exec", "e", ExitOnError)
+cmd.SetDisableFlagParsing(true)  // 禁用标志解析
+cmd.SetRun(func(c Command) error {
+    args := c.Args()  // 所有参数都作为位置参数
+    // 透传给外部命令
+    return nil
+})
+```
+
+**注意事项:**
+  - 应在解析前设置，通常在命令创建后立即设置
+  - 每个命令可以独立设置，父命令的设置不影响子命令
+  - 禁用后，环境变量绑定也会被跳过
+
+---
+
+#### 隐藏命令相关方法
+
+##### func IsHidden() bool
+
+```go
+func IsHidden() bool
+```
+
+IsHidden 检查命令是否隐藏
+
+**返回值:**
+  - bool: 如果命令是隐藏的返回 true，否则返回 false
+
+**功能说明:**
+  - 获取命令的隐藏状态
+  - 隐藏命令不会显示在帮助信息的子命令列表中
+  - 但仍可以通过命令行正常调用
+  - 默认值为 false（不隐藏）
+
+**使用场景:**
+  - 创建内部命令或调试命令
+  - 隐藏已弃用但仍需兼容的命令
+  - 隐藏高级或实验性功能
+
+---
+
+##### func SetHidden(hidden bool)
+
+```go
+func SetHidden(hidden bool)
+```
+
+SetHidden 设置命令是否隐藏
+
+**参数:**
+  - hidden: 是否隐藏命令，true 表示隐藏，false 表示不隐藏
+
+**功能说明:**
+  - 设置命令的隐藏状态
+  - 隐藏后命令不会出现在帮助信息中
+  - 不影响命令的正常执行和路由
+  - 子命令可以独立设置隐藏状态
+
+**使用示例:**
+```go
+cmd := NewCmd("debug", "d", ExitOnError)
+cmd.SetHidden(true)  // 隐藏调试命令
+cmd.SetRun(func(c Command) error {
+    // 执行调试逻辑
+    return nil
+})
+```
+
+**注意事项:**
+  - 隐藏命令仍可通过命令行正常调用
+  - 只是不在帮助信息的子命令列表中显示
+  - 适用于内部命令或高级功能
 
 ---
 
@@ -1030,6 +1348,20 @@ type Flag interface {
     //   - 优先级低于命令行参数
     //   - 支持配置文件和环境变量
     BindEnv(name string)
+
+    // AutoBindEnv 自动绑定环境变量
+    //
+    // 功能说明:
+    //   - 自动使用标志的长名称作为环境变量名（转为大写）
+    //   - 如果没有设置长名称，会触发 panic
+    //   - 环境变量前缀（EnvPrefix）在解析时自动拼接，无需手动处理
+    //
+    // 注意事项:
+    //   - 环境变量的优先级低于命令行参数
+    //   - 必须设置长名称，否则会 panic
+    //   - 短名称不会被使用，避免冲突
+    //   - 自动转为大写，确保环境变量命名规范
+    AutoBindEnv()
 
     // GetEnvVar 获取绑定的环境变量名
     //
@@ -1319,26 +1651,32 @@ MutexGroup 定义了一组互斥的标志, 其中最多只能有一个被设置�
 
 ```go
 type RequiredGroup struct {
-    Name  string   // 必需组名称，用于错误提示和标识
-    Flags []string // 必需组中的标志名称列表
+    Name       string   // 必需组名称，用于错误提示和标识
+    Flags      []string // 必需组中的标志名称列表
+    Conditional bool     // 是否为条件性必需组
 }
 ```
 
 RequiredGroup 必需组定义
 
-RequiredGroup 定义了一组必须同时设置的标志。 当用户没有设置必需组中的所有标志时, 解析器会返回错误。
+RequiredGroup 定义了一组标志的必需关系。支持两种模式:
+1. 普通必需组: 组中的所有标志都必须被设置
+2. 条件性必需组: 如果组中任何一个标志被设置, 则所有标志都必须被设置
 
 **字段说明:**
   - Name: 必需组名称, 用于错误提示和标识
   - Flags: 必需组中的标志名称列表
+  - Conditional: 是否为条件性必需组
 
 **使用场景:**
-  - 连接参数必需 (如 --host 和 --port 必须同时设置)
-  - 认证参数必需 (如 --username 和 --password 必须同时设置)
-  - 配置文件路径必需 (如 --config 和 --env 必须同时设置)
+  - 普通必需组: 连接参数必需 (如 --host 和 --port 必须同时设置)
+  - 条件性必需组: 可选但相关的标志组合 (如 --host 和 --port, 如果使用其中一个则必须同时使用)
+  - 认证参数: 普通必需组 (如 --username 和 --password 必须同时设置)
+  - 配置文件路径: 条件性必需组 (如 --config 和 --env, 如果使用其中一个则必须同时使用)
 
 **注意事项:**
-  - 必需组中的所有标志都必须被设置
+  - 对于普通必需组, 组中的所有标志都必须被设置
+  - 对于条件性必需组, 如果组中任何一个标志被设置, 则所有标志都必须被设置
   - 如果只设置了部分标志, 解析会失败
   - 必需组名称在命令中应该唯一
 

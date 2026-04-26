@@ -59,6 +59,23 @@ func (h *CompletionHandler) ShouldRegister(cmd types.Command) bool {
 	return cmd.IsRootCmd() && cmd.Config().Completion
 }
 
+// ShouldSkipRegistration 判断是否应该跳过注册
+//
+// 参数:
+//   - cmd: 要检查的命令
+//
+// 返回值:
+//   - bool: 如果标志已存在则返回true
+//
+// 功能说明:
+//   - 检查补全标志是否已经被注册
+//   - 避免重复注册，支持重复解析场景
+func (h *CompletionHandler) ShouldSkipRegistration(cmd types.Command) bool {
+	// 检查长名称是否已存在（补全标志没有短名称）
+	_, exists := cmd.GetFlag(types.CompletionFlagName)
+	return exists
+}
+
 // getShellTypeFromArgs 从命令行参数获取Shell类型
 //
 // 参数:

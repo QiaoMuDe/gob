@@ -24,164 +24,6 @@ type RequiredGroup = types.RequiredGroup
 // 这些配置会影响命令的帮助信息显示、环境变量处理、错误提示等
 type CmdConfig = types.CmdConfig
 
-// Error 是qflag项目的标准错误类型, 提供了结构化的错误信息。
-// 包含错误码、错误消息和原始错误, 便于错误分类和处理。
-//
-// 字段说明:
-//   - Code: 错误码, 用于错误分类和程序化处理
-//   - Message: 错误消息, 面向用户的描述信息
-//   - Cause: 原始错误, 包装的底层错误
-//
-// 特性:
-//   - 实现error接口
-//   - 支持错误链 (errors.Unwrap)
-//   - 支持错误比较 (errors.Is)
-//   - 提供错误码匹配
-type Error = types.Error
-
-// NewError 创建新的错误
-//
-// 参数:
-//   - code: 错误码, 用于错误分类和识别
-//   - message: 错误消息, 面向用户的描述信息
-//   - cause: 原始错误, 可以为nil
-//
-// 返回值:
-//   - *Error: 新创建的错误实例
-//
-// 功能说明:
-//   - 创建结构化的错误实例
-//   - 保留原始错误信息
-//   - 提供错误分类能力
-var NewError = types.NewError
-
-// WrapError 包装错误
-//
-// 参数:
-//   - err: 要包装的原始错误
-//   - code: 新的错误码
-//   - message: 新的错误消息
-//
-// 返回值:
-//   - *Error: 包装后的错误
-//
-// 功能说明:
-//   - 为现有错误添加上下文信息
-//   - 保持原始错误链
-//   - 提供新的错误分类
-//
-// 使用场景:
-//   - 为底层错误添加业务上下文
-//   - 统一错误处理格式
-//   - 错误转换和适配
-var WrapError = types.WrapError
-
-// WrapParseError 包装解析错误, 专门用于标志解析场景
-//
-// 参数:
-//   - err: 原始解析错误
-//   - flagType: 标志类型描述
-//   - value: 解析失败的值
-//
-// 返回值:
-//   - *Error: 包装后的解析错误
-//
-// 功能说明:
-//   - 专门用于标志解析错误
-//   - 自动生成描述性错误消息
-//   - 保留原始错误信息
-//
-// 使用场景:
-//   - 标志值解析失败
-//   - 类型转换错误
-//   - 格式验证错误
-var WrapParseError = types.WrapParseError
-
-// IsNotFoundError 判断是否为"未找到"错误
-//
-// 参数:
-//   - err: 要检查的错误
-//
-// 返回值:
-//   - bool: 是否为未找到错误, true表示是
-//
-// 功能说明:
-//   - 检查错误码是否为FLAG_NOT_FOUND或COMMAND_NOT_FOUND
-//   - 支持错误链检查
-//   - 便于统一处理未找到类型的错误
-//
-// 使用场景:
-//   - 统一处理资源不存在的情况
-//   - 区分未找到错误和其他错误
-//   - 简化错误处理逻辑
-var IsNotFoundError = types.IsNotFoundError
-
-// 预定义错误变量
-var (
-	// ErrInvalidFlagType 无效的标志类型错误
-	//
-	// 使用场景:
-	//   - 传入不支持的标志类型
-	//   - 标志类型转换失败
-	ErrInvalidFlagType = types.ErrInvalidFlagType
-
-	// ErrFlagNotFound 标志不存在错误
-	//
-	// 使用场景:
-	//   - 查找不存在的标志
-	//   - 引用未注册的标志
-	ErrFlagNotFound = types.ErrFlagNotFound
-
-	// ErrCmdNotFound 命令不存在错误
-	//
-	// 使用场景:
-	//   - 查找不存在的命令
-	//   - 引用未注册的命令
-	ErrCmdNotFound = types.ErrCmdNotFound
-
-	// ErrFlagAlreadyExists 标志已存在错误
-	//
-	// 使用场景:
-	//   - 注册重复的标志
-	//   - 标志名称冲突
-	ErrFlagAlreadyExists = types.ErrFlagAlreadyExists
-
-	// ErrCmdAlreadyExists 命令已存在错误
-	//
-	// 使用场景:
-	//   - 注册重复的命令
-	//   - 命令名称冲突
-	ErrCmdAlreadyExists = types.ErrCmdAlreadyExists
-
-	// ErrParseFailed 解析失败错误
-	//
-	// 使用场景:
-	//   - 命令行参数解析失败
-	//   - 配置文件解析失败
-	ErrParseFailed = types.ErrParseFailed
-
-	// ErrValidationFailed 验证失败错误
-	//
-	// 使用场景:
-	//   - 标志值验证失败
-	//   - 业务规则验证失败
-	ErrValidationFailed = types.ErrValidationFailed
-
-	// ErrRequiredFlag 必填标志缺失错误
-	//
-	// 使用场景:
-	//   - 必填标志未提供
-	//   - 必填标志值为空
-	ErrRequiredFlag = types.ErrRequiredFlag
-
-	// ErrInvalidValue 无效值错误
-	//
-	// 使用场景:
-	//   - 标志值格式错误
-	//   - 标志值超出范围
-	ErrInvalidValue = types.ErrInvalidValue
-)
-
 // ErrorHandling 错误处理方式枚举
 // ErrorHandling 定义了解析错误时的处理策略, 直接使用标准库
 // flag包的错误处理方式, 保持兼容性。
@@ -400,30 +242,9 @@ type Cmd = cmd.Cmd
 //   - 初始化配置选项
 var NewCmd = cmd.NewCmd
 
-// CmdSpec 命令规格结构体
-// CmdSpec 提供了通过规格创建命令的方式, 包含命令的所有属性。
-// 这种方式比函数式配置更加直观和集中。
-type CmdSpec = cmd.CmdSpec
-
 // CmdOpts 命令选项结构体
 // CmdOpts 提供了配置现有命令的方式，包含命令的所有可配置属性。
-// 与 CmdSpec 不同，CmdOpts 用于配置已存在的命令，而不是创建新命令。
 type CmdOpts = cmd.CmdOpts
-
-// NewCmdSpec 创建新的命令规格
-//
-// 参数:
-//   - longName: 命令长名称
-//   - shortName: 命令短名称
-//
-// 返回值:
-//   - *CmdSpec: 初始化的命令规格
-//
-// 功能说明:
-//   - 创建基本命令规格
-//   - 设置默认值
-//   - 初始化所有字段
-var NewCmdSpec = cmd.NewCmdSpec
 
 // NewCmdOpts 创建新的命令选项
 //
@@ -435,23 +256,6 @@ var NewCmdSpec = cmd.NewCmdSpec
 //   - 初始化所有字段为零值
 //   - 初始化 map 和 slice 避免空指针
 var NewCmdOpts = cmd.NewCmdOpts
-
-// NewCmdFromSpec 从规格创建命令
-//
-// 参数:
-//   - spec: 命令规格结构体
-//
-// 返回值:
-//   - *Cmd: 创建的命令实例
-//   - error: 创建失败时返回错误
-//
-// 功能说明:
-//   - 根据规格结构体创建命令
-//   - 自动设置所有属性和配置
-//   - 递归创建子命令
-//   - 支持默认值处理
-//   - 使用defer捕获panic, 转换为错误返回
-var NewCmdFromSpec = cmd.NewCmdFromSpec
 
 // GenerateCompletion 生成补全脚本
 //

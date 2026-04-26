@@ -52,3 +52,21 @@ func (h *VersionHandler) Type() types.BuiltinFlagType {
 func (h *VersionHandler) ShouldRegister(cmd types.Command) bool {
 	return cmd.IsRootCmd() && cmd.Config().Version != ""
 }
+
+// ShouldSkipRegistration 判断是否应该跳过注册
+//
+// 参数:
+//   - cmd: 要检查的命令
+//
+// 返回值:
+//   - bool: 如果标志已存在则返回true
+//
+// 功能说明:
+//   - 检查版本标志是否已经被注册
+//   - 避免重复注册，支持重复解析场景
+func (h *VersionHandler) ShouldSkipRegistration(cmd types.Command) bool {
+	// 检查长名称和短名称是否已存在
+	_, longExists := cmd.GetFlag(types.VersionFlagName)
+	_, shortExists := cmd.GetFlag(types.VersionFlagShortName)
+	return longExists || shortExists
+}
